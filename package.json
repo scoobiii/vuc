@@ -1,7 +1,7 @@
 {
   "name": "@vortexfoundation/vua",
-  "version": "1.0.0",
-  "description": "Vortex Universal Adapter & Governed Execution Protocol for AI Agents, MCP and LLMs",
+  "version": "0.1.0-rc.1",
+  "description": "Vortex Universal Adapter (VUA) implementation with governed execution and DREX Execution Integrity",
   "type": "module",
   "main": "./src/vortex/index.ts",
   "types": "./src/vortex/index.ts",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/scoobiii/vua.git"
+    "url": "https://github.com/scoobiii/vuc.git"
   },
   "keywords": [
     "vortex",
