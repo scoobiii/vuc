@@ -63,6 +63,15 @@ case "${ARCH}" in
     ;;
 esac
 
+
+case "${PLATFORM_OS}-${PLATFORM_ARCH}" in
+  linux-arm64) EXPECTED_TARBALL_SHA256="c7cce7508fd13201d544180cca531a87a89c41829876c431cdfa0ea7f5308481" ;;
+  linux-x64) EXPECTED_TARBALL_SHA256="91c0e2640f8d2e3e73fd3dd62ed4d178ce9a6f7ce8f8980b4dc4abf7a6f9ccd4" ;;
+  darwin-arm64) EXPECTED_TARBALL_SHA256="c5bb22ba029d5909da9c6db82aa037278a66d1cf8a5572f433879f7dcd866c31" ;;
+  darwin-x64) EXPECTED_TARBALL_SHA256="78e70cda4068f83736649c760575f4382259d5817be96d2eb04b9d078d943af0" ;;
+  *) echo "Plataforma sem SHA-256 allowlist."; exit 1 ;;
+esac
+
 TAR_NAME="bend-2.0.25-${PLATFORM_OS}-${PLATFORM_ARCH}.tar.gz"
 DOWNLOAD_URL="https://github.com/bendlang/bend/releases/download/v2.0.25/${TAR_NAME}"
 TMP_TAR="/tmp/${TAR_NAME}"
@@ -71,6 +80,8 @@ echo "⬇ Baixando Bend 2.0.25 para ${PLATFORM_OS}-${PLATFORM_ARCH}..."
 echo "  URL: ${DOWNLOAD_URL}"
 
 curl -fsSL -o "${TMP_TAR}" "${DOWNLOAD_URL}"
+ACTUAL_TARBALL_SHA256="$(sha256sum "${TMP_TAR}" | cut -d " " -f1)"
+if [ "${ACTUAL_TARBALL_SHA256}" != "${EXPECTED_TARBALL_SHA256}" ]; then echo "SHA-256 Bend rejeitado"; exit 1; fi
 
 echo "📦 Extraindo em ${BIN_DIR}..."
 mkdir -p "${BIN_DIR}"
@@ -78,6 +89,8 @@ tar -xzf "${TMP_TAR}" -C "${BIN_DIR}" --strip-components=1
 rm -f "${TMP_TAR}"
 
 chmod +x "${TARGET_BIN}"
+ACTUAL_BIN_SHA256="$(sha256sum "${TARGET_BIN}" | cut -d " " -f1)"
+echo "SHA-256 binário: ${ACTUAL_BIN_SHA256}"
 
 if ! "${TARGET_BIN}" version 2>&1 | grep -q "2.0.25"; then
   echo "❌ Binário baixado não reporta Bend 2.0.25; instalação recusada."

@@ -109,6 +109,7 @@ const INITIAL_ACCOUNTS: DrexAccountState[] = [
     cnpjOrCpfMasked: '41.***.***/0001-88',
     realDigitalBalance: 450_000_00, // R$ 450.000,00
     tpftBalance: 35,
+    energyMwhBalance: 1000,
     frozenBalance: 0,
     nodeId: 'client-wallet-sovereign-01',
     complianceStatus: 'VERIFIED',
@@ -245,11 +246,17 @@ export class DrexGovernanceEngine {
 
         lawsVerified.push('DREX_Laws.bend#execute_drex_dvp', 'DREX_Laws.bend#check_dvp_solvency');
 
+        if (!bendResult.success || bendResult.settledVolume !== volume) {
+          throw new Error('Falha DvP: prova nativa Bend rejeitou a liquidação; nenhuma mutação foi aplicada.');
+        }
+
         mechanicalProofInfo = {
-          verified: bendResult.success,
+          verified: true,
           engine: bendResult.engine,
           stdout: bendResult.stdout,
           verifiedLaws: ['check_dvp_solvency', 'execute_drex_dvp'],
+          inputHash: bendResult.inputHash,
+          executionHash: bendResult.executionHash,
         };
 
         // Troca atômica de pernas
@@ -262,6 +269,47 @@ export class DrexGovernanceEngine {
         auditTrail.push({
           rule: 'DvP_ATOMICITY',
           description: `Liquidação DvP atômica validada via ${bendResult.engine} (${bendResult.settledVolume} TPFT transferidos simultaneamente).`,
+          passed: true,
+        });
+        break;
+      }
+
+      case 'SETTLE_ENERGY_DVP': {
+        // Fase 2: RWA de energia — Delivery Versus Payment.
+        // A prova nativa é aceita antes de qualquer mutação das duas pernas.
+        const price = payload.amountRealDigital;
+        const volume = payload.energyMwh ?? 0;
+        if (!receiver) throw new Error('Energy DvP bloqueado: vendedor obrigatório.');
+        if (!Number.isSafeInteger(price) || price <= 0) throw new Error('Energy DvP bloqueado: preço inválido.');
+        if (!Number.isSafeInteger(volume) || volume <= 0) throw new Error('Energy DvP bloqueado: volume MWh inválido.');
+        if (sender.realDigitalBalance < price) throw new Error('Energy DvP bloqueado: saldo financeiro insuficiente.');
+        const sellerEnergy = receiver.energyMwhBalance ?? 0;
+        if (sellerEnergy < volume) throw new Error('Energy DvP bloqueado: energia disponível insuficiente.');
+
+        const proof = VUABendEngine.executeEnergyDvpInBend(sender.realDigitalBalance, sellerEnergy, price, volume);
+        if (!proof.success || proof.settledMwh !== volume) {
+          throw new Error('Energy DvP bloqueado: prova nativa Bend rejeitou a liquidação.');
+        }
+
+        mechanicalProofInfo = {
+          verified: true,
+          engine: proof.engine,
+          stdout: proof.stdout,
+          verifiedLaws: ['execute_energy_dvp'],
+          inputHash: proof.inputHash,
+          executionHash: proof.executionHash,
+        };
+        lawsVerified.push('DREX_Laws.bend#execute_energy_dvp');
+
+        // Somente após a prova nativa: pagamento e entrega do MWh.
+        sender.realDigitalBalance -= price;
+        receiver.realDigitalBalance += price;
+        sender.energyMwhBalance = (sender.energyMwhBalance ?? 0) + volume;
+        receiver.energyMwhBalance = sellerEnergy - volume;
+
+        auditTrail.push({
+          rule: 'ENERGY_DVP_ATOMICITY',
+          description: 'Energia tokenizada: ' + volume + ' MWh contra R$ ' + (price / 100).toFixed(2) + ', com prova nativa Bend antes da mutação.',
           passed: true,
         });
         break;

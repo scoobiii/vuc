@@ -51,6 +51,18 @@ The resulting evidence binds:
 
 > **Scope limitation:** this is a first implemented Execution Integrity layer for DREX flows. It is **not** a claim of complete Drex protocol coverage, privacy infrastructure, external settlement interoperability, or production certification.
 
+## DREX Fase 2 — RWA de energia
+
+O VUC amplia a camada de Execution Integrity para um caso de uso de Fase 2: **Delivery Versus Payment (DvP) de energia tokenizada/RWA**.
+
+- `SETTLE_ENERGY_DVP` exige prova nativa Bend 2.0.25 antes de qualquer mutação;
+- a prova vincula `inputHash` e `executionHash` ao programa e à saída efetivamente executados;
+- falha, ausência ou saída não canônica do provador bloqueia a liquidação;
+- o piloto modela o ativo em MWh e a perna financeira em Real Digital; isso **não representa liquidação externa real no Drex**;
+- o rail (`DREX`, `TOKENIZED_ASSET` ou `OTHER`) é metadado de execução, não uma afirmação de interoperabilidade já implementada.
+
+A Fase 2 do Piloto Drex ampliou testes para serviços de participantes, ativos adicionais, smart contracts de terceiros e outros casos de uso; o VUC usa energia como caso de teste de RWA, sem declarar equivalência com a plataforma oficial do BC.
+
 ## Bend 1 vs Bend 2
 
 **Bend 1 and Bend 2 are different language generations.** Bend 1 programs do not automatically carry over to Bend 2; the current Bend project explicitly documents this incompatibility. citeturn1search1
