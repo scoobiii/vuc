@@ -250,8 +250,6 @@ export class DrexGovernanceEngine {
           engine: bendResult.engine,
           stdout: bendResult.stdout,
           verifiedLaws: ['check_dvp_solvency', 'execute_drex_dvp'],
-          inputHash: bendResult.inputHash,
-          executionHash: bendResult.executionHash,
         };
 
         // Troca atômica de pernas
