@@ -5,7 +5,21 @@
  * e registra métricas reais de tempo de parede (latência, dispersão e vazão).
  */
 
+import fs from 'node:fs';
 import { DrexDistributedNetwork } from '../src/vortex/drex-network.js';
+
+function detectEnvironmentClassification(platform: string, arch: string): string {
+  if (process.env.K_SERVICE || process.env.K_REVISION) {
+    return `Container Cloud Run Linux ${arch} (Ambiente Virtualizado / Não Bare-Metal)`;
+  }
+  if (fs.existsSync('/.dockerenv')) {
+    return `Container Docker Linux ${arch} (Ambiente Virtualizado / Não Bare-Metal)`;
+  }
+  if (process.env.TERMUX_VERSION || process.env.PREFIX?.includes('com.termux')) {
+    return `Dispositivo Físico Android (Termux Linux ${arch} - Hardware Real)`;
+  }
+  return `Host ${platform} ${arch} (Execução Local Direta)`;
+}
 
 async function main() {
   console.log('================================================================================');
@@ -29,8 +43,10 @@ async function main() {
   console.log('Iniciando bateria de medição (30 iterações transacionais DvP)...\n');
   const metrics = await network.benchmarkNetworkLatency(30);
 
+  const classification = detectEnvironmentClassification(metrics.environment.platform, metrics.environment.arch);
+
   console.log('================================================================================');
-  console.log('   RESULTADOS REAIS MEDIDOS (CONTAINER CLOUD RUN / LINUX)');
+  console.log(`   RESULTADOS REAIS MEDIDOS (${metrics.environment.platform.toUpperCase()} / ${metrics.environment.arch.toUpperCase()})`);
   console.log('================================================================================\n');
 
   console.log(`Amostras Coletadas: ${metrics.sampleSize} transações`);
@@ -62,7 +78,7 @@ async function main() {
   console.log(`  • Plataforma: ${metrics.environment.platform} (${metrics.environment.arch})`);
   console.log(`  • Núcleos: ${metrics.environment.cores} vCPUs`);
   console.log(`  • Runtime: ${metrics.environment.runtime}`);
-  console.log('  • Classificação: Container Cloud Run Linux x86_64 (NÃO classificado como bare-metal)\n');
+  console.log(`  • Classificação: ${classification}\n`);
 }
 
 main().catch((err) => {
