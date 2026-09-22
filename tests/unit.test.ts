@@ -75,6 +75,10 @@ runTest('2. RFC 8785: Determinismo absoluto com ordem aleatória de chaves de en
 // 2. Cryptographic Signatures
 runTest('3. Ed25519: Geração de identidade, assinatura e verificação matemática', () => {
   const identity = generateVortexIdentity('user-test', 'agent/unit-tester', 'test-unit-key');
+  const identityAgain = generateVortexIdentity('user-test', 'agent/unit-tester', 'test-unit-key');
+  assert.equal(identity.key_id, 'test-unit-key', 'customKeyId deve permanecer apenas como identificador');
+  assert.notEqual(identity.public_key, identityAgain.public_key, 'Reutilizar key_id não pode reproduzir a chave pública');
+  assert.notEqual(identity.private_key, identityAgain.private_key, 'Reutilizar key_id não pode reproduzir a chave privada');
   assert.ok(identity.public_key, 'Chave pública deve ser gerada');
   assert.ok(identity.private_key, 'Chave privada deve ser gerada');
 
@@ -88,6 +92,15 @@ runTest('3. Ed25519: Geração de identidade, assinatura e verificação matemá
   const tamperedPayload = { ...payload, timestamp: 1710000001 };
   const isTamperedValid = verifyProofSignature(tamperedPayload, signature, identity.public_key);
   assert.equal(isTamperedValid, false, 'Payload com 1 número modificado deve falhar verificação');
+});
+
+runTest('3b. Ed25519: Reutilizar key_id não reproduz material criptográfico', () => {
+  const firstIdentity = generateVortexIdentity('user-test', 'agent/unit-tester', 'reused-key-id');
+  const secondIdentity = generateVortexIdentity('user-test', 'agent/unit-tester', 'reused-key-id');
+
+  assert.equal(firstIdentity.key_id, secondIdentity.key_id, 'O identificador deve permanecer como metadata');
+  assert.notEqual(firstIdentity.public_key, secondIdentity.public_key, 'A chave pública não pode ser reproduzida pelo key_id');
+  assert.notEqual(firstIdentity.private_key, secondIdentity.private_key, 'A chave privada não pode ser reproduzida pelo key_id');
 });
 
 // 3. SHA-256
