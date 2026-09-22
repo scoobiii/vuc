@@ -486,12 +486,18 @@ def main() -> U32:
     }
 
     const customMain = `
-def main() -> U32:
-  match verify_conservation(${preCash1}, ${preCash2}, ${postCash1}, ${postCash2}):
+def conservation_result() -> Bool:
+  verify_conservation(${preCash1}, ${preCash2}, ${postCash1}, ${postCash2})
+
+def bool_to_u32(result: Bool) -> U32:
+  match result:
     case True{}:
       1
     case False{}:
       0
+
+def main() -> U32:
+  bool_to_u32(conservation_result())
 `;
     const program = base.replace(mainPattern, customMain);
     const inputHash = crypto.createHash('sha256').update(program, 'utf8').digest('hex');

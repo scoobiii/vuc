@@ -414,6 +414,8 @@ export class DrexGovernanceEngine {
       actorRole: payload.actorRole,
       lawsVerified,
       proofHash,
+      inputHash: mechanicalProofInfo.inputHash,
+      executionHash: mechanicalProofInfo.executionHash,
       canonicalJcs,
       ed25519Signature,
       settlementTimestamp: timestamp,
