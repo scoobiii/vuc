@@ -15,14 +15,19 @@ echo "=== [VUA] Verificando / Instalando Compilador Nativo Bend ==="
 # 1. Se já existir no sistema local via PATH, verifica versão
 if command -v bend >/dev/null 2>&1; then
   SYSTEM_BEND="$(command -v bend)"
-  echo "✔ Compilador bend encontrado no PATH do sistema: ${SYSTEM_BEND}"
+  echo "ℹ Bend encontrado no PATH do sistema: ${SYSTEM_BEND}"
   bend version || true
+  echo "ℹ O PATH do sistema não substitui o Bend 2.0.25 pinado do VUC."
 fi
 
 # 2. Se já estiver instalado no bin/native, testa execução
 if [ -f "${TARGET_BIN}" ] && [ -x "${TARGET_BIN}" ]; then
-  echo "✔ Binário local já presente em ${TARGET_BIN}"
-  "${TARGET_BIN}" version || true
+  echo "✔ Binário local presente em ${TARGET_BIN}"
+  if ! "${TARGET_BIN}" version 2>&1 | grep -q "2.0.25"; then
+    echo "❌ Binário local não é Bend 2.0.25; recusando uso."
+    exit 1
+  fi
+  "${TARGET_BIN}" version
   exit 0
 fi
 
@@ -73,6 +78,11 @@ tar -xzf "${TMP_TAR}" -C "${BIN_DIR}" --strip-components=1
 rm -f "${TMP_TAR}"
 
 chmod +x "${TARGET_BIN}"
+
+if ! "${TARGET_BIN}" version 2>&1 | grep -q "2.0.25"; then
+  echo "❌ Binário baixado não reporta Bend 2.0.25; instalação recusada."
+  exit 1
+fi
 
 echo "✔ Bend 2.0.25 instalado com sucesso!"
 "${TARGET_BIN}" version
