@@ -20,6 +20,7 @@ export type DrexOperationType =
   | 'MINT_RESERVE' // Central Bank: emissão primária contra reservas
   | 'BURN_RESERVE' // Central Bank: queima e recolhimento de reservas
   | 'SETTLE_DVP' // Atacado DvP: Real Digital vs TPFT (Delivery vs Payment)
+  | 'SETTLE_ENERGY_DVP' // Fase 2: energia tokenizada/RWA contra Real Digital
   | 'TRANSFER_RETAIL' // Varejo: Transferência P2P ou C2B com sigilo LC 105/2001
   | 'JUDICIAL_FREEZE' // Compliance: Bloqueio cautelar SisbaJud / BacenJud
   | 'JUDICIAL_UNFREEZE' // Desbloqueio judicial por ordem homologada
@@ -32,6 +33,7 @@ export interface DrexAccountState {
   cnpjOrCpfMasked: string;
   realDigitalBalance: number; // Centavos de BRL (CBDC)
   tpftBalance: number; // Unidades de Título Público
+  energyMwhBalance?: number; // MWh tokenizados para caso de uso Fase 2
   frozenBalance: number; // Centavos bloqueados judicialmente
   nodeId: string;
   complianceStatus: 'VERIFIED' | 'CAUTION' | 'RESTRICTED';
@@ -44,6 +46,9 @@ export interface DrexTransactionPayload {
   receiverId: string;
   amountRealDigital: number;
   volumeTpft: number;
+  energyMwh?: number;
+  energyAssetId?: string;
+  settlementRail?: 'DREX' | 'TOKENIZED_ASSET' | 'OTHER';
   tpftSeries?: string;
   legalBasis: string; // ex: 'LC 105/2001 Art. 1 § 3', 'Bacen Resolução 315/2023', 'SisbaJud Processo 5001'
   judicialOrderNumber?: string;
