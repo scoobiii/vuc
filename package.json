@@ -42,6 +42,7 @@
     "test:drex": "tsx tests/drex-bend-parity.test.ts",
     "test:drex-integrity": "tsx tests/drex-execution-integrity.test.ts",
     "test:drex-phase2": "tsx tests/drex-phase2-proof-completeness.test.ts",
+    "test:drex:no-fallback": "tsx tests/drex-no-fallback.test.ts",
     "test:parity": "tsx tests/drex-bend-parity.test.ts",
     "bench:drex-network": "tsx scripts/measure-drex-network.ts",
     "test:drex-network": "tsx scripts/measure-drex-network.ts",
