@@ -11,10 +11,10 @@ const previous = process.env.BEND_BIN;
 try {
   process.env.BEND_BIN = '/definitely/missing/bend';
 
-  assert.equal(
-    VUABendEngine.execute('def main() -> U32:\n  1').success,
-    false,
-    'placeholder',
+  assert.throws(
+    () => VUABendEngine.execute('def main() -> U32:\n  1'),
+    /Bend native indisponível|Bend nativo/,
+    'generic Bend execution must fail closed without the native prover',
   );
 } catch (error) {
   assert.match(String(error), /Bend native indisponível|Bend nativo/);
