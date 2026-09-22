@@ -1,0 +1,122 @@
+name: DREX Execution Integrity — P0 Gates
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "DREX_Laws.bend"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/drex-execution-integrity-p0.yml"
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drex-execution-integrity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  p0:
+    name: DREX P0 — native proof and fail-closed integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install native Bend
+        run: npm run install:bend
+
+      - name: Verify native Bend is executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x ./bin/native/bin/bend
+          ./bin/native/bin/bend version
+
+      - name: Verify lockfile is reproducible
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          git diff --exit-code -- package-lock.json
+
+      - name: P0-01 — valid transfer uses native Bend before mutation
+        run: npm run test:drex-p0:valid-transfer
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: P0-02 — invalid conservation leaves ledger unchanged
+        run: npm run test:drex-p0:no-mutation-on-proof-failure
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: P0-03 — missing Bend fails closed without fallback
+        run: npm run test:drex-p0:no-bend-no-fallback
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: P0-04 — Bend non-zero exit fails closed
+        run: npm run test:drex-p0:bend-process-failure
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: P0-05 — unexpected Bend output is rejected
+        run: npm run test:drex-p0:unexpected-output
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: P0-06 — inputHash and executionHash bind independently
+        run: npm run test:drex-p0:hash-binding
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: P0-07 — canonical JCS tampering is rejected
+        run: npm run test:drex-p0:canonical-tamper
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: P0-08 — Ed25519 tampering is rejected
+        run: npm run test:drex-p0:signature-tamper
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: Run existing DREX integrity suite
+        run: npm run test:drex-integrity
+        env:
+          CI: "true"
+          DREX_BEND_REQUIRED: "true"
+
+      - name: TypeScript typecheck
+        run: npm run lint
+
+      - name: Upload P0 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drex-execution-integrity-p0-${{ github.sha }}
+          if-no-files-found: warn
+          path: |
+            reports/execution-evidence/**
+            reports/drex-execution-integrity/**
