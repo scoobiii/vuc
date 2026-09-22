@@ -5,7 +5,10 @@
  */
 import assert from 'node:assert/strict';
 
-const { VUABendEngine } = await import('../src/vortex/bend-engine.js');
+const { VUABendEngine, findBendBinary } = await import('../src/vortex/bend-engine.js');
+const { DrexGovernanceEngine } = await import('../src/vortex/drex-engine.js');
+
+assert.ok(findBendBinary(), 'Phase 2 requires native Bend in the test environment.');
 
 const previous = process.env.BEND_BIN;
 try {
@@ -32,3 +35,37 @@ try {
 }
 
 console.log('PASS: Phase 2 native-prover fail-closed gates');
+
+DrexGovernanceEngine.resetState();
+const buyer = DrexGovernanceEngine.getAccount('user-bob-pf')!;
+const seller = DrexGovernanceEngine.getAccount('user-alice-pj')!;
+const buyerCashBefore = buyer.realDigitalBalance;
+const sellerCashBefore = seller.realDigitalBalance;
+const buyerEnergyBefore = buyer.energyMwhBalance ?? 0;
+const sellerEnergyBefore = seller.energyMwhBalance ?? 0;
+
+const energyResult = DrexGovernanceEngine.executeTransaction({
+  operation: 'SETTLE_ENERGY_DVP',
+  actorRole: 'END_USER',
+  senderId: buyer.id,
+  receiverId: seller.id,
+  amountRealDigital: 10_000,
+  volumeTpft: 0,
+  energyMwh: 10,
+  energyAssetId: 'ENERGY-PILOT-001',
+  settlementRail: 'DREX',
+  legalBasis: 'DREX Phase 2 pilot energy DvP',
+  privacyPreserving: false,
+});
+
+assert.equal(energyResult.success, true);
+assert.equal(energyResult.mechanicalProof?.verified, true);
+assert.equal(energyResult.mechanicalProof?.engine.includes('Native Bend'), true);
+assert.ok(energyResult.inputHash);
+assert.ok(energyResult.executionHash);
+assert.equal(DrexGovernanceEngine.getAccount(buyer.id)!.realDigitalBalance, buyerCashBefore - 10_000);
+assert.equal(DrexGovernanceEngine.getAccount(seller.id)!.realDigitalBalance, sellerCashBefore + 10_000);
+assert.equal(DrexGovernanceEngine.getAccount(buyer.id)!.energyMwhBalance, buyerEnergyBefore + 10);
+assert.equal(DrexGovernanceEngine.getAccount(seller.id)!.energyMwhBalance, sellerEnergyBefore - 10);
+
+console.log('PASS: Phase 2 energy DvP native proof + proof-before-mutation');
