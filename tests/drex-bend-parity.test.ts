@@ -8,6 +8,11 @@
 
 import assert from 'node:assert';
 import fs from 'node:fs';
+
+try {
+  process.loadEnvFile?.();
+} catch {}
+
 import { DrexGovernanceEngine } from '../src/vortex/drex-engine.js';
 import { VUABendEngine, findBendBinary } from '../src/vortex/bend-engine.js';
 import type { DrexTransactionPayload } from '../src/types/drex.js';

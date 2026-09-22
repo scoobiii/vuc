@@ -6,6 +6,12 @@
 import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
+
+try {
+  process.loadEnvFile?.();
+} catch {
+  // Ignora se .env não existir no ambiente
+}
 import { createServer as createViteServer } from 'vite';
 import { runAdversarialSuite, runFoundationE2ESuite, runVUAAdaptersE2ESuite } from './src/vortex/conformance.js';
 import { generateVortexIdentity, KEY_REGISTRY } from './src/vortex/crypto.js';

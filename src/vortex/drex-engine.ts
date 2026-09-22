@@ -24,7 +24,7 @@ const SIGILO_OPERATIONS: ReadonlySet<string> = new Set([
 const accountTotalCash = (acc: DrexAccountState | undefined): number =>
   acc ? acc.realDigitalBalance + acc.frozenBalance : 0;
 
-const SIGILO_HMAC_KEY = process.env.DREX_SIGILO_HMAC_KEY || 'vortex-drex-sigilo-hmac-key-compliance-audit-32-chars';
+const SIGILO_HMAC_KEY = process.env.DREX_SIGILO_HMAC_KEY;
 
 const commit = (value: number): string => {
   if (!SIGILO_HMAC_KEY || SIGILO_HMAC_KEY.length < 32) {
