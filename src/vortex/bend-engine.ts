@@ -365,7 +365,7 @@ export class VUABendEngine {
    */
   public static executeDrexDvpInBend(
     buyerCash: number, sellerCash: number, sellerTpft: number, price: number, volume: number
-  ): { success: boolean; invariantPreserved: boolean; settledVolume: number; postSum: number; engine: string; stdout: string } {
+  ): { success: boolean; invariantPreserved: boolean; settledVolume: number; postSum: number; engine: string; stdout: string; inputHash: string; executionHash: string } {
     const values = [buyerCash, sellerCash, sellerTpft, price, volume];
     if (values.some((v) => !Number.isSafeInteger(v) || v < 0)) throw new Error('DREX Bend input inválido.');
     const bendBin = findBendBinary();
@@ -382,12 +382,14 @@ export class VUABendEngine {
       const proc = child_process.spawnSync(bendBin, [tmpFile], { encoding: 'utf8', timeout: 10000 });
       const stdout = proc.stdout || '', stderr = proc.stderr || '';
       if (proc.status !== 0) throw new Error('DREX DvP Bend falhou (exit ' + proc.status + '): ' + (stderr || stdout || 'sem saída'));
+      const inputHash = crypto.createHash('sha256').update(program, 'utf8').digest('hex');
+      const executionHash = crypto.createHash('sha256').update(JSON.stringify({ inputHash, stdout: stdout.trim(), exitCode: proc.status }), 'utf8').digest('hex');
       const parsed = Number.parseInt(stdout.trim(), 10);
       if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > volume) throw new Error('DREX DvP Bend retornou volume inválido.');
       const expectedVolume = buyerCash >= price && sellerTpft >= volume ? volume : 0;
       if (parsed !== expectedVolume) throw new Error('DREX DvP proof mismatch.');
       const postSum = buyerCash + sellerCash;
-      return { success: true, invariantPreserved: postSum === buyerCash + sellerCash, settledVolume: parsed, postSum, engine: 'Native Bend 2.0.25 (HVM2)', stdout: stdout.trim() };
+      return { success: true, invariantPreserved: postSum === buyerCash + sellerCash, settledVolume: parsed, postSum, engine: 'Native Bend 2.0.25 (HVM2)', stdout: stdout.trim(), inputHash, executionHash };
     } finally { try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch {} }
   }
 
