@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vua-governance",
+  "version": "0.1.0",
+  "description": "VUA governance connector for governed AI-agent execution, verification, evidence, and GitHub PR workflows.",
+  "author": {
+    "name": "Vortex Open Protocol Foundation",
+    "url": "https://github.com/scoobiii/vuc"
+  },
+  "homepage": "https://github.com/scoobiii/vuc",
+  "repository": "https://github.com/scoobiii/vuc",
+  "license": "MIT",
+  "keywords": ["vua", "mcp", "governance", "execution-proof", "llm", "github"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "VUA Governance",
+        "shortDescription": "Govern AI-agent actions with execution proofs.",
+        "longDescription": "Connect ChatGPT and Codex to VUA through MCP for governed inspection, LLM execution, verification, evidence, and pull-request workflows.",
+        "developerName": "Vortex Open Protocol Foundation",
+        "category": "Developer Tools",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://github.com/scoobiii/vuc",
+        "defaultPrompt": [
+          "Use VUA to inspect and verify this repository before proposing changes.",
+          "Use VUA governance and ExecutionProof before creating a pull request."
+        ]
+      }
+    }
+  }
+}
