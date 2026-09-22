@@ -9,7 +9,11 @@ DrexGovernanceEngine.resetState();
 const senderBefore = { ...DrexGovernanceEngine.getAccount(senderId)! };
 const receiverBefore = { ...DrexGovernanceEngine.getAccount(receiverId)! };
 
-process.env.BEND_BIN = process.env.BEND_BIN || '/bin/false';
+const fixture = '/tmp/drex-p0-invalid-proof.sh';
+const fs = await import('node:fs');
+fs.writeFileSync(fixture, '#!/usr/bin/env bash\nprintf "0"\n', 'utf8');
+fs.chmodSync(fixture, 0o755);
+process.env.BEND_BIN = fixture;
 
 assert.throws(
   () => DrexGovernanceEngine.executeTransaction({
@@ -33,5 +37,6 @@ assert.deepEqual(senderAfter, senderBefore, 'Falha de prova não pode alterar o 
 assert.deepEqual(receiverAfter, receiverBefore, 'Falha de prova não pode alterar o destinatário.');
 assert.equal(DrexGovernanceEngine.getHistory().length, 0, 'Falha não pode persistir recibo de sucesso.');
 
+fs.rmSync(fixture, { force: true });
 assert.equal(amountRealDigital, 10_000);
 console.log('PASS: P0-02 invalid conservation leaves ledger unchanged');
