@@ -305,6 +305,55 @@ def main() -> U32:
     }
   }
 
+  /**
+   * Fase 2: prova nativa de DvP para energia tokenizada/RWA.
+   * O VUC não liquida uma rede externa aqui; prova apenas a condição do contrato.
+   */
+  public static executeEnergyDvpInBend(
+    buyerCash: number,
+    sellerEnergyMwh: number,
+    price: number,
+    volumeMwh: number,
+  ): {
+    success: boolean;
+    settledMwh: number;
+    engine: string;
+    stdout: string;
+    inputHash: string;
+    executionHash: string;
+  } {
+    const values = [buyerCash, sellerEnergyMwh, price, volumeMwh];
+    if (values.some((value) => !Number.isSafeInteger(value) || value < 0)) {
+      throw new Error('Energy DvP bloqueado: entrada inválida.');
+    }
+    const bendBin = findBendBinary();
+    const lawsPath = path.resolve(process.cwd(), 'DREX_Laws.bend');
+    if (!bendBin) throw new Error('Energy DvP bloqueado: Bend nativo não encontrado.');
+    if (!fs.existsSync(lawsPath)) throw new Error('Energy DvP bloqueado: DREX_Laws.bend não encontrado.');
+
+    const base = fs.readFileSync(lawsPath, 'utf8');
+    const mainPattern = /def main\\(\\) -> U32:[\\s\\S]*$/;
+    const customMain = `\\ndef main() -> U32:\\n  execute_energy_dvp(${buyerCash}, ${sellerEnergyMwh}, ${price}, ${volumeMwh})\\n`;
+    if (!mainPattern.test(base)) throw new Error('Energy DvP bloqueado: main Bend não encontrado.');
+    const program = base.replace(mainPattern, customMain);
+    const inputHash = crypto.createHash('sha256').update(program, 'utf8').digest('hex');
+    const tmpFile = path.join(os.tmpdir(), `drex-energy-dvp-${crypto.randomUUID()}.bend`);
+    try {
+      fs.writeFileSync(tmpFile, program, 'utf8');
+      const proc = child_process.spawnSync(bendBin, [tmpFile], { encoding: 'utf8', timeout: 10000 });
+      const stdout = proc.stdout || '';
+      const stderr = proc.stderr || '';
+      if (proc.error) throw new Error(`Energy DvP Bend não pôde ser executado: ${proc.error.message}`);
+      if (proc.status !== 0) throw new Error(`Energy DvP Bend falhou (exit ${String(proc.status)}): ${stderr || stdout || 'sem saída'}`);
+      const expected = String(volumeMwh <= buyerCash && sellerEnergyMwh >= volumeMwh && buyerCash >= price ? volumeMwh : 0);
+      if (stdout !== expected) throw new Error(`Energy DvP rejeitado: stdout não canônico (esperado ${expected}, recebido ${JSON.stringify(stdout)}).`);
+      const executionHash = crypto.createHash('sha256').update(JSON.stringify({ inputHash, stdout, exitCode: proc.status }), 'utf8').digest('hex');
+      return { success: true, settledMwh: Number(stdout), engine: 'Native Bend 2.0.25 (HVM2)', stdout, inputHash, executionHash };
+    } finally {
+      try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch { /* cleanup best effort */ }
+    }
+  }
+
   public static verifyConservationInBend(
     preCash1: number,
     preCash2: number,
