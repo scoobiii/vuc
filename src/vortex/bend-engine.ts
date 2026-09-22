@@ -52,8 +52,8 @@ export interface BendLawCheckResult {
  * Localiza o binário do compilador Bend no repositório ou no PATH do sistema
  */
 export function findBendBinary(): string | null {
-  if (process.env.BEND_BIN && fs.existsSync(process.env.BEND_BIN)) {
-    return process.env.BEND_BIN;
+  if (process.env.BEND_BIN) {
+    return fs.existsSync(process.env.BEND_BIN) ? process.env.BEND_BIN : null;
   }
   const repoLocalBin = path.resolve(process.cwd(), 'bin/native/bin/bend');
   if (fs.existsSync(repoLocalBin)) {
