@@ -246,7 +246,8 @@ export function evaluatePolicy(
   }
 
   // Enforce side_effect constraint: read-only capability cannot authorize mutating operations
-  if ((operation === 'branch.write' || operation === 'execute') && matchingCap.side_effect === false) {
+  const isMutatingExecution = operation === 'branch.write' || (operation === 'execute' && auth.capability !== 'llm.inference' && !auth.capability.endsWith('.read'));
+  if (isMutatingExecution && matchingCap.side_effect === false) {
     return {
       allowed: false,
       status: 'POLICY_DENIED',

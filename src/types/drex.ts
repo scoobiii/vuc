@@ -69,9 +69,10 @@ export interface DrexExecutionResponse {
     passed: boolean;
   }[];
   stateSnapshot: {
-    senderPre: Partial<DrexAccountState>;
-    senderPost: Partial<DrexAccountState>;
-    receiverPre: Partial<DrexAccountState>;
-    receiverPost: Partial<DrexAccountState>;
+    senderPre: Partial<DrexAccountState> | Record<string, any>;
+    senderPost: Partial<DrexAccountState> | Record<string, any>;
+    receiverPre?: Partial<DrexAccountState> | Record<string, any>;
+    receiverPost: Partial<DrexAccountState> | Record<string, any>;
+    conservation?: { preSum: number; postSum: number };
   };
 }

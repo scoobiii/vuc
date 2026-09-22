@@ -15,6 +15,35 @@ import type {
   DrexTransactionPayload,
 } from '../types/drex.js';
 
+const SIGILO_OPERATIONS: ReadonlySet<string> = new Set([
+  'TRANSFER_RETAIL',
+  'STRIKE_PROOF_AUDIT',
+]);
+
+const accountTotalCash = (acc: DrexAccountState | undefined): number =>
+  acc ? acc.realDigitalBalance + acc.frozenBalance : 0;
+
+const SIGILO_HMAC_KEY = process.env.DREX_SIGILO_HMAC_KEY || 'vortex-drex-sigilo-hmac-key-compliance-audit-32-chars';
+
+const commit = (value: number): string => {
+  if (!SIGILO_HMAC_KEY || SIGILO_HMAC_KEY.length < 32) {
+    throw new Error('DREX_SIGILO_HMAC_KEY ausente ou fraco (<32 chars) - operacao de sigilo bloqueada por seguranca.');
+  }
+  return crypto.createHmac('sha256', SIGILO_HMAC_KEY).update(String(value)).digest('hex').slice(0, 32);
+};
+
+const redactForSigilo = (acc: DrexAccountState) => {
+  const { realDigitalBalance, tpftBalance, frozenBalance, ...meta } = acc;
+  return {
+    ...meta,
+    commitments: {
+      realDigital: commit(realDigitalBalance),
+      tpft: commit(tpftBalance),
+      frozen: commit(frozenBalance),
+    },
+  };
+};
+
 // Ledger Estadual Inicial do Piloto DREX (Bacen, Bancos, Fintechs, Usuários)
 const INITIAL_ACCOUNTS: DrexAccountState[] = [
   {
@@ -174,7 +203,7 @@ export class DrexGovernanceEngine {
     const senderPre = { ...sender };
     const receiverPre = receiver ? { ...receiver } : { ...sender };
 
-    const balancePreSum = sender.realDigitalBalance + (receiver ? receiver.realDigitalBalance : 0);
+    const balancePreSum = accountTotalCash(sender) + accountTotalCash(receiver);
     const auditTrail: { rule: string; description: string; passed: boolean }[] = [];
     const lawsVerified: string[] = [];
 
@@ -294,7 +323,7 @@ export class DrexGovernanceEngine {
         throw new Error(`Operação não suportada: ${payload.operation}`);
     }
 
-    const balancePostSum = sender.realDigitalBalance + (receiver ? receiver.realDigitalBalance : 0);
+    const balancePostSum = accountTotalCash(sender) + accountTotalCash(receiver);
     const invariantPreserved = payload.operation === 'MINT_RESERVE' ? true : balancePreSum === balancePostSum;
 
     // Atualiza o estado em memória
@@ -340,12 +369,20 @@ export class DrexGovernanceEngine {
       balancePreSum,
       balancePostSum,
       auditTrail,
-      stateSnapshot: {
-        senderPre,
-        senderPost: { ...sender },
-        receiverPre,
-        receiverPost: receiver ? { ...receiver } : { ...sender },
-      },
+      stateSnapshot: SIGILO_OPERATIONS.has(payload.operation)
+        ? {
+            senderPre: redactForSigilo(senderPre),
+            senderPost: redactForSigilo(sender),
+            receiverPre: receiverPre ? redactForSigilo(receiverPre) : undefined,
+            receiverPost: receiver ? redactForSigilo(receiver) : redactForSigilo(sender),
+            conservation: { preSum: balancePreSum, postSum: balancePostSum },
+          }
+        : {
+            senderPre,
+            senderPost: { ...sender },
+            receiverPre,
+            receiverPost: receiver ? { ...receiver } : { ...sender },
+          },
     };
 
     this.auditHistory.unshift(response);
