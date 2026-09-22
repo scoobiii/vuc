@@ -168,18 +168,26 @@ def extract_sum(s: DrexSettlement) -> U32:
 # O ativo energético é entregue somente quando a perna financeira e a disponibilidade
 # do volume satisfazem a mesma condição formal no contrato.
 # ------------------------------------------------------------------------------
+def settle_energy_step(
+  can_settle: Bool,
+  volume_mwh: U32
+) -> U32:
+  match can_settle:
+    case True{}:
+      volume_mwh
+    case False{}:
+      0
+
 def execute_energy_dvp(
   buyer_cash: U32,
   seller_energy_mwh: U32,
   price: U32,
   volume_mwh: U32
 ) -> U32:
-  can_settle = Bool.and((buyer_cash >= price : U32), (seller_energy_mwh >= volume_mwh : U32))
-  match can_settle:
-    case True{}:
-      volume_mwh
-    case False{}:
-      0
+  settle_energy_step(
+    Bool.and((buyer_cash >= price : U32), (seller_energy_mwh >= volume_mwh : U32)),
+    volume_mwh
+  )
 
 # Ponto de entrada canônico: liquida DvP de teste e emite verificação de soma
 def main() -> U32:
