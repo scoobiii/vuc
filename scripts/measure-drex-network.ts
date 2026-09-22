@@ -1,8 +1,12 @@
 /**
  * DREX - Script de Medição de Latência em Rede Multi-Nó Distribuída (IBFT + Bend)
  * 
+ * INCIDENTE ASSOCIADO: INC-2026-09-22-GAIS-CONTRACT-VIOLATION
+ * GOVERNANCE COMPLIANCE: Vortex Agent Governance Contract § Performance
+ * "Never label a container benchmark as a physical-device benchmark."
+ * 
  * Executa rodadas de consenso com tolerância a falhas bizantinas entre 5 nós participantes
- * e registra métricas reais de tempo de parede (latência, dispersão e vazão).
+ * e registra métricas reais de tempo de parede com classificação dinâmica estrita de hardware.
  */
 
 import fs from 'node:fs';
