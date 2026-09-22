@@ -340,8 +340,8 @@ def main() -> U32:
     if (!fs.existsSync(lawsPath)) throw new Error('Energy DvP bloqueado: DREX_Laws.bend não encontrado.');
 
     const base = fs.readFileSync(lawsPath, 'utf8');
-    const mainPattern = /def main\\(\\) -> U32:[\\s\\S]*$/;
-    const customMain = `\\ndef main() -> U32:\\n  execute_energy_dvp(${buyerCash}, ${sellerEnergyMwh}, ${price}, ${volumeMwh})\\n`;
+    const mainPattern = /def main\(\) -> U32:[\s\S]*$/;
+    const customMain = `\ndef main() -> U32:\n  execute_energy_dvp(${buyerCash}, ${sellerEnergyMwh}, ${price}, ${volumeMwh})\n`;
     if (!mainPattern.test(base)) throw new Error('Energy DvP bloqueado: main Bend não encontrado.');
     const program = base.replace(mainPattern, customMain);
     const inputHash = crypto.createHash('sha256').update(program, 'utf8').digest('hex');
