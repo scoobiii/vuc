@@ -345,7 +345,7 @@ def main() -> U32:
       const stderr = proc.stderr || '';
       if (proc.error) throw new Error(`Energy DvP Bend não pôde ser executado: ${proc.error.message}`);
       if (proc.status !== 0) throw new Error(`Energy DvP Bend falhou (exit ${String(proc.status)}): ${stderr || stdout || 'sem saída'}`);
-      const expected = String(volumeMwh <= buyerCash && sellerEnergyMwh >= volumeMwh && buyerCash >= price ? volumeMwh : 0);
+      const expected = String(buyerCash >= price && sellerEnergyMwh >= volumeMwh ? volumeMwh : 0);
       if (stdout !== expected) throw new Error(`Energy DvP rejeitado: stdout não canônico (esperado ${expected}, recebido ${JSON.stringify(stdout)}).`);
       const executionHash = crypto.createHash('sha256').update(JSON.stringify({ inputHash, stdout, exitCode: proc.status }), 'utf8').digest('hex');
       return { success: true, settledMwh: Number(stdout), engine: 'Native Bend 2.0.25 (HVM2)', stdout, inputHash, executionHash };
