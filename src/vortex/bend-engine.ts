@@ -70,6 +70,19 @@ export function findBendBinary(): string | null {
   return null;
 }
 
+export function readBendVersion(bendBin: string): string {
+  const proc = child_process.spawnSync(bendBin, ['version'], { encoding: 'utf8', timeout: 5000 });
+  if (proc.status !== 0) throw new Error(`Bend version check failed: ${proc.stderr || proc.stdout || 'unknown error'}`);
+  const output = (proc.stdout || '').trim();
+  const match = output.match(/(\\d+\\.\\d+\\.\\d+)/);
+  if (!match) throw new Error(`Bend version não identificável: ${JSON.stringify(output)}`);
+  return match[1];
+}
+
+export function sha256File(filePath: string): string {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
 export class VUABendEngine {
   /**
    * Executa programa Bend somente usando o compilador nativo Bend 2.0.25
