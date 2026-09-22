@@ -80,16 +80,7 @@
     "test:k6:soak": "tsx tests/k6/k6-runner.ts soak",
     "test:k6:chaos": "tsx tests/k6/k6-runner.ts chaos",
     "test:k6:degradation": "tsx tests/k6/k6-runner.ts degradation",
-    "build:cli": "esbuild bin/vua.js --bundle --platform=node --format=cjs --packages=external --outfile=dist/vua.cjs && chmod +x dist/vua.cjs",
-    "test:drex-p0:valid-transfer": "tsx tests/drex-p0/valid-transfer.test.ts",
-    "test:drex-p0:no-mutation-on-proof-failure": "tsx tests/drex-p0/no-mutation-on-proof-failure.test.ts",
-    "test:drex-p0:no-bend-no-fallback": "tsx tests/drex-p0/no-bend-no-fallback.test.ts",
-    "test:drex-p0:bend-process-failure": "tsx tests/drex-p0/bend-process-failure.test.ts",
-    "test:drex-p0:unexpected-output": "tsx tests/drex-p0/unexpected-output.test.ts",
-    "test:drex-p0:hash-binding": "tsx tests/drex-p0/hash-binding.test.ts",
-    "test:drex-p0:canonical-tamper": "tsx tests/drex-p0/canonical-tamper.test.ts",
-    "test:drex-p0:signature-tamper": "tsx tests/drex-p0/signature-tamper.test.ts",
-    "test:drex-p0": "npm run test:drex-p0:valid-transfer && npm run test:drex-p0:no-mutation-on-proof-failure && npm run test:drex-p0:no-bend-no-fallback && npm run test:drex-p0:bend-process-failure && npm run test:drex-p0:unexpected-output && npm run test:drex-p0:hash-binding && npm run test:drex-p0:canonical-tamper && npm run test:drex-p0:signature-tamper"
+    "build:cli": "esbuild bin/vua.js --bundle --platform=node --format=cjs --packages=external --outfile=dist/vua.cjs && chmod +x dist/vua.cjs"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
