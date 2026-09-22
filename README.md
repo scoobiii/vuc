@@ -1,4 +1,4 @@
-# 🛡️ VUA — Vortex Universal Adapter & Governed Execution Protocol
+# 🛡️ VUC — VUA Reference Implementation & Governed Execution
 
 <div align="center">
 
@@ -9,13 +9,66 @@
 
 > *"Defendendo a verdade criptográfica, a neutralidade de sistemas operacionais e a integridade de execução delimitada sob as leis de GOS3 e RFC 8785."*
 
-[![Node.js Conformance](https://img.shields.io/badge/VUA-100%25%20PASS-emerald?style=flat-square&logo=node.js)](./docs/01-visao-geral-e-instalacao.md)
+[![Release](https://img.shields.io/badge/release-v0.1.0--rc.1-orange?style=flat-square)](./docs/01-visao-geral-e-instalacao.md)
 [![RFC 8785 Canonical](https://img.shields.io/badge/RFC%208785-JCS%20Canonical-cyan?style=flat-square)](./docs/01-visao-geral-e-instalacao.md)
 [![Ed25519 Signed](https://img.shields.io/badge/Identity-Ed25519%20Proof%20v1-indigo?style=flat-square)](./docs/01-visao-geral-e-instalacao.md)
 [![Mobile & Terminal](https://img.shields.io/badge/Platform-Termux%20%7C%20Alpine%20%7C%20Android%20%7C%20Linux%20%7C%20Windows-amber?style=flat-square)](./docs/04-termux-e-alpine-proot.md)
 [![Golden Rule Gate](https://img.shields.io/badge/Merge%20Gate-CI%20100%25%20PASS%20%E2%86%92%20mergeability%20OK%20%E2%86%92%20merge-violet?style=flat-square)](./docs/05-adapters-local-vs-github-remoto.md)
 
 </div>
+
+
+> **Release candidate:** `v0.1.0-rc.1`  
+> **Repository:** `scoobiii/vuc`  
+> **Protocol:** VUA (Vortex Universal Adapter)  
+> **DREX prover:** **Bend 2.0.25**, pinned for `TRANSFER_RETAIL`.
+
+## Release scope — v0.1.0-rc.1
+
+This release candidate packages the execution-integrity work delivered in PRs **#1, #2 and #3**:
+
+| Sprint | Scope | Status |
+|---|---|---|
+| #1 | Cryptographic identity and trust material | ✅ merged |
+| #2 | CI/reproducibility and execution metrics | ✅ merged |
+| #3 | Native Bend proof-before-mutation, fail-closed behavior and proof binding | ✅ merged |
+| RC.1 | Product documentation and Bend 2 alignment | 🔄 release candidate |
+
+### DREX Execution Integrity
+
+For `TRANSFER_RETAIL`, the implementation requires a **native Bend 2.0.25 execution** of `DREX_Laws.bend#verify_conservation` **before** mutating the ledger.
+
+There is **no arithmetic fallback**.
+
+If Bend is missing, cannot execute, exits non-zero, returns an unexpected result, or the conservation proof is rejected, the operation fails closed and the ledger remains unchanged.
+
+The resulting evidence binds:
+
+- the Bend input/program through `inputHash`;
+- canonical execution output and exit status through `executionHash`;
+- the canonical receipt through RFC 8785/JCS;
+- the receipt through Ed25519 signing.
+
+> **Scope limitation:** this is a first implemented Execution Integrity layer for DREX flows. It is **not** a claim of complete Drex protocol coverage, privacy infrastructure, external settlement interoperability, or production certification.
+
+## Bend 1 vs Bend 2
+
+**Bend 1 and Bend 2 are different language generations.** Bend 1 programs do not automatically carry over to Bend 2; the current Bend project explicitly documents this incompatibility. citeturn1search1
+
+For VUC, the important distinction is architectural:
+
+- **Bend 1:** the older HVM-oriented language/runtime family. A deep recursive/parallel example can become computationally or memory intensive on a mobile CPU. A Termux run that passes at depth 17 and stalls around depth 20 is consistent with the workload growing sharply with recursion/tree depth; it should be treated as a device/runtime benchmark, not as a VUA correctness threshold.
+- **Bend 2:** the current language line uses strong typing, linear/affine semantics, laws and mechanically checked proofs, with CPU/GPU compilation paths. Its syntax, checker and runtime model are different, so a Bend 1 depth benchmark is **not** a valid Bend 2 compatibility or performance benchmark. citeturn1search1turn1search3
+- **VUA/VUC:** does not make Bend a universal protocol dependency. Bend is a **prover/engine selected by the DREX implementation**. The VUA contract is the stronger property: governed execution must produce independently verifiable evidence.
+
+### Termux interpretation
+
+If your Bend 1 example reaches depth 17 and stalls at 20 on the phone, do not turn that into a hard VUA limit. Record it as:
+
+`BEND1 / Termux / device-specific depth ceiling`
+
+and benchmark Bend 2 separately with the exact same algorithm, input and runtime mode. Bend's own documentation notes that the project is young and that performance/behavior can vary by target and workload. citeturn1search1
+
 
 ---
 
@@ -33,7 +86,7 @@ No espírito das clássicas publicações técnicas **O'Reilly**, o **Pangolim**
 
 - 🛡️ **Escamas de Queratina Entrelaçadas**: Representam as camadas concêntricas de proteção do VUA (Isolamento de Sandbox, Validação de Políticas, Canonicalização RFC 8785 e Assinatura Ed25519).
 - 🔒 **Postura Defensiva Inviolável**: Quando sob ameaça (como ataques adversariais de *FORGE*, *REPLAY*, *ESCALATE*, *ESCAPE* ou *TAMPER*), o pangolim enrola-se numa esfera impenetrável — assim como o VUA barra instantaneamente execuções não-autorizadas emitindo provas de auditoria com `executed: false`.
-- 🌾 **Frugalidade e Eficiência Extrema**: O pangolim prospera nos ambientes mais hostis e com poucos recursos — refletindo a capacidade do VUA de rodar com latência de microssegundos (<370µs) até em smartphones com **Termux**, contêineres **Alpine PRoot** e dispositivos sem GPU dedicada.
+- 🌾 **Frugalidade e Eficiência Extrema**: O pangolim prospera nos ambientes mais hostis e com poucos recursos — refletindo a capacidade do VUA de rodar com execução adaptada ao ambiente, incluindo **Termux**, **Alpine PRoot** e dispositivos sem GPU dedicada; números de benchmark são tratados como evidência por ambiente, não como garantia universal.
 
 ---
 
@@ -366,14 +419,14 @@ A suíte adversarial testa ativamente as 5 violações de segurança fundamentai
 | **1º SPRINT**<br>*(Fundação & Provas)* | **Canonicalização & Criptografia** | • Canonicalização determinística **RFC 8785 (JCS)**.<br>• Assinatura e verificação Ed25519 (`vortex-execution-evidence/v1`).<br>• Motor antifraude com 5 testes adversariais (FORGE, REPLAY, ESCALATE, ESCAPE, TAMPER).<br>• Contrato de isolamento e governança de recursos GOS3. | ✅ Concluído (100% PASS) |
 | | **Adaptadores Fundamentais** | • Adaptadores locais Linux POSIX (`cgroups`, `chroot`) e Android AOSP (`SELinux`, `Scoped Storage`).<br>• CLI `bin/vua.js` para inspeção, benchmark e invocação local.<br>• Suíte básica de execução canária. | ✅ Concluído |
 | **ONDE ESTAMOS**<br>*(Estado Atual)* | **MCP & Registro Multi-LLM** | • Servidor **Model Context Protocol (MCP)** em `bin/mcp-server.js` com ferramentas canônicas (`vortex.*`).<br>• Catálogo federado `vua-llms.json` e script de resolução (`npm run vua:llms`) para Gemini, OpenAI e Ollama offline.<br>• Documentação arquitetural formal em `docs/RUNTIME.md` e `docs/GAIS.md`. | 🟢 Ativo & Operacional |
-| | **GitHub Seguro & Ciclo Git** | • Sincronização e binding com repositório remoto (`scoobiii/vua`).<br>• Token de sessão volátil (zero persistência em disco/logs).<br>• Operações governadas de escrita de PR (`create_pr_written`), commit em branch (`write_branch_commit`) e merge seguro (`merge_pr`).<br>• Equivalência determinística (`vua:prove`) e comparação de baselines (`tao:compare`).<br>• 15 Quality Gates automáticos no CI (`npm test` com 100% de aprovação). | 🟢 Ativo & Operacional |
+| | **GitHub Seguro & Ciclo Git** | • Sincronização e binding com repositório remoto (`scoobiii/vuc`).<br>• Token de sessão volátil (zero persistência em disco/logs).<br>• Operações governadas de escrita de PR (`create_pr_written`), commit em branch (`write_branch_commit`) e merge seguro (`merge_pr`).<br>• Equivalência determinística (`vua:prove`) e comparação de baselines (`tao:compare`).<br>• 15 Quality Gates automáticos no CI (`npm test` com aprovação pelos gates configurados no CI). | 🟢 Ativo & Operacional |
 | **RUMO À PRODUÇÃO**<br>*(Próximos Passos)* | **Endurecimento & Ativação GAIS** | • Ativação em produção do **GAIS (Governance AI System)** via MCP.<br>• Rotação e custódia segura de chaves Ed25519 corporativas (KMS/HSM).<br>• Monitoramento de deriva semântica de modelos (evaluators contínuos).<br>• Empacotamento de distribuição final: binário autônomo e contêiner Alpine de produção minimalista com auditoria estrita. | 🟡 Planejado |
 
 ---
 
 ## 🧪 Comandos da Suíte de Testes & Carga K6
 
-O repositório possui cobertura integral (100% de aprovação) em testes unitários, integração, segurança, benchmark, estresse, caos e k6:
+O repositório possui suíte automatizada com gates de unidade, integração, segurança, DREX e desempenho em testes unitários, integração, segurança, benchmark, estresse, caos e k6:
 
 ```bash
 # 1. Pipeline de CI Completo (Lint + Unitários + Integração + Segurança + Stress + Caos + Bench)
