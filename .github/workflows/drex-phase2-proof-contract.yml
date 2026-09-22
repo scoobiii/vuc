@@ -1,0 +1,106 @@
+name: DREX Phase 2 — Proof Contract Gates
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  bend-provenance:
+    name: Bend provenance 2.0.25
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:bend
+      - name: Pin Bend binary
+        run: |
+          set -euo pipefail
+          export BEND_BIN="$GITHUB_WORKSPACE/bin/native/bin/bend"
+          test -x "$BEND_BIN"
+          test "$($BEND_BIN version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" = "2.0.25"
+          sha256sum "$BEND_BIN"
+
+  drex-native-positive:
+    name: DREX native proof positive path
+    needs: bend-provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:bend
+      - run: npm run test:drex-integrity
+        env:
+          BEND_BIN: ${{ github.workspace }}/bin/native/bin/bend
+      - run: npm run test:parity
+        env:
+          BEND_BIN: ${{ github.workspace }}/bin/native/bin/bend
+
+  drex-fail-closed:
+    name: DREX fail-closed and no fallback
+    needs: bend-provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:bend
+      - run: npm run test:drex-phase2
+        env:
+          BEND_BIN: ${{ github.workspace }}/bin/native/bin/bend
+      - run: npx tsx tests/drex-no-fallback.test.ts
+
+  drex-evidence-integrity:
+    name: DREX evidence integrity
+    needs: drex-native-positive
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:bend
+      - run: npm run test:drex-integrity
+        env:
+          BEND_BIN: ${{ github.workspace }}/bin/native/bin/bend
+      - run: npx tsx tests/drex-no-fallback.test.ts
+
+  full-quality-gate:
+    name: Full quality gate
+    needs: [drex-fail-closed, drex-evidence-integrity]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:bend
+      - run: npm run lint
+        env:
+          BEND_BIN: ${{ github.workspace }}/bin/native/bin/bend
+      - run: npm run test:drex-phase2
+        env:
+          BEND_BIN: ${{ github.workspace }}/bin/native/bin/bend
+      - name: Upload Drex evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drex-phase2-evidence
+          path: reports/drex/**
+          if-no-files-found: ignore
