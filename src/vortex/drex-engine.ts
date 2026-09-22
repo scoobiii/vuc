@@ -245,11 +245,17 @@ export class DrexGovernanceEngine {
 
         lawsVerified.push('DREX_Laws.bend#execute_drex_dvp', 'DREX_Laws.bend#check_dvp_solvency');
 
+        if (!bendResult.success || bendResult.settledVolume !== volume) {
+          throw new Error('Falha DvP: prova nativa Bend rejeitou a liquidação; nenhuma mutação foi aplicada.');
+        }
+
         mechanicalProofInfo = {
-          verified: bendResult.success,
+          verified: true,
           engine: bendResult.engine,
           stdout: bendResult.stdout,
           verifiedLaws: ['check_dvp_solvency', 'execute_drex_dvp'],
+          inputHash: bendResult.inputHash,
+          executionHash: bendResult.executionHash,
         };
 
         // Troca atômica de pernas
