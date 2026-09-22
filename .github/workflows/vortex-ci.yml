@@ -24,6 +24,15 @@ jobs:
       - name: Install Dependencies
         run: npm ci || npm install
 
+      - name: Install native Bend
+        run: npm run install:bend
+
+      - name: Verify native Bend
+        run: |
+          set -euo pipefail
+          test -x ./bin/native/bin/bend
+          ./bin/native/bin/bend version
+
       # 1. Typecheck & Linting
       - name: Typecheck & Static Analysis
         run: npm run lint
