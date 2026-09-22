@@ -30,7 +30,11 @@ export interface KeyRecord {
 export const KEY_REGISTRY = new Map<string, KeyRecord>();
 
 /**
- * Generate a standard Ed25519 Vortex identity (deterministic if customKeyId is provided)
+ * Generate a standard Ed25519 Vortex identity.
+ *
+ * customKeyId is metadata only; it must never be used to derive key material.
+ * Production deployments should persist/provision the generated key through a
+ * secret manager, HSM, or KMS.
  */
 export function generateVortexIdentity(
   principal_id = 'scoobiii',
@@ -39,23 +43,9 @@ export function generateVortexIdentity(
 ): CryptographicIdentity {
   const key_id = customKeyId || `vortex-key-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-  let pubPem: string;
-  let privPem: string;
-
-  if (customKeyId) {
-    // Deterministic RFC 8032 / PKCS#8 Ed25519 derivation for stable production keys
-    const seed = crypto.createHash('sha256').update(`vortex-foundation-seed:${key_id}`).digest();
-    const pkcs8Prefix = Buffer.from('302e020100300506032b657004220420', 'hex');
-    const privDer = Buffer.concat([pkcs8Prefix, seed]);
-    const privateKey = crypto.createPrivateKey({ key: privDer, format: 'der', type: 'pkcs8' });
-    const publicKey = crypto.createPublicKey(privateKey);
-    pubPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
-    privPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-  } else {
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
-    pubPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
-    privPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-  }
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const pubPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
+  const privPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
 
   const identity: CryptographicIdentity = {
     principal_id,
