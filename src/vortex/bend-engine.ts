@@ -276,32 +276,29 @@ def main() -> U32:
           // ignore
         }
 
-        if (proc.status === 0) {
-          if (proc.status !== 0) {
-            throw new Error(`DREX DvP Bend falhou (exit ${String(proc.status)}): ${proc.stderr || proc.stdout || 'sem saída'}`);
-          }
-          const stdout = proc.stdout || '';
-          const expected = String(volume);
-          if (stdout !== expected) {
-            throw new Error(`DREX DvP rejeitado: stdout não canônico (esperado ${expected}, recebido ${JSON.stringify(stdout)}).`);
-          }
-          const settledVolume = Number(stdout);
-          const preSum = buyerCash + sellerCash;
-          const postSum = preSum; // Em DvP, a soma monetária de b + s é estritamente invariante
-
-          const inputHash = crypto.createHash('sha256').update(customCode, 'utf8').digest('hex');
-          const executionHash = crypto.createHash('sha256').update(JSON.stringify({ inputHash, stdout, exitCode: proc.status }), 'utf8').digest('hex');
-          return {
-            success: true,
-            invariantPreserved: true,
-            settledVolume,
-            postSum,
-            engine: 'Native Bend 2.0.25 (HVM2)',
-            stdout,
-            inputHash,
-            executionHash,
-          };
+        if (proc.status !== 0) {
+          throw new Error(`DREX DvP Bend falhou (exit ${String(proc.status)}): ${proc.stderr || proc.stdout || 'sem saída'}`);
         }
+        const stdout = proc.stdout || '';
+        const expected = String(volume);
+        if (stdout !== expected) {
+          throw new Error(`DREX DvP rejeitado: stdout não canônico (esperado ${expected}, recebido ${JSON.stringify(stdout)}).`);
+        }
+        const settledVolume = Number(stdout);
+        const preSum = buyerCash + sellerCash;
+        const postSum = preSum;
+        const inputHash = crypto.createHash('sha256').update(customCode, 'utf8').digest('hex');
+        const executionHash = crypto.createHash('sha256').update(JSON.stringify({ inputHash, stdout, exitCode: proc.status }), 'utf8').digest('hex');
+        return {
+          success: true,
+          invariantPreserved: true,
+          settledVolume,
+          postSum,
+          engine: 'Native Bend 2.0.25 (HVM2)',
+          stdout,
+          inputHash,
+          executionHash,
+        };
       } catch (err: any) {
         throw new Error(`DREX DvP Bend falhou: ${err?.message || String(err)}`);
       }
