@@ -21,7 +21,20 @@
 > **Release candidate:** `v0.1.0-rc.1`  
 > **Repository:** `scoobiii/vuc`  
 > **Protocol:** VUA (Vortex Universal Adapter)  
-> **DREX prover:** **Bend 2.0.25**, pinned for `TRANSFER_RETAIL`.
+
+## Estado mensurável das dores
+
+No scorecard interno de engenharia usado para o piloto:
+
+| Camada | Dores/objetivos | Resolvidos | Parciais | Pendentes |
+|---|---:|---:|---:|---:|
+| DREX / Fase 1 | 8 | 3 | 1 | 4 |
+| DREX / Fase 2 | 2 | 1 | 0 | 1 |
+| **Total** | **10** | **4** | **1** | **5** |
+
+As quatro resoluções diretas são **governança de execução, integridade/segurança da execução, auditabilidade/reprodutibilidade e expansão de caso de uso na Fase 2**. Integrações permanecem parcialmente resolvidas; privacidade da Fase 2 permanece pendente.
+
+Esses números são um **scorecard interno de engenharia**, não uma avaliação oficial do Banco Central.
 
 ## Release scope — v0.1.0-rc.1
 
@@ -62,27 +75,6 @@ O VUC amplia a camada de Execution Integrity para um caso de uso de Fase 2: **De
 - o rail (`DREX`, `TOKENIZED_ASSET` ou `OTHER`) é metadado de execução, não uma afirmação de interoperabilidade já implementada.
 
 A Fase 2 do Piloto Drex ampliou testes para serviços de participantes, ativos adicionais, smart contracts de terceiros e outros casos de uso; o VUC usa energia como caso de teste de RWA, sem declarar equivalência com a plataforma oficial do BC.
-
-## Bend 1 vs Bend 2
-
-**Bend 1 and Bend 2 are different language generations.** Bend 1 programs do not automatically carry over to Bend 2; the current Bend project explicitly documents this incompatibility. citeturn1search1
-
-For VUC, the important distinction is architectural:
-
-- **Bend 1:** the older HVM-oriented language/runtime family. A deep recursive/parallel example can become computationally or memory intensive on a mobile CPU. A Termux run that passes at depth 17 and stalls around depth 20 is consistent with the workload growing sharply with recursion/tree depth; it should be treated as a device/runtime benchmark, not as a VUA correctness threshold.
-- **Bend 2:** the current language line uses strong typing, linear/affine semantics, laws and mechanically checked proofs, with CPU/GPU compilation paths. Its syntax, checker and runtime model are different, so a Bend 1 depth benchmark is **not** a valid Bend 2 compatibility or performance benchmark. citeturn1search1turn1search3
-- **VUA/VUC:** does not make Bend a universal protocol dependency. Bend is a **prover/engine selected by the DREX implementation**. The VUA contract is the stronger property: governed execution must produce independently verifiable evidence.
-
-### Termux interpretation
-
-If your Bend 1 example reaches depth 17 and stalls at 20 on the phone, do not turn that into a hard VUA limit. Record it as:
-
-`BEND1 / Termux / device-specific depth ceiling`
-
-and benchmark Bend 2 separately with the exact same algorithm, input and runtime mode. Bend's own documentation notes that the project is young and that performance/behavior can vary by target and workload. citeturn1search1
-
-
----
 
 > **Tese Normativa de Segurança:**  
 > *"Proof of execution is not proof of safety."*  
