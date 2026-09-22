@@ -20,6 +20,13 @@ function number(value, name) {
   return n;
 }
 
+function metricNumber(value, name) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    fail(`${name} must be a finite non-negative number`);
+  }
+  return value;
+}
+
 function profileOf(value) {
   if (value === 'cloud' || value === 'cloud-run') return 'cloud-run';
   if (value === 'mobile') return 'mobile';
@@ -38,15 +45,19 @@ function compare(current, baseline, tolerancePct) {
   const workload = baseline.workload?.name ?? 'pipeline-rps';
   if ((current.workload ?? 'pipeline-rps') !== workload) fail(`workload mismatch: current=${current.workload ?? 'pipeline-rps'} baseline=${workload}`);
   if (workload === 'local-crypto') {
-    const baseOps = number(baseline.metrics?.throughput_ops_sec, 'baseline.metrics.throughput_ops_sec');
-    const currentOps = number(current.throughput_ops_sec, 'current.throughput_ops_sec');
+    const baseOps = metricNumber(baseline.metrics?.throughput_ops_sec, 'baseline.metrics.throughput_ops_sec');
+    const currentOps = metricNumber(current.throughput_ops_sec, 'current.throughput_ops_sec');
+    const sampleSize = metricNumber(current.sample_size, 'current.sample_size');
+    if (!Number.isInteger(sampleSize) || sampleSize < 30) fail('current.sample_size must be an integer of at least 30');
+    metricNumber(current.latency_us, 'current.latency_us');
+    metricNumber(current.memory_mb, 'current.memory_mb');
     if (baseOps === 0) fail('baseline throughput cannot be zero');
     const relativeChangePct = ((currentOps - baseOps) / baseOps) * 100;
     const verdict = relativeChangePct < -tolerancePct ? 'FAIL_REGRESSION' : relativeChangePct > tolerancePct ? 'PASS_SUPERIOR' : 'PASS_ACCEPTABLE';
     return { workload, baseline_ops_sec: baseOps, current_ops_sec: currentOps, relative_change_pct: Number(relativeChangePct.toFixed(3)), tolerance_pct: tolerancePct, status: verdict === 'FAIL_REGRESSION' ? 'REGRESSION' : 'WITHIN_OR_ABOVE_TOLERANCE', verdict };
   }
-  const baseRps = number(baseline.metrics?.rps, 'baseline.metrics.rps');
-  const currentRps = number(current.rps, 'current.rps');
+  const baseRps = metricNumber(baseline.metrics?.rps, 'baseline.metrics.rps');
+  const currentRps = metricNumber(current.rps, 'current.rps');
   if (baseRps === 0) fail('baseline RPS cannot be zero');
   const relativeChangePct = ((currentRps - baseRps) / baseRps) * 100;
   let verdict = 'PASS_ACCEPTABLE';
@@ -81,7 +92,7 @@ async function main() {
 
   if (requestedProfile !== baselineProfile) {
     result.reason = `baseline profile ${baselineProfile} is incompatible with runner profile ${requestedProfile}`;
-  } else if (!baseline.workload?.name || !Number.isFinite(Number(current.rps ?? current.throughput_ops_sec))) {
+  } else if (!baseline.workload?.name || (typeof current.rps !== 'number' && typeof current.throughput_ops_sec !== 'number')) {
     result.reason = 'missing workload or finite performance metric in baseline/current metrics';
   } else {
     result.cloud_comparison = compare(current, baseline, tolerancePct);
