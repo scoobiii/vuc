@@ -72,7 +72,7 @@ export function findBendBinary(): string | null {
 
 export class VUABendEngine {
   /**
-   * Executa programa Bend usando o compilador nativo (se instalado) ou o avaliador puro embutido
+   * Executa programa Bend somente usando o compilador nativo Bend 2.0.25
    */
   public static execute(code: string): BendExecutionResult {
     const startTime = Date.now();
@@ -137,6 +137,7 @@ export class VUABendEngine {
     }
 
     throw new Error('Bend native indisponível ou falhou: execução governada exige o provador nativo Bend 2.0.25.');
+  }
 
   /**
    * Valida leis formais usando o verificador de tipos `--check-only` do Bend nativo
@@ -215,6 +216,7 @@ export class VUABendEngine {
     }
 
     throw new Error('Verificação de leis bloqueada: Bend nativo indisponível ou falhou.');
+  }
 
   /**
    * Executa a liquidação atômica DvP diretamente no compilador nativo Bend
