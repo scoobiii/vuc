@@ -6,8 +6,8 @@
  * - Bend 2: Typed functional definitions, `def main() -> IO(Unit): ...`, algebraic data types `type T is Data:`,
  *   IO Monad (`do IO<Unit>:`, `IO.print`), `match` constructs, and formal `law` specifications.
  * 
- * Executes either directly via the Native Bend 2.0.25 compiler binary (HVM2) or via the
- * embedded deterministic pure evaluator fallback, emitting RFC 8785 canonical hashes and proof certificates.
+ * Executes only through the Native Bend 2.0.25 compiler binary (HVM2).
+ * There is deliberately no semantic fallback: a synthetic evaluator is not an ExecutionProof.
  */
 
 import crypto from 'node:crypto';
@@ -31,7 +31,7 @@ export interface BendExecutionResult {
     runtime: string;
     platform: string;
     arch: string;
-    engine: 'VUAB Pure HVM Engine' | 'Native Bend Binary';
+    engine: 'Native Bend Binary';
   };
 }
 
@@ -69,15 +69,6 @@ export function findBendBinary(): string | null {
   }
   return null;
 }
-
-const drexDvpCache = new Map<string, {
-  success: boolean;
-  invariantPreserved: boolean;
-  settledVolume: number;
-  postSum: number;
-  engine: string;
-  stdout: string;
-}>();
 
 export class VUABendEngine {
   /**
@@ -135,7 +126,7 @@ export class VUABendEngine {
           },
         };
       } catch (err: any) {
-        // Se falhar a chamada do processo, recai no avaliador puro
+        throw new Error(`Bend nativo não pôde ser executado: ${err?.message || String(err)}`);
       } finally {
         try {
           if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
@@ -145,90 +136,7 @@ export class VUABendEngine {
       }
     }
 
-    // 2. Avaliador Puro Embutido (Fallback Seguro)
-    let stdout = '';
-    let stderr = '';
-    let success = true;
-    let reductionSteps = 0;
-    let nodesExpanded = 0;
-
-    try {
-      const cleanCode = code.replace(/\r\n/g, '\n');
-
-      if (cleanCode.includes('def pow2') || cleanCode.includes('pow2(')) {
-        const matchArg = cleanCode.match(/pow2\((\d+)n?\)/);
-        const exp = matchArg ? parseInt(matchArg[1], 10) : 12;
-        const boundedExp = Math.min(exp, 20);
-        const value = Math.pow(2, boundedExp);
-        nodesExpanded = Math.pow(2, boundedExp);
-        reductionSteps = nodesExpanded * 3 + 14;
-
-        if (cleanCode.includes('IO.print') || cleanCode.includes('IO(Unit)')) {
-          stdout = `2^${boundedExp} = ${value}\n`;
-        } else {
-          stdout = `${value}\n`;
-        }
-      } else if (cleanCode.includes('drex_settlement') || cleanCode.includes('atomic_dvp') || cleanCode.includes('DREX')) {
-        reductionSteps = 1248;
-        nodesExpanded = 64;
-        stdout = [
-          '=== [VUA-DREX] Liquidacao Financeira DvP Atômica Concluída ===',
-          '• Comprador (Banco A): Debitados R$ 1.000.000,00 (Real Digital Atacado) | Creditados 1.000 TPFT',
-          '• Vendedor (Banco B): Creditados R$ 1.000.000,00 | Debitados 1.000 TPFT',
-          '• Conservação Global: Pool Total = R$ 10.000.000,00 (Diferencial Líquido: R$ 0,00)',
-          '• Invariante DvP: Atômico (Sem risco de entrega unilateral sem liquidação)',
-          '• Conformidade Regulatória: Lei do Sigilo Bancário (LC 105/2001) atendida via Provas Criptográficas RFC 8785\n'
-        ].join('\n');
-      } else {
-        const printMatches = [...cleanCode.matchAll(/IO\.print\(\s*"([^"]+)"/g)];
-        if (printMatches.length > 0) {
-          stdout = printMatches.map((m) => m[1].replace(/\\n/g, '\n')).join('\n') + '\n';
-        } else {
-          stdout = `[VUAB Pure Runtime] Executed ${cleanCode.split('\n').length} lines of functional code.\nEvaluation completed without runtime exceptions.\n`;
-        }
-        reductionSteps = 120;
-        nodesExpanded = 8;
-      }
-    } catch (err: any) {
-      success = false;
-      stderr = `VUAB Evaluation Error: ${err.message || String(err)}`;
-    }
-
-    const durationMs = Math.max(Date.now() - startTime, 4);
-    const outputHash = crypto.createHash('sha256').update(stdout || stderr).digest('hex');
-
-    const executionPayload = {
-      provider: 'vuab-pure-engine',
-      runtime: 'Bend 2.0.25 (VUAB Embedded)',
-      platform: `${process.platform}-${process.arch}`,
-      input_hash: inputHash,
-      output_hash: outputHash,
-      reduction_steps: reductionSteps,
-      nodes_expanded: nodesExpanded,
-      duration_ms: durationMs,
-      timestamp: new Date().toISOString(),
-    };
-    const executionHash = crypto.createHash('sha256').update(JSON.stringify(executionPayload)).digest('hex');
-
-    return {
-      success,
-      durationMs,
-      stdout,
-      stderr,
-      reductionSteps,
-      nodesExpanded,
-      executionHash,
-      inputHash,
-      outputHash,
-      runtime: 'Bend 2.0.25 (VUAB Embedded Pure Engine)',
-      environment: {
-        runtime: 'Bend 2.0.25',
-        platform: process.platform,
-        arch: process.arch,
-        engine: 'VUAB Pure HVM Engine',
-      },
-    };
-  }
+    throw new Error('Bend native indisponível ou falhou: execução governada exige o provador nativo Bend 2.0.25.');
 
   /**
    * Valida leis formais usando o verificador de tipos `--check-only` do Bend nativo
@@ -296,7 +204,7 @@ export class VUABendEngine {
           engine: 'Native Bend 2.0.25 (--check-only)',
         };
       } catch (err: any) {
-        // Fallback em caso de erro no processo filho
+        throw new Error(`Verificação Bend nativa falhou: ${err?.message || String(err)}`);
       } finally {
         try {
           if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
@@ -306,58 +214,7 @@ export class VUABendEngine {
       }
     }
 
-    // Fallback do verificador analítico
-    const isInvertedCanary =
-      code.includes('policy_eval(True{}, False{}) == True{}') ||
-      code.includes('CANARY_FAIL') ||
-      code.includes('Nat.add(b, 0n) == 1n+b');
-
-    const durationMs = Math.max(Date.now() - startTime, 6);
-
-    if (isInvertedCanary) {
-      return {
-        success: false,
-        status: 'CHECK_FAILED',
-        durationMs,
-        output: '',
-        error: 'Type/Proof Mismatch in theorem: cannot equate LHS {policy_eval(True{}, False{})} with RHS {True{}}. Proof term {==} rejected by type equality checker.',
-        stderr: 'Error: Cannot unify terms in formal theorem.',
-        proof_hash: crypto.createHash('sha256').update(`canary_failed:${inputHash}`).digest('hex'),
-        input_hash: inputHash,
-        lawsChecked,
-        engine: 'VUAB Pure Evaluator',
-      };
-    }
-
-    const output =
-      lawsChecked.length > 0
-        ? `All terms check. Verified ${lawsChecked.length} formal laws:\n${lawsChecked.map((l) => `  ✓ ${l} (Q.E.D. via mechanical induction)`).join('\n')}`
-        : 'All terms check. Functional syntax, type constraints, and patterns validated.';
-
-    const proofHash = crypto
-      .createHash('sha256')
-      .update(
-        JSON.stringify({
-          type: 'vuab-law-verification',
-          laws: lawsChecked,
-          input_hash: inputHash,
-          duration_ms: durationMs,
-          timestamp: new Date().toISOString(),
-        })
-      )
-      .digest('hex');
-
-    return {
-      success: true,
-      status: 'CHECK_PASSED',
-      durationMs,
-      output,
-      proof_hash: proofHash,
-      input_hash: inputHash,
-      lawsChecked,
-      engine: 'VUAB Pure Evaluator',
-    };
-  }
+    throw new Error('Verificação de leis bloqueada: Bend nativo indisponível ou falhou.');
 
   /**
    * Executa a liquidação atômica DvP diretamente no compilador nativo Bend
@@ -376,18 +233,20 @@ export class VUABendEngine {
     postSum: number;
     engine: string;
     stdout: string;
+    inputHash: string;
+    executionHash: string;
   } {
-    const cacheKey = `${buyerCash}:${sellerCash}:${sellerTpft}:${price}:${volume}`;
-    const cached = drexDvpCache.get(cacheKey);
-    if (cached) {
-      return { ...cached };
-    }
-
     const bendBin = findBendBinary();
     const drexLawsPath = path.resolve(process.cwd(), 'DREX_Laws.bend');
 
-    if (bendBin && fs.existsSync(drexLawsPath)) {
-      try {
+    if (!bendBin) {
+      throw new Error('DREX DvP bloqueado: Bend nativo não encontrado.');
+    }
+    if (!fs.existsSync(drexLawsPath)) {
+      throw new Error('DREX DvP bloqueado: DREX_Laws.bend não encontrado.');
+    }
+
+    try {
         const drexLaws = fs.readFileSync(drexLawsPath, 'utf8');
         // Constrói programa específico que executa a transação no modelo Bend
         const customCode = drexLaws.replace(
@@ -418,39 +277,35 @@ def main() -> U32:
         }
 
         if (proc.status === 0) {
-          const settledVolume = parseInt(proc.stdout.trim(), 10) || 0;
+          if (proc.status !== 0) {
+            throw new Error(`DREX DvP Bend falhou (exit ${String(proc.status)}): ${proc.stderr || proc.stdout || 'sem saída'}`);
+          }
+          const stdout = proc.stdout || '';
+          const expected = String(volume);
+          if (stdout !== expected) {
+            throw new Error(`DREX DvP rejeitado: stdout não canônico (esperado ${expected}, recebido ${JSON.stringify(stdout)}).`);
+          }
+          const settledVolume = Number(stdout);
           const preSum = buyerCash + sellerCash;
           const postSum = preSum; // Em DvP, a soma monetária de b + s é estritamente invariante
 
-          const result = {
+          const inputHash = crypto.createHash('sha256').update(customCode, 'utf8').digest('hex');
+          const executionHash = crypto.createHash('sha256').update(JSON.stringify({ inputHash, stdout, exitCode: proc.status }), 'utf8').digest('hex');
+          return {
             success: true,
             invariantPreserved: true,
             settledVolume,
             postSum,
             engine: 'Native Bend 2.0.25 (HVM2)',
-            stdout: `Bend settled volume: ${settledVolume}`,
+            stdout,
+            inputHash,
+            executionHash,
           };
-          drexDvpCache.set(cacheKey, result);
-          return result;
         }
-      } catch {
-        // Fallback para aritmética determinística
+      } catch (err: any) {
+        throw new Error(`DREX DvP Bend falhou: ${err?.message || String(err)}`);
       }
     }
-
-    // Fallback aritmético se o binário não estiver compilado/instalado
-    const canSettle = buyerCash >= price && sellerTpft >= volume;
-    const settledVolume = canSettle ? volume : 0;
-    const postSum = buyerCash + sellerCash;
-
-    return {
-      success: true,
-      invariantPreserved: true,
-      settledVolume,
-      postSum,
-      engine: 'VUAB Deterministic DvP Evaluator',
-      stdout: `Evaluated settled volume: ${settledVolume}`,
-    };
   }
 
   public static verifyConservationInBend(
