@@ -59,14 +59,7 @@ export function findBendBinary(): string | null {
   if (fs.existsSync(repoLocalBin)) {
     return repoLocalBin;
   }
-  try {
-    const which = child_process.spawnSync('which', ['bend'], { encoding: 'utf8' });
-    if (which.status === 0 && which.stdout.trim() && fs.existsSync(which.stdout.trim())) {
-      return which.stdout.trim();
-    }
-  } catch {
-    // Ignore and fallback
-  }
+  // Governed execution never falls back to an arbitrary PATH binary.
   return null;
 }
 
