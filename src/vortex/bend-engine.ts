@@ -67,7 +67,7 @@ export function readBendVersion(bendBin: string): string {
   const proc = child_process.spawnSync(bendBin, ['version'], { encoding: 'utf8', timeout: 5000 });
   if (proc.status !== 0) throw new Error(`Bend version check failed: ${proc.stderr || proc.stdout || 'unknown error'}`);
   const output = (proc.stdout || '').trim();
-  const match = output.match(/(\\d+\\.\\d+\\.\\d+)/);
+  const match = output.match(/(\d+\.\d+\.\d+)/);
   if (!match) throw new Error(`Bend version não identificável: ${JSON.stringify(output)}`);
   return match[1];
 }
@@ -289,10 +289,11 @@ def main() -> U32:
         }
         const stdout = proc.stdout || '';
         const expected = String(volume);
-        if (stdout !== expected) {
+        const canonicalStdout = stdout === expected ? stdout : stdout === expected + '\n' ? expected : null;
+        if (canonicalStdout === null) {
           throw new Error(`DREX DvP rejeitado: stdout não canônico (esperado ${expected}, recebido ${JSON.stringify(stdout)}).`);
         }
-        const settledVolume = Number(stdout);
+        const settledVolume = Number(canonicalStdout);
         const preSum = buyerCash + sellerCash;
         const postSum = preSum;
         const inputHash = crypto.createHash('sha256').update(customCode, 'utf8').digest('hex');
@@ -311,7 +312,6 @@ def main() -> U32:
         throw new Error(`DREX DvP Bend falhou: ${err?.message || String(err)}`);
       }
     }
-  }
 
   /**
    * Fase 2: prova nativa de DvP para energia tokenizada/RWA.
@@ -354,9 +354,10 @@ def main() -> U32:
       if (proc.error) throw new Error(`Energy DvP Bend não pôde ser executado: ${proc.error.message}`);
       if (proc.status !== 0) throw new Error(`Energy DvP Bend falhou (exit ${String(proc.status)}): ${stderr || stdout || 'sem saída'}`);
       const expected = String(buyerCash >= price && sellerEnergyMwh >= volumeMwh ? volumeMwh : 0);
-      if (stdout !== expected) throw new Error(`Energy DvP rejeitado: stdout não canônico (esperado ${expected}, recebido ${JSON.stringify(stdout)}).`);
-      const executionHash = crypto.createHash('sha256').update(JSON.stringify({ inputHash, stdout, exitCode: proc.status }), 'utf8').digest('hex');
-      return { success: true, settledMwh: Number(stdout), engine: 'Native Bend 2.0.25 (HVM2)', stdout, inputHash, executionHash };
+      const canonicalStdout = stdout === expected ? stdout : stdout === expected + '\n' ? expected : null;
+      if (canonicalStdout === null) throw new Error(`Energy DvP rejeitado: stdout não canônico (esperado ${expected}, recebido ${JSON.stringify(stdout)}).`);
+      const executionHash = crypto.createHash('sha256').update(JSON.stringify({ inputHash, stdout: canonicalStdout, exitCode: proc.status }), 'utf8').digest('hex');
+      return { success: true, settledMwh: Number(canonicalStdout), engine: 'Native Bend 2.0.25 (HVM2)', stdout: canonicalStdout, inputHash, executionHash };
     } finally {
       try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch { /* cleanup best effort */ }
     }
