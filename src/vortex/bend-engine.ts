@@ -70,6 +70,15 @@ export function findBendBinary(): string | null {
   return null;
 }
 
+const drexDvpCache = new Map<string, {
+  success: boolean;
+  invariantPreserved: boolean;
+  settledVolume: number;
+  postSum: number;
+  engine: string;
+  stdout: string;
+}>();
+
 export class VUABendEngine {
   /**
    * Executa programa Bend usando o compilador nativo (se instalado) ou o avaliador puro embutido
@@ -368,6 +377,12 @@ export class VUABendEngine {
     engine: string;
     stdout: string;
   } {
+    const cacheKey = `${buyerCash}:${sellerCash}:${sellerTpft}:${price}:${volume}`;
+    const cached = drexDvpCache.get(cacheKey);
+    if (cached) {
+      return { ...cached };
+    }
+
     const bendBin = findBendBinary();
     const drexLawsPath = path.resolve(process.cwd(), 'DREX_Laws.bend');
 
@@ -407,7 +422,7 @@ def main() -> U32:
           const preSum = buyerCash + sellerCash;
           const postSum = preSum; // Em DvP, a soma monetária de b + s é estritamente invariante
 
-          return {
+          const result = {
             success: true,
             invariantPreserved: true,
             settledVolume,
@@ -415,6 +430,8 @@ def main() -> U32:
             engine: 'Native Bend 2.0.25 (HVM2)',
             stdout: `Bend settled volume: ${settledVolume}`,
           };
+          drexDvpCache.set(cacheKey, result);
+          return result;
         }
       } catch {
         // Fallback para aritmética determinística

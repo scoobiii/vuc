@@ -41,6 +41,8 @@
     "bend": "./bin/native/bin/bend",
     "test:drex": "tsx tests/drex-bend-parity.test.ts",
     "test:parity": "tsx tests/drex-bend-parity.test.ts",
+    "bench:drex-network": "tsx scripts/measure-drex-network.ts",
+    "test:drex-network": "tsx scripts/measure-drex-network.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",

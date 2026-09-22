@@ -30,6 +30,7 @@ import {
 } from './src/vortex/graph-verifier.js';
 import { VUABendEngine } from './src/vortex/bend-engine.js';
 import { DrexGovernanceEngine } from './src/vortex/drex-engine.js';
+import { drexNetwork, DrexDistributedNetwork } from './src/vortex/drex-network.js';
 import {
   INDUSTRY_SPECS,
   executeIndustrySegmentK6,
@@ -1917,6 +1918,55 @@ async function startServer() {
       res.json(response);
     } catch (err: any) {
       res.status(400).json({ error: err.message || String(err), success: false });
+    }
+  });
+
+  // ============================================================================
+  // DREX Multi-Node Distributed Network & Consensus Endpoints (IBFT 2.0 + Bend)
+  // ============================================================================
+  app.get('/api/vortex/drex/network/nodes', (req, res) => {
+    try {
+      const nodes = Array.from(drexNetwork.nodes.values()).map((n) => ({
+        id: n.id,
+        name: n.name,
+        role: n.role,
+        publicKey: n.identity.public_key,
+        stateRootHash: n.getStateRootHash(),
+        accountsCount: n.localLedger.size,
+      }));
+      res.json({
+        totalNodes: nodes.length,
+        consensus: 'IBFT 2.0 (Istanbul Byzantine Fault Tolerant)',
+        faultTolerance: 'f = 1 (suporta até 1 nó bizantino)',
+        quorumRequired: 3,
+        nodes,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.post('/api/vortex/drex/network/consensus', async (req, res) => {
+    try {
+      const payload = req.body;
+      if (!payload || !payload.operation || !payload.senderId) {
+        return res.status(400).json({ error: 'Payload de transação inválido para consenso multi-nó.' });
+      }
+      const consensusResult = await drexNetwork.executeConsensusRound(payload);
+      res.json(consensusResult);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || String(err), success: false });
+    }
+  });
+
+  app.post('/api/vortex/drex/network/benchmark', async (req, res) => {
+    try {
+      const iterations = Number(req.body?.iterations) || 15;
+      const wireLatencyMs = typeof req.body?.wireLatencyMs === 'number' ? req.body.wireLatencyMs : 1.5;
+      const metrics = await drexNetwork.benchmarkNetworkLatency(iterations, wireLatencyMs);
+      res.json(metrics);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err), success: false });
     }
   });
 
