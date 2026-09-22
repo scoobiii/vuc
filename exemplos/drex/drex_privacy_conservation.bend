@@ -11,7 +11,7 @@ import Base
 #   1. Nenhum token foi criado do nada (conservação estrita da massa monetária)
 #   2. O saldo final é não-negativo (anti-underflow / anti-crédito falso)
 #
-# Solução VUA + Bend:
+# Solução VUA + Bend 2:
 # Verificação formal por compromisso aditivo homomórfico:
 # provamos a igualdade de delta de balanços sem que o validador conheça as identidades.
 # ==============================================================================
@@ -41,13 +41,17 @@ def apply_private_transfer(
   match valid:
     case True{}:
       # Atualiza compromissos matematicamente preservando a soma dos dois nós
-      new_s = MaskedAccount{s_hash, (s_bal - amount : U32), True{}}
-      new_r = MaskedAccount{r_hash, (r_bal + amount : U32), True{}}
-      PrivacyTransferResult{new_s, new_r, True{}}
+      PrivacyTransferResult{
+        MaskedAccount{s_hash, (s_bal - amount : U32), True{}},
+        MaskedAccount{r_hash, (r_bal + amount : U32), True{}},
+        True{}
+      }
     case False{}:
-      old_s = MaskedAccount{s_hash, s_bal, False{}}
-      old_r = MaskedAccount{r_hash, r_bal, False{}}
-      PrivacyTransferResult{old_s, old_r, False{}}
+      PrivacyTransferResult{
+        MaskedAccount{s_hash, s_bal, False{}},
+        MaskedAccount{r_hash, r_bal, False{}},
+        False{}
+      }
 
 def private_settle(
   sender: MaskedAccount,
@@ -55,12 +59,12 @@ def private_settle(
   +amount: U32
 ) -> PrivacyTransferResult:
   match sender:
-    case MaskedAccount{s_hash, s_bal, s_auth}:
+    case MaskedAccount{+s_hash, +s_bal, s_auth}:
       match receiver:
-        case MaskedAccount{r_hash, r_bal, r_auth}:
+        case MaskedAccount{+r_hash, +r_bal, r_auth}:
           has_funds = (s_bal >= amount : U32)
-          both_auth = (s_auth & r_auth : U32)
-          is_valid = (has_funds & both_auth : U32)
+          both_auth = Bool.and(s_auth, r_auth)
+          is_valid = Bool.and(has_funds, both_auth)
           apply_private_transfer(is_valid, s_hash, s_bal, r_hash, r_bal, amount)
 
 # ==============================================================================
@@ -79,19 +83,21 @@ def private_mass_conservation(m):
       %private_mass_conservation(p) : {1n+Nat.add(p, 0n) == 1n+_ : Nat}
       {==}
 
-def main() -> IO(Unit):
+def extract_mass_sum(res: PrivacyTransferResult) -> U32:
+  match res:
+    case PrivacyTransferResult{s, r, ok}:
+      match s:
+        case MaskedAccount{sh, +sb, sa}:
+          match r:
+            case MaskedAccount{rh, +rb, ra}:
+              (sb + rb : U32)
+
+def main() -> U32:
   # Contas sob pseudônimo criptográfico hash
-  conta_a = MaskedAccount{849201, 250000, True{}}
-  conta_b = MaskedAccount{392182, 100000, True{}}
-
-  res = private_settle(conta_a, conta_b, 50000)
-
-  do IO<Unit>:
-    IO.print("=== [VUA-DREX] Transferencia com Sigilo Bancario (LC 105) ===\n")
-    match res:
-      case PrivacyTransferResult{s, r, ok}:
-        match ok:
-          case True{}:
-            IO.print("• Status: Transação Liquidada com Zero-Leakage de Identidade\n• Massa Monetária Auditada: 100% Preservada\n")
-          case False{}:
-            IO.print("• Status: Transação Rejeitada por Invariante de Saldo Insuficiente\n")
+  # Conta A: R$ 250.000 | Conta B: R$ 100.000 | Transferência: R$ 50.000
+  # Resultado: Soma total conservada = 350.000
+  extract_mass_sum(private_settle(
+    MaskedAccount{849201, 250000, True{}},
+    MaskedAccount{392182, 100000, True{}},
+    50000
+  ))

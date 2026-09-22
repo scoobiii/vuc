@@ -68,6 +68,12 @@ export interface DrexExecutionResponse {
     description: string;
     passed: boolean;
   }[];
+  mechanicalProof?: {
+    verified: boolean;
+    engine: string;
+    stdout?: string;
+    verifiedLaws?: string[];
+  };
   stateSnapshot: {
     senderPre: Partial<DrexAccountState> | Record<string, any>;
     senderPost: Partial<DrexAccountState> | Record<string, any>;

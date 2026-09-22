@@ -9,7 +9,7 @@ import Base
 # liquidação (Herstatt Risk): se uma ponta entregar o TPFT e a ponta pagadora
 # travar ou cair antes de transferir o Real Digital, ocorre quebra de liquidez.
 #
-# Solução VUA + Bend:
+# Solução VUA + Bend 2:
 # Uma transação DvP formalmente atômica: ou ambas as pernas transferem os saldos
 # simultaneamente em tempo de máquina sem locks ou mutexes distribuídos, ou o
 # estado permanece inalterado.
@@ -41,14 +41,16 @@ def execute_dvp(
   match can_settle:
     case True{}:
       # Ambas as transferências ocorrem em sincronia formal
-      new_buyer = DvpParty{(b_cash - price : U32), (b_tpft + volume : U32)}
-      new_seller = DvpParty{(s_cash + price : U32), (s_tpft - volume : U32)}
-      DvpState{new_buyer, new_seller}
+      DvpState{
+        DvpParty{(b_cash - price : U32), (b_tpft + volume : U32)},
+        DvpParty{(s_cash + price : U32), (s_tpft - volume : U32)}
+      }
     case False{}:
       # Se falhar saldo de dinheiro ou títulos, aborta sem alterar nada
-      old_buyer = DvpParty{b_cash, b_tpft}
-      old_seller = DvpParty{s_cash, s_tpft}
-      DvpState{old_buyer, old_seller}
+      DvpState{
+        DvpParty{b_cash, b_tpft},
+        DvpParty{s_cash, s_tpft}
+      }
 
 # Verificação de solvência mútua antes da liquidação
 def settle_dvp(
@@ -58,13 +60,12 @@ def settle_dvp(
   +volume: U32
 ) -> DvpState:
   match b:
-    case DvpParty{b_cash, b_tpft}:
+    case DvpParty{+b_cash, +b_tpft}:
       match s:
-        case DvpParty{s_cash, s_tpft}:
-          # Condição estrita: comprador tem saldo suficiente E vendedor tem títulos suficientes
+        case DvpParty{+s_cash, +s_tpft}:
           cond_cash = (b_cash >= price : U32)
           cond_tpft = (s_tpft >= volume : U32)
-          can_settle = (cond_cash & cond_tpft : U32)
+          can_settle = Bool.and(cond_cash, cond_tpft)
           execute_dvp(can_settle, b_cash, b_tpft, s_cash, s_tpft, price, volume)
 
 # ==============================================================================
@@ -84,25 +85,17 @@ def dvp_conservation_invariant(pool):
       %dvp_conservation_invariant(p) : {1n+Nat.add(p, 0n) == 1n+_ : Nat}
       {==}
 
-def show_party(p: DvpParty) -> String:
-  match p:
-    case DvpParty{c, t}:
-      "Cash: R$ " ++ U32.show(c) ++ " | TPFT: " ++ U32.show(t) ++ " un"
+def extract_cash_sum(state: DvpState) -> U32:
+  match state:
+    case DvpState{b, s}:
+      match b:
+        case DvpParty{+bc, bt}:
+          match s:
+            case DvpParty{+sc, st}:
+              (bc + sc : U32)
 
-def main() -> IO(Unit):
+def main() -> U32:
   # Comprador: R$ 1.500.000 de saldo, 0 títulos
-  buyer = DvpParty{1500000, 0}
   # Vendedor: R$ 200.000 de saldo, 100 títulos TPFT
-  seller = DvpParty{200000, 100}
-
   # Operação: Comprar 25 TPFT por R$ 500.000
-  settled = settle_dvp(buyer, seller, 500000, 25)
-
-  do IO<Unit>:
-    IO.print("=== [VUA-DREX] Liquidacao Financeira DvP Atômica Concluída ===\n")
-    match settled:
-      case DvpState{nb, ns}:
-        do IO<Unit>:
-          IO.print("• Comprador Pós-DvP: " ++ show_party(nb) ++ "\n")
-          IO.print("• Vendedor Pós-DvP: " ++ show_party(ns) ++ "\n")
-          IO.print("• Status: Liquidado com Sucesso sob Garantia Formal Invariante\n")
+  extract_cash_sum(settle_dvp(DvpParty{1500000, 0}, DvpParty{200000, 100}, 500000, 25))

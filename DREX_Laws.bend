@@ -4,9 +4,9 @@ import Base
 # DREX_Laws.bend: LEIS INVARIANTES NORMATIVAS DO DREX (FASES 1 E 2 DO BACEN)
 # ==============================================================================
 # Autoridade Reguladora: Banco Central do Brasil (Bacen)
-# Protocolo de Governança: VUA (Vortex Universal Adapter) & HVM / Bend
+# Protocolo de Governança: VUA (Vortex Universal Adapter) & HVM / Bend 2
 #
-# DORES RESOLVIDAS DA FASE 1 & FASE 2:
+# DORES FORMALMENTE COMPUTADAS:
 # 1. Risco de Liquidação Herstatt (DvP Atômico):
 #    Eliminação formal de risco em liquidação Real Digital (CBDC Atacado) vs TPFT.
 # 2. Sigilo Bancário & Privacidade (LC 105/2001 / EVM leak):
@@ -42,98 +42,127 @@ type DrexSettlement is Data:
 # à soma pós-transação. Nenhum centavo pode ser criado ou destruído no atacado/varejo.
 # ------------------------------------------------------------------------------
 def check_dvp_solvency(
-  b_cash: U32,
-  s_tpft: U32,
-  price: U32,
-  volume: U32
+  +b_cash: U32,
+  +s_tpft: U32,
+  +price: U32,
+  +volume: U32
 ) -> Bool:
-  has_cash = (b_cash >= price)
-  has_tpft = (s_tpft >= volume)
-  (has_cash & has_tpft)
+  has_cash = (b_cash >= price : U32)
+  has_tpft = (s_tpft >= volume : U32)
+  Bool.and(has_cash, has_tpft)
+
+def apply_dvp_step(
+  can_settle: Bool,
+  +b_cash: U32,
+  +b_tpft: U32,
+  b_froz: U32,
+  +s_cash: U32,
+  +s_tpft: U32,
+  s_froz: U32,
+  +price: U32,
+  +volume: U32
+) -> DrexSettlement:
+  match can_settle:
+    case True{}:
+      DrexSettlement{
+        DrexParty{(b_cash - price : U32), (b_tpft + volume : U32), b_froz},
+        DrexParty{(s_cash + price : U32), (s_tpft - volume : U32), s_froz},
+        volume
+      }
+    case False{}:
+      DrexSettlement{
+        DrexParty{b_cash, b_tpft, b_froz},
+        DrexParty{s_cash, s_tpft, s_froz},
+        0
+      }
 
 def execute_drex_dvp(
   b: DrexParty,
   s: DrexParty,
-  price: U32,
-  volume: U32
+  +price: U32,
+  +volume: U32
 ) -> DrexSettlement:
   match b:
-    case DrexParty{b_cash, b_tpft, b_froz}:
+    case DrexParty{+b_cash, +b_tpft, b_froz}:
       match s:
-        case DrexParty{s_cash, s_tpft, s_froz}:
+        case DrexParty{+s_cash, +s_tpft, s_froz}:
           can_settle = check_dvp_solvency(b_cash, s_tpft, price, volume)
-          match can_settle:
-            case True{}:
-              new_b = DrexParty{(b_cash - price : U32), (b_tpft + volume : U32), b_froz}
-              new_s = DrexParty{(s_cash + price : U32), (s_tpft - volume : U32), s_froz}
-              DrexSettlement{new_b, new_s, volume}
-            case False{}:
-              # Rejeita sem alterar saldo
-              old_b = DrexParty{b_cash, b_tpft, b_froz}
-              old_s = DrexParty{s_cash, s_tpft, s_froz}
-              DrexSettlement{old_b, old_s, 0}
+          apply_dvp_step(can_settle, b_cash, b_tpft, b_froz, s_cash, s_tpft, s_froz, price, volume)
 
 # ------------------------------------------------------------------------------
 # LEI 2: COMPLIANCE COM SIGILO BANCÁRIO (LC 105/2001)
 # Verificação de conservação global: soma(antes) == soma(depois)
 # ------------------------------------------------------------------------------
 def verify_conservation(
-  pre_cash_1: U32,
-  pre_cash_2: U32,
-  post_cash_1: U32,
-  post_cash_2: U32
+  +pre_cash_1: U32,
+  +pre_cash_2: U32,
+  +post_cash_1: U32,
+  +post_cash_2: U32
 ) -> Bool:
   sum_pre = (pre_cash_1 + pre_cash_2 : U32)
   sum_post = (post_cash_1 + post_cash_2 : U32)
-  (sum_pre == sum_post)
+  U32.is_eq(sum_pre, sum_post)
 
 # ------------------------------------------------------------------------------
 # LEI 3: BLOQUEIO JUDICIAL AUTOMATIZADO (BACENJUD / SISBAJUD)
 # Transfere parte do saldo disponível para a reserva bloqueada cautelarmente.
 # ------------------------------------------------------------------------------
+def apply_freeze_step(
+  can_freeze: Bool,
+  +cash: U32,
+  tpft: U32,
+  +froz: U32,
+  +freeze_amount: U32
+) -> DrexParty:
+  match can_freeze:
+    case True{}:
+      DrexParty{(cash - freeze_amount : U32), tpft, (froz + freeze_amount : U32)}
+    case False{}:
+      DrexParty{0, tpft, (froz + cash : U32)}
+
 def execute_judicial_freeze(
   party: DrexParty,
-  freeze_amount: U32
+  +freeze_amount: U32
 ) -> DrexParty:
   match party:
-    case DrexParty{cash, tpft, froz}:
-      can_freeze = (cash >= freeze_amount)
-      match can_freeze:
-        case True{}:
-          DrexParty{(cash - freeze_amount : U32), tpft, (froz + freeze_amount : U32)}
-        case False{}:
-          # Bloqueia o máximo disponível
-          DrexParty{0, tpft, (froz + cash : U32)}
+    case DrexParty{+cash, tpft, +froz}:
+      can_freeze = (cash >= freeze_amount : U32)
+      apply_freeze_step(can_freeze, cash, tpft, froz, freeze_amount)
 
 # ------------------------------------------------------------------------------
-# LEI FORMAL VERIFICÁVEL MECANICAMENTE: law dvp_preserves_total_cash
+# LEI FORMAL VERIFICÁVEL MECANICAMENTE: dvp_conservation_proof
 # ------------------------------------------------------------------------------
-def dvp_conservation_proof(
-  b_cash: U32,
-  s_cash: U32,
-  price: U32
+def check_proof_step(
+  can_settle: Bool,
+  +b_cash: U32,
+  +s_cash: U32,
+  +price: U32
 ) -> Bool:
-  can_settle = (b_cash >= price)
   match can_settle:
     case True{}:
       new_b = (b_cash - price : U32)
       new_s = (s_cash + price : U32)
-      ((new_b + new_s : U32) == (b_cash + s_cash : U32))
+      U32.is_eq((new_b + new_s : U32), (b_cash + s_cash : U32))
     case False{}:
       True{}
 
-# Ponto de entrada do programa
-def main() -> U32:
-  # Cenário Piloto Bacen: Banco Comprador (100.000 BRL), Banco Vendedor (50 TPFT)
-  buyer = DrexParty{100000, 0, 0}
-  seller = DrexParty{20000, 50, 0}
-  settlement = execute_drex_dvp(buyer, seller, 35000, 10)
-  
-  match settlement:
+def dvp_conservation_proof(
+  +b_cash: U32,
+  +s_cash: U32,
+  +price: U32
+) -> Bool:
+  can_settle = (b_cash >= price : U32)
+  check_proof_step(can_settle, b_cash, s_cash, price)
+
+def extract_sum(s: DrexSettlement) -> U32:
+  match s:
     case DrexSettlement{new_b, new_s, vol}:
       match new_b:
-        case DrexParty{b_c, b_t, _}:
+        case DrexParty{+b_c, b_t, b_f}:
           match new_s:
-            case DrexParty{s_c, s_t, _}:
-              # Retorna a soma de checagem dos saldos
+            case DrexParty{+s_c, s_t, s_f}:
               (b_c + s_c : U32)
+
+# Ponto de entrada canônico: liquida DvP de teste e emite verificação de soma
+def main() -> U32:
+  extract_sum(execute_drex_dvp(DrexParty{100000, 0, 0}, DrexParty{20000, 50, 0}, 35000, 10))
