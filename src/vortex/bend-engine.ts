@@ -52,8 +52,8 @@ export interface BendLawCheckResult {
  * Localiza o binário do compilador Bend no repositório ou no PATH do sistema
  */
 export function findBendBinary(): string | null {
-  if (process.env.BEND_BIN && fs.existsSync(process.env.BEND_BIN)) {
-    return process.env.BEND_BIN;
+  if (process.env.BEND_BIN) {
+    return fs.existsSync(process.env.BEND_BIN) ? process.env.BEND_BIN : null;
   }
   const repoLocalBin = path.resolve(process.cwd(), 'bin/native/bin/bend');
   if (fs.existsSync(repoLocalBin)) {
@@ -451,5 +451,96 @@ def main() -> U32:
       engine: 'VUAB Deterministic DvP Evaluator',
       stdout: `Evaluated settled volume: ${settledVolume}`,
     };
+  }
+
+  public static verifyConservationInBend(
+    preCash1: number,
+    preCash2: number,
+    postCash1: number,
+    postCash2: number,
+  ): {
+    success: boolean;
+    engine: string;
+    stdout: string;
+    inputHash: string;
+    executionHash: string;
+  } {
+    const values = [preCash1, preCash2, postCash1, postCash2];
+    if (values.some((value) => !Number.isSafeInteger(value) || value < 0)) {
+      throw new Error('DREX conservation input inválido.');
+    }
+
+    const bendBin = findBendBinary();
+    const lawsPath = path.resolve(process.cwd(), 'DREX_Laws.bend');
+    if (!bendBin) {
+      throw new Error('DREX conservation bloqueado: Bend nativo não encontrado.');
+    }
+    if (!fs.existsSync(lawsPath)) {
+      throw new Error('DREX conservation bloqueado: DREX_Laws.bend não encontrado.');
+    }
+
+    const base = fs.readFileSync(lawsPath, 'utf8');
+    const mainPattern = /def main\(\) -> U32:[\s\S]*$/;
+    if (!mainPattern.test(base)) {
+      throw new Error('DREX conservation bloqueado: main Bend não encontrado.');
+    }
+
+    const customMain = `
+def conservation_result() -> Bool:
+  verify_conservation(${preCash1}, ${preCash2}, ${postCash1}, ${postCash2})
+
+def bool_to_u32(result: Bool) -> U32:
+  match result:
+    case True{}:
+      1
+    case False{}:
+      0
+
+def main() -> U32:
+  bool_to_u32(conservation_result())
+`;
+    const program = base.replace(mainPattern, customMain);
+    const inputHash = crypto.createHash('sha256').update(program, 'utf8').digest('hex');
+    const tmpFile = path.join(os.tmpdir(), `drex-conservation-${crypto.randomUUID()}.bend`);
+
+    try {
+      fs.writeFileSync(tmpFile, program, 'utf8');
+      const proc = child_process.spawnSync(bendBin, [tmpFile], {
+        encoding: 'utf8',
+        timeout: 10000,
+      });
+      const stdout = proc.stdout || '';
+      const stderr = proc.stderr || '';
+
+      if (proc.error) {
+        throw new Error(`DREX conservation Bend não pôde ser executado: ${proc.error.message}`);
+      }
+      if (proc.signal || proc.status !== 0) {
+        throw new Error(
+          `DREX conservation Bend falhou (exit ${String(proc.status)}): ${stderr || stdout || 'sem saída'}`,
+        );
+      }
+      if (stdout.trim() !== '1') {
+        throw new Error('DREX conservation rejeitada pelo Bend.');
+      }
+
+      const executionHash = crypto
+        .createHash('sha256')
+        .update(JSON.stringify({ inputHash, stdout: stdout.trim(), exitCode: proc.status }), 'utf8')
+        .digest('hex');
+      return {
+        success: true,
+        engine: 'Native Bend 2.0.25 (HVM2)',
+        stdout: stdout.trim(),
+        inputHash,
+        executionHash,
+      };
+    } finally {
+      try {
+        if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+      } catch {
+        // Cleanup best effort; never turn a valid proof into a fallback.
+      }
+    }
   }
 }

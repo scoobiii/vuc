@@ -57,6 +57,8 @@ export interface DrexExecutionResponse {
   actorRole: DrexActorRole;
   lawsVerified: string[];
   proofHash: string;
+  inputHash?: string;
+  executionHash?: string;
   canonicalJcs: string;
   ed25519Signature: string;
   settlementTimestamp: string;
@@ -73,6 +75,8 @@ export interface DrexExecutionResponse {
     engine: string;
     stdout?: string;
     verifiedLaws?: string[];
+    inputHash?: string;
+    executionHash?: string;
   };
   stateSnapshot: {
     senderPre: Partial<DrexAccountState> | Record<string, any>;
