@@ -163,6 +163,24 @@ def extract_sum(s: DrexSettlement) -> U32:
             case DrexParty{+s_c, s_t, s_f}:
               (b_c + s_c : U32)
 
+# ------------------------------------------------------------------------------
+# FASE 2: RWA DE ENERGIA / DELIVERY VERSUS PAYMENT
+# O ativo energético é entregue somente quando a perna financeira e a disponibilidade
+# do volume satisfazem a mesma condição formal no contrato.
+# ------------------------------------------------------------------------------
+def execute_energy_dvp(
+  buyer_cash: U32,
+  seller_energy_mwh: U32,
+  price: U32,
+  volume_mwh: U32
+) -> U32:
+  can_settle = Bool.and((buyer_cash >= price : U32), (seller_energy_mwh >= volume_mwh : U32))
+  match can_settle:
+    case True{}:
+      volume_mwh
+    case False{}:
+      0
+
 # Ponto de entrada canônico: liquida DvP de teste e emite verificação de soma
 def main() -> U32:
   extract_sum(execute_drex_dvp(DrexParty{100000, 0, 0}, DrexParty{20000, 50, 0}, 35000, 10))
