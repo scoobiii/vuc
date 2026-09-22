@@ -170,7 +170,7 @@ def extract_sum(s: DrexSettlement) -> U32:
 # ------------------------------------------------------------------------------
 def settle_energy_step(
   can_settle: Bool,
-  volume_mwh: U32
+  +volume_mwh: U32
 ) -> U32:
   match can_settle:
     case True{}:
@@ -179,10 +179,10 @@ def settle_energy_step(
       0
 
 def execute_energy_dvp(
-  buyer_cash: U32,
-  seller_energy_mwh: U32,
-  price: U32,
-  volume_mwh: U32
+  +buyer_cash: U32,
+  +seller_energy_mwh: U32,
+  +price: U32,
+  +volume_mwh: U32
 ) -> U32:
   settle_energy_step(
     Bool.and((buyer_cash >= price : U32), (seller_energy_mwh >= volume_mwh : U32)),
