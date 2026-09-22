@@ -311,7 +311,6 @@ def main() -> U32:
         throw new Error(`DREX DvP Bend falhou: ${err?.message || String(err)}`);
       }
     }
-  }
 
   /**
    * Fase 2: prova nativa de DvP para energia tokenizada/RWA.
