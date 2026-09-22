@@ -40,6 +40,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install native Bend
+        run: npm run install:bend
+
+      - name: Verify native Bend
+        run: |
+          set -euo pipefail
+          test -x ./bin/native/bin/bend
+          ./bin/native/bin/bend version
+
       - name: Lint
         run: npm run lint
 
