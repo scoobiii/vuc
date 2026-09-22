@@ -5,10 +5,13 @@
  */
 import assert from 'node:assert/strict';
 
-const { VUABendEngine, findBendBinary } = await import('../src/vortex/bend-engine.js');
+const { VUABendEngine, findBendBinary, readBendVersion, sha256File } = await import('../src/vortex/bend-engine.js');
 const { DrexGovernanceEngine } = await import('../src/vortex/drex-engine.js');
 
-assert.ok(findBendBinary(), 'Phase 2 requires native Bend in the test environment.');
+const bend = findBendBinary();
+assert.ok(bend, 'Phase 2 requires native Bend in the test environment.');
+assert.equal(readBendVersion(bend!), '2.0.25');
+assert.match(sha256File(bend!), /^[a-f0-9]{64}$/);
 
 const previous = process.env.BEND_BIN;
 try {
