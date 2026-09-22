@@ -67,7 +67,7 @@ export function readBendVersion(bendBin: string): string {
   const proc = child_process.spawnSync(bendBin, ['version'], { encoding: 'utf8', timeout: 5000 });
   if (proc.status !== 0) throw new Error(`Bend version check failed: ${proc.stderr || proc.stdout || 'unknown error'}`);
   const output = (proc.stdout || '').trim();
-  const match = output.match(/(\\d+\\.\\d+\\.\\d+)/);
+  const match = output.match(/(\d+\.\d+\.\d+)/);
   if (!match) throw new Error(`Bend version não identificável: ${JSON.stringify(output)}`);
   return match[1];
 }
