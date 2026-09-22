@@ -212,6 +212,8 @@ export class DrexGovernanceEngine {
       engine: string;
       stdout?: string;
       verifiedLaws?: string[];
+      inputHash?: string;
+      executionHash?: string;
     } = {
       verified: true,
       engine: 'Bend Mechanical Validator',
@@ -248,6 +250,8 @@ export class DrexGovernanceEngine {
           engine: bendResult.engine,
           stdout: bendResult.stdout,
           verifiedLaws: ['check_dvp_solvency', 'execute_drex_dvp'],
+          inputHash: bendResult.inputHash,
+          executionHash: bendResult.executionHash,
         };
 
         // Troca atômica de pernas
@@ -266,27 +270,42 @@ export class DrexGovernanceEngine {
       }
 
       case 'TRANSFER_RETAIL': {
-        // Lei 2: Sigilo Bancário & Conservação P2P
+        // Lei 2: prova de conservação executada ANTES da mutação do ledger.
         lawsVerified.push('DREX_Laws.bend#verify_conservation');
-        mechanicalProofInfo = {
-          verified: true,
-          engine: 'Native Bend 2.0.25 (Typecheck Verified)',
-          verifiedLaws: ['verify_conservation'],
-        };
         const amount = payload.amountRealDigital;
-
+        if (!receiver) throw new Error('DREX Transfer bloqueada: destinatário obrigatório.');
+        if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('DREX Transfer bloqueada: valor inválido.');
         if (sender.realDigitalBalance < amount) {
           throw new Error(`Saldo insuficiente para transferência: ${sender.realDigitalBalance / 100} BRL < ${amount / 100} BRL.`);
         }
 
-        sender.realDigitalBalance -= amount;
-        if (receiver) {
-          receiver.realDigitalBalance += amount;
+        const senderPostCash = sender.realDigitalBalance - amount;
+        const receiverPostCash = receiver.realDigitalBalance + amount;
+        const bendProof = VUABendEngine.verifyConservationInBend(
+          sender.realDigitalBalance,
+          receiver.realDigitalBalance,
+          senderPostCash,
+          receiverPostCash
+        );
+        if (!bendProof.success) {
+          throw new Error('DREX Transfer bloqueada: prova de conservação Bend não verificada.');
         }
+
+        mechanicalProofInfo = {
+          verified: true,
+          engine: bendProof.engine,
+          verifiedLaws: ['verify_conservation'],
+          inputHash: bendProof.inputHash,
+          executionHash: bendProof.executionHash,
+        };
+
+        // Somente após a prova nativa ser aceita ocorre a mutação.
+        sender.realDigitalBalance = senderPostCash;
+        receiver.realDigitalBalance = receiverPostCash;
 
         auditTrail.push({
           rule: 'LC_105_CONSERVATION',
-          description: 'Transferência de Real Varejo preservou 100% da conservação sem expor os saldos individuais das partes.',
+          description: 'Transferência de Real Varejo autorizada após prova nativa de conservação, sem expor saldos no recibo.',
           passed: true,
         });
         break;
@@ -382,6 +401,8 @@ export class DrexGovernanceEngine {
       timestamp,
       legalBasis: payload.legalBasis,
       invariantPreserved,
+      inputHash: mechanicalProofInfo.inputHash,
+      executionHash: mechanicalProofInfo.executionHash,
     };
 
     const canonicalJcs = canonicalize(canonicalDoc);
