@@ -128,6 +128,9 @@ O VUA implementa o fluxo completo de modificação e governança de código:
 
 ## 📚 Guias Passo a Passo na Pasta `docs/`
 
+- 📋 [**docs/PR-ONBOARDING.md**](./docs/PR-ONBOARDING.md) — Regra PR → CI → review → merge, requisitos de evidência e onboarding do PR #2.
+
+
 Documentação completa e estruturada disponível no repositório:
 
 - 📖 [**docs/README.md**](./docs/README.md) — Índice mestre e arquitetura geral.
