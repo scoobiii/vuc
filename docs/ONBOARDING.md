@@ -83,6 +83,48 @@ O preflight é fail-closed e declara `external_effect=none`. Ele não pode aprov
 
 No CI, o workflow `VUC Internal Governance Gate` reproduz essa barreira em ambiente limpo. Uma aprovação local não substitui os checks externos do GitHub; ela apenas impede que uma alteração conhecida como quebrada seja enviada sem passar pela primeira barreira.
 
+## 4.2. MCP → connector real → ExecutionProof
+
+O caminho mínimo validado pelo projeto é:
+
+    MCP tools/call
+      → VUA adapter
+      → real execution
+      → ExecutionProof
+      → independent Ed25519/JCS/hash verification
+      → VERIFIED
+
+A integração deve ser executável e verificável. Um retorno de CI, log ou resposta textual não substitui a prova criptográfica.
+
+O teste de integração dedicado é:
+
+    npm run test:mcp-proof
+
+A suíte de integração também incorpora esse gate:
+
+    npm run test:integration
+
+O contrato proíbe mock-sig e falha quando a prova está ausente, a assinatura é inválida, a identidade não corresponde ou os hashes não conferem.
+
+### Primeiro alvo de compatibilidade
+
+O primeiro host de referência é GPT. O desenho permanece independente do host sempre que o cliente puder consumir MCP.
+
+A sequência de certificação é:
+
+1. MCP local;
+2. connector real;
+3. ExecutionProof verificável;
+4. primeiro connector cloud;
+5. host GPT;
+6. demais hosts LLM;
+7. catálogo de connectors.
+
+### Operação comercial futura
+
+O primeiro agente comercial previsto é o Onboarding & Discovery Agent. Ele poderá consultar, auditar e registrar dados autorizados via connectors CRM/ERP, separando fatos, hipóteses, evidências e premissas para CAPEX/OPEX/ROI.
+
+Isso é roadmap de produto, não declaração de disponibilidade GA.
 ## 5. Validação local convencional
 
 ```bash

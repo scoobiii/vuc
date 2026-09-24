@@ -138,6 +138,88 @@ O VUC é um Progressive Web App (PWA) de arquitetura moderna:
 
 ---
 
+## 🌐 Produto: VUC para Apps LLM e Conectores Governados
+
+O VUC está sendo fechado como uma **camada de execução governada para qualquer app LLM/agente compatível com MCP**, começando pelo GPT como host de referência.
+
+A tese é:
+
+```
+LLM / AI App
+      ↓ MCP
+VUC
+      ↓
+Identity + Tenant + Capability + Policy
+      ↓
+Connector
+      ↓
+REAL EXECUTION
+      ↓
+ExecutionProof
+      ↓
+Independent Verification
+```
+
+O objetivo comercial não é vender modelos. É vender uma fronteira onde um agente pode agir e onde a ação pode ser **autorizada, delimitada, executada e provada**.
+
+### VUC Connect
+
+Os connectors são integrações dentro do produto, não produtos isolados:
+
+- Big Tech / cloud;
+- SaaS corporativo;
+- ERP;
+- CRM;
+- ITSM;
+- dados;
+- observabilidade;
+- developer platforms;
+- sistemas internos.
+
+Cada connector deve declarar identidade, capabilities, scopes, tenant binding, efeitos externos, credenciais, política e mecanismo de ExecutionProof.
+
+### Primeiro produto comercial: Onboarding & Discovery Agent
+
+A primeira experiência de cliente prevista é um agente que faz o onboarding e a descoberta operacional:
+
+```
+Onboarding
+  → Discovery
+  → Audit
+  → Pain Map
+  → Demand
+  → Solution
+  → CAPEX / OPEX
+  → ROI / TCO
+  → Proposal
+```
+
+O agente não deve inventar diagnóstico ou ROI. Fatos, hipóteses, fontes, premissas e limitações precisam ser separados e registrados.
+
+CRM/ERP entram como **connectors governados**. Operações de escrita exigem capability explícita e evidência verificável.
+
+### Operação agent-to-agent
+
+A Vortex pode operar comercialmente com agentes como interlocutores primários:
+
+```
+Cliente
+  ↓
+Vortex Agent
+  ↓
+Onboarding / Discovery Agent
+  ↓
+VUC
+  ↓
+CRM / ERP / Cloud / Data
+```
+
+“Humanizado” descreve a interface operacional; não concede autoridade. A autoridade continua no VUC.
+
+Consulte [docs/PRODUCT-AGENT-COMMERCE.md](./docs/PRODUCT-AGENT-COMMERCE.md) para produto, monetização, métricas, GAIS e roadmap.
+
+---
+
 ## 🤖 Como Cada App LLM e Agente Configura e Usa o VUC
 
 O VUC disponibiliza um servidor **Model Context Protocol (MCP)** nos endpoints `http://localhost:3000/mcp` (HTTP POST) e `http://localhost:3000/sse` (Server-Sent Events).
