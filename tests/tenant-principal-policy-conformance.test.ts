@@ -21,8 +21,15 @@ const baseAuth = {
   },
 };
 
-function call(requestId: string, authorization = baseAuth, target: Record<string, unknown> = {}, action = 'inspect_system') {
-  return handleMCPMessage({
+type ConformanceResult = {
+  success?: boolean;
+  capability_executed?: boolean;
+  execution_proof?: any;
+  error?: { code?: string; message?: string };
+};
+
+async function call(requestId: string, authorization = baseAuth, target: Record<string, unknown> = {}, action = 'inspect_system'): Promise<ConformanceResult> {
+  const response = await handleMCPMessage({
     jsonrpc: '2.0',
     id: requestId,
     method: 'tools/call',
@@ -38,6 +45,7 @@ function call(requestId: string, authorization = baseAuth, target: Record<string
       },
     },
   });
+  return (response.result ?? {}) as ConformanceResult;
 }
 
 clearTenantBindings();
