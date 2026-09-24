@@ -547,7 +547,7 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
     const res = await vuaRegistry.invoke({
       adapterId: 'github',
       action: 'inspect_repo',
-      target: { owner: 'scoobiii', repo: 'vua', branch: 'main' },
+      target: { owner: 'scoobiii', repo: 'vuc', branch: 'main' },
     });
     results.push({
       adapter: 'github',
