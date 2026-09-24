@@ -16,20 +16,20 @@ const READ_COMMANDS = new Set([
   'ls-files','ls-tree','for-each-ref','name-rev','describe','merge-base',
   'cherry','range-diff','blame','annotate','grep','check-ignore','check-attr',
   'check-mailmap','check-ref-format','count-objects','verify-pack','fsck',
-  'verify-commit','verify-tag','whatchanged','reflog','remote','branch','tag',
-  'worktree','submodule','config','var','version','help','archive','bundle',
-  'symbolic-ref','show-ref','ls-remote','hash-object','mktree','read-tree',
-  'unpack-file','unpack-objects','index-pack','verify-index','commit-graph',
-  'multi-pack-index'
+  'verify-commit','verify-tag','whatchanged','var','version','help',
+  'symbolic-ref','show-ref','ls-remote','cat-file','ls-files','ls-tree',
+  'rev-parse','rev-list','for-each-ref','name-rev','describe','merge-base',
+  'cherry','range-diff','blame','annotate','grep','check-ignore','check-attr'
 ]);
 
 const WRITE_COMMANDS = new Set([
-  'init','add','am','apply','commit','branch','checkout','switch','restore',
+  'init','clone','add','am','apply','commit','branch','checkout','switch','restore',
   'merge','cherry-pick','revert','reset','stash','tag','remote','fetch','pull',
   'push','rebase','notes','worktree','submodule','update-index','update-ref',
   'commit-tree','write-tree','mktag','fast-import','fast-export','filter-branch',
   'replace','reflog','pack-refs','repack','gc','prune','prune-packed',
-  'maintenance','clean','sparse-checkout','bisect','bundle'
+  'maintenance','clean','sparse-checkout','bisect','bundle','archive','config',
+  'read-tree','mktree','hash-object','commit-graph','multi-pack-index'
 ]);
 
 const DESTRUCTIVE_COMMANDS = new Set([
@@ -62,7 +62,7 @@ function validateArgs(value: unknown): string[] {
 async function listGitCommands(): Promise<Set<string>> {
   const result = await execFileAsync(
     'git',
-    ['--no-pager', '--list-cmds=main,others,nohelpers'],
+    ['--no-pager', '--list-cmds=main,nohelpers'],
     {
       timeout: 5000,
       maxBuffer: 512 * 1024,
