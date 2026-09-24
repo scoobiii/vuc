@@ -252,7 +252,12 @@ export async function handleMCPMessage(message: {
       jsonrpc: '2.0',
       id,
       result: {
-        tools: VORTEX_MCP_TOOLS,
+        tools: VORTEX_MCP_TOOLS.map((tool) => ({
+          ...tool,
+          securitySchemes: tool.name === 'vua.adapter.invoke' || tool.name === 'vortex.execute' || tool.name === 'vortex.branch.write'
+            ? [{ type: 'oauth2', scopes: ['mcp:write'] }]
+            : [{ type: 'noauth' }],
+        })),
       },
     };
   }

@@ -18,7 +18,7 @@ import { canonicalize } from './canonicalize.js';
 import { generateVortexIdentity, KEY_REGISTRY, sha256, signProofPayload, signCanonicalString } from './crypto.js';
 import { getOrCreateGOS3Session, validateGOS3Session } from './gos3.js';
 import { evaluatePolicy } from './policy.js';
-import { DEFAULT_SANDBOX_LIMITS, validateCredentialScope, validateFilesystemScope } from './sandbox.js';
+import { DEFAULT_SANDBOX_LIMITS, validateCredentialScope, validateFilesystemScope, validateNetworkScope } from './sandbox.js';
 import { verifyExecutionProof } from './verifier.js';
 import type {
   ExecutionProof,
@@ -188,6 +188,41 @@ export async function executeVortexPipeline(
       return {
         status: 'SANDBOX_DENIED',
         error: { code: fsCheck.violation_type || 'SANDBOX_ESCAPE', message: fsCheck.message || 'Filesystem boundary breached' },
+        execution_proof: proof,
+      };
+    }
+  }
+
+  // Network sandbox boundary: remote connectors must declare/resolve their destination host.
+  const networkHost = (req.target?.network_host as string) || (req.target?.host as string) ||
+    (req.target?.adapter === 'github' || req.target?.adapter === 'github' ? 'api.github.com' : '');
+  if (networkHost) {
+    const networkCheck = validateNetworkScope(networkHost, req.sandbox?.network_scope || DEFAULT_SANDBOX_LIMITS.network_scope);
+    if (!networkCheck.allowed) {
+      const proof = createSignedProof({
+        request_id: req.request_id,
+        execution_id: executionId,
+        runtime_id: runtimeId,
+        agent_id: req.authorization?.agent_id || CURRENT_IDENTITY.agent_id,
+        principal_id: req.authorization?.principal_id || CURRENT_IDENTITY.principal_id,
+        connector_id: connectorId,
+        operation: req.operation,
+        execution_kind: executionKind,
+        executed: false,
+        status: 'SANDBOX_DENIED',
+        input_hash: inputHash,
+        output_hash: sha256({ error: networkCheck.message }),
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - startTime,
+        policy_id: policyId,
+        policy_version: policyVersion,
+        gos3_session_id: gos3SessionId,
+        sandbox_id: sandboxId,
+      });
+      return {
+        status: 'SANDBOX_DENIED',
+        error: { code: networkCheck.violation_type || 'NETWORK_DENIED', message: networkCheck.message || 'Network boundary breached' },
         execution_proof: proof,
       };
     }

@@ -50,7 +50,8 @@ try {
     method: 'POST',
     headers: { Authorization: 'Bearer definitely-invalid' },
   });
-  assert.equal(missingTenant.status, 403);
+  assert.equal(missingTenant.status, 401);
+  assert.deepEqual(await missingTenant.json(), { error: 'invalid_token' });
 
   const unsupportedScope = await fetch(`${base}/oauth/authorize?response_type=code&client_id=missing&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&code_challenge=abc&code_challenge_method=S256&scope=admin`);
   assert.equal(unsupportedScope.status, 400);
@@ -132,7 +133,8 @@ try {
     method: 'POST',
     headers: { Authorization: `Bearer ${token.access_token}`, 'X-VUC-Tenant-ID': 'tenant-b' },
   });
-  assert.equal(crossTenant.status, 401);
+  assert.equal(crossTenant.status, 403);
+  assert.deepEqual(await crossTenant.json(), { error: 'insufficient_scope' });
 
   const insufficientScope = await fetch(`${base}/write-protected`, {
     method: 'POST',
