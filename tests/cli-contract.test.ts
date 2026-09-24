@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const CLI = join(process.cwd(), 'bin', 'vuc.js');
+const TSX_ARGS = ['--import', 'tsx'];
 
 type Case = {
   name: string;
@@ -46,7 +47,7 @@ const routeCases: Case[] = [
 ];
 
 function run(c: Case) {
-  const result = spawnSync(process.execPath, [CLI, ...c.argv], {
+  const result = spawnSync(process.execPath, [...TSX_ARGS, CLI, ...c.argv], {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -92,7 +93,7 @@ try {
     result: { coverage: '100%', security: 'PASS', performance: 'PASS' },
     proofs_count: 0,
   }));
-  const verifyEvidence = spawnSync(process.execPath, [CLI, 'verify', evidence], {
+  const verifyEvidence = spawnSync(process.execPath, [...TSX_ARGS, CLI, 'verify', evidence], {
     cwd: process.cwd(), env: { ...process.env }, encoding: 'utf8', timeout: 30_000,
   });
   assert(verifyEvidence.status === 0, `verify evidence failed: ${verifyEvidence.stdout}\n${verifyEvidence.stderr}`);
@@ -100,14 +101,14 @@ try {
 
   const invalidProof = join(temp, 'invalid-proof.json');
   writeFileSync(invalidProof, JSON.stringify({ schema_version: 'v1', proof_hash: 'invalid' }));
-  const verifyInvalid = spawnSync(process.execPath, [CLI, 'verify', invalidProof], {
+  const verifyInvalid = spawnSync(process.execPath, [...TSX_ARGS, CLI, 'verify', invalidProof], {
     cwd: process.cwd(), env: { ...process.env }, encoding: 'utf8', timeout: 30_000,
   });
   assert(verifyInvalid.status === 0, `verify invalid proof unexpectedly exited: ${verifyInvalid.stderr}`);
   assert(/INVÁLIDO/.test(verifyInvalid.stdout), 'invalid proof branch was not exercised');
 
   // Exercise MCP parse-error and valid JSON-RPC paths through the actual stdio CLI.
-  const mcp = spawnSync(process.execPath, [CLI, 'mcp'], {
+  const mcp = spawnSync(process.execPath, [...TSX_ARGS, CLI, 'mcp'], {
     cwd: process.cwd(), env: { ...process.env }, input: '{not-json}\n{"jsonrpc":"2.0","id":1,"method":"unknown/method"}\n',
     encoding: 'utf8', timeout: 30_000,
   });
