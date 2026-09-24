@@ -90,3 +90,21 @@ Stop and report failure when:
 - a benchmark is not comparable;
 - a gate is red;
 - multiple causal changes make attribution impossible.
+
+## Runtime system instruction
+
+The same governance contract in this file is the normative system instruction for governed LLM execution.
+
+Before an LLM may execute repository work, the VUC runtime must:
+1. load this file from the active checkout;
+2. validate its required governance markers;
+3. pass the resulting instruction to the LLM provider as the system instruction;
+4. execute the requested operation inside the VUC sandbox;
+5. obtain an ExecutionProof from the real gateway;
+6. independently verify that proof before reporting PASS.
+
+A missing, empty, altered, or unverifiable instruction/proof is a hard failure. No mock signature or synthetic PASS is permitted.
+
+## Internal preflight barrier
+
+Run `npm run preflight` before sending a change to an external CI provider. The preflight is local-only (`external_effect=none`) and fails closed when the governance contract, CLI, GOS3 contract, security tests, real gateway execution, ExecutionProof verification, or build is not green.
