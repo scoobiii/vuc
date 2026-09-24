@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 mountOAuth(app, { publicBaseUrl: 'https://vua.example.test' });
 
-app.post('/protected', requireBearer(() => 'https://vua.example.test/mcp'), (_req, res) => {
+app.post('/protected', requireBearer(() => 'https://vua.example.test/mcp', ['mcp:read']), (_req, res) => {
   res.json({ ok: true });
 });
 app.post('/write-protected', requireBearer(() => 'https://vua.example.test/mcp', ['mcp:write']), (_req, res) => {
