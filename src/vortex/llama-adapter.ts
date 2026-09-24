@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 
 export interface LlamaRequest {
   prompt: string;
+  systemInstruction?: string;
   model?: string;
   max_tokens?: number;
   temperature?: number;
@@ -76,8 +77,11 @@ export async function invokeLlama(request: LlamaRequest): Promise<LlamaResponse>
     const payload = {
       model: request.model ?? 'qwen',
       messages: [
+        ...(request.systemInstruction
+          ? [{ role: 'system' as const, content: request.systemInstruction }]
+          : []),
         {
-          role: 'user',
+          role: 'user' as const,
           content: request.prompt,
         },
       ],
@@ -107,7 +111,7 @@ export async function invokeLlama(request: LlamaRequest): Promise<LlamaResponse>
 
       // Fallback para endpoint nativo do llama-server /completion
       const nativePayload = {
-        prompt: `<|im_start|>user\n${request.prompt}<|im_end|>\n<|im_start|>assistant\n`,
+        prompt: `${request.systemInstruction ? `<|im_start|>system\\n${request.systemInstruction}<|im_end|>\\n` : ''}<|im_start|>user\\n${request.prompt}<|im_end|>\\n<|im_start|>assistant\\n`,
         temperature: request.temperature ?? 0,
         n_predict: request.max_tokens ?? 128,
         stop: ['<|im_end|>', '<|endoftext|>'],
