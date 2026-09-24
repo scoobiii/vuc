@@ -38,6 +38,10 @@ const response = await handleMCPMessage({
         repo: 'vuc',
         branch: 'main',
       },
+      sandbox: {
+        network_scope: ['api.github.com'],
+        resource_limits: { timeout_ms: 10000, memory_mb: 512 },
+      },
       authorization: {
         principal_id: 'vuc-mcp-github-test',
         agent_id: 'agent/vuc-mcp-github-proof-test',
