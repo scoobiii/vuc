@@ -105,4 +105,4 @@ A **Vortex Open Protocol Foundation** adota um modelo híbrido sustentável insp
 3. **VUA Cloud Ledger Gerenciado**:
    - Serviço em nuvem de custódia e auditoria contínua de provas com alta disponibilidade global e retenção de longo prazo.
 4. **Certificação de Agentes e Modelos**:
-   - Selo de conformidade VUA para modelos e ferramentas que comprovadamente respeitam os limites de governança e interoperabilidade RFC 8785.
+   - Proposta futura de selo de conformidade VUA para modelos e ferramentas que comprovadamente respeitem os limites de governança e interoperabilidade RFC 8785; o selo não está emitido neste repositório.

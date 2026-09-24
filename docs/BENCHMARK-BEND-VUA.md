@@ -24,7 +24,7 @@ Documentação oficial dos resultados de benchmark medidos e evidências empíri
 | **Fase 2: Execução do Algoritmo** | 393.20 ms | **395.11 ms** | ~0% de impacto no cálculo |
 | **Fase 3: Atestação Merkle/SHA-256**| 0.00 ms | **3.17 ms** | Custo irrisório |
 | **Garantia Matemática** | Nenhuma (Heurística / Alucinação possível) | **Mecanicamente Provado** | Invariantes validados por tipos |
-| **Status de Governança** | `UNVERIFIED_EXECUTION` | `VERIFIED_PROOF_CONFORMS` | Aprovado para produção sem risco |
+| **Status de Governança** | `UNVERIFIED_EXECUTION` | `VERIFIED_PROOF_CONFORMS` | Evidência interna de conformidade; não é aprovação para produção nem garantia de ausência de risco |
 
 ---
 
