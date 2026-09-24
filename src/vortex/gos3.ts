@@ -9,6 +9,28 @@
 import { sha256 } from './crypto.js';
 import type { GOS3HeaderContract, GOS3Session } from './types.js';
 
+// Principal-to-tenant bindings. A principal may be bound to exactly one tenant in a runtime.
+const PRINCIPAL_TENANT_BINDINGS = new Map<string, string>();
+
+export function bindPrincipalToTenant(principalId: string, tenantId: string): void {
+  if (!principalId || !tenantId) throw new Error('TENANT_BINDING_INVALID');
+  const existing = PRINCIPAL_TENANT_BINDINGS.get(principalId);
+  if (existing && existing !== tenantId) throw new Error('TENANT_BINDING_CONFLICT');
+  PRINCIPAL_TENANT_BINDINGS.set(principalId, tenantId);
+}
+
+export function clearTenantBindings(): void {
+  PRINCIPAL_TENANT_BINDINGS.clear();
+}
+
+export function validatePrincipalTenantBinding(principalId: string, tenantId?: string): { valid: boolean; reason?: string } {
+  if (!tenantId) return { valid: false, reason: 'TENANT_REQUIRED' };
+  const bound = PRINCIPAL_TENANT_BINDINGS.get(principalId);
+  if (!bound) return { valid: false, reason: 'TENANT_PRINCIPAL_UNBOUND' };
+  if (bound !== tenantId) return { valid: false, reason: 'TENANT_BINDING_MISMATCH' };
+  return { valid: true };
+}
+
 // In-memory GOS3 active sessions store
 const ACTIVE_SESSIONS = new Map<string, GOS3Session>();
 
