@@ -151,6 +151,16 @@ function matchPattern(pattern: string, value?: string): boolean {
   return pattern === value;
 }
 
+
+function scopeAllowsTarget(scope: GovernedCapability['scope'], target: { repository?: string; branch?: string; path?: string }): boolean {
+  const checks: Array<[string | undefined, string[] | undefined]> = [
+    [target.repository, scope.repositories],
+    [target.branch, scope.branches],
+    [target.path, scope.paths],
+  ];
+  return checks.every(([value, patterns]) => !value || !patterns || patterns.some((pattern) => matchPattern(pattern, value)));
+}
+
 export interface PolicyEvaluation {
   allowed: boolean;
   status: 'AUTHORIZED' | 'POLICY_DENIED';
@@ -254,6 +264,17 @@ export function evaluatePolicy(
       requires_approval: false,
       is_approved: false,
       reason: `Operation '${operation}' requires a mutating capability, but capability '${auth.capability}' is read-only (side_effect: false)`,
+    };
+  }
+
+  // The caller cannot widen the capability's governed scope through AuthorizationContext.
+  if (!scopeAllowsTarget(auth.scope, target || {})) {
+    return {
+      allowed: false,
+      status: 'POLICY_DENIED',
+      requires_approval: false,
+      is_approved: false,
+      reason: 'Requested target is outside the principal authorization scope',
     };
   }
 
