@@ -44,6 +44,7 @@ try {
     headers: { Authorization: 'Bearer definitely-invalid', 'X-VUC-Tenant-ID': 'tenant-a' },
   });
   assert.equal(invalidToken.status, 401);
+  assert.deepEqual(await invalidToken.json(), { error: 'invalid_token' });
 
   const missingTenant = await fetch(`${base}/protected`, {
     method: 'POST',
@@ -138,6 +139,7 @@ try {
     headers: { Authorization: `Bearer ${token.access_token}`, 'X-VUC-Tenant-ID': 'tenant-a' },
   });
   assert.equal(insufficientScope.status, 403);
+  assert.deepEqual(await insufficientScope.json(), { error: 'insufficient_scope' });
 
   console.log('OAuth 2.1 tenant/security regression tests passed.');
 } finally {

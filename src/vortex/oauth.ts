@@ -101,7 +101,10 @@ export async function validateAccessToken(token: string, expectedResource: strin
   const store = getOAuthStore(); const record = await store.getToken(token);
   const tokenScopes = record?.scope?.split(/\s+/).filter(Boolean) || [];
   const scopeAllowed = requiredScopes.some((required) => tokenScopes.includes(required)) || (tokenScopes.includes(DEFAULT_SCOPE) && requiredScopes.length > 0);
-  if (!record || record.expires_at <= Date.now() || record.resource !== expectedResource || (expectedTenant !== undefined && record.tenant_id !== expectedTenant) || !scopeAllowed) { if (record) await store.deleteToken(token); return null; }
+  if (!record) return null;
+  // Preserve valid tokens on authorization failures so requireBearer() can
+  // distinguish 401 invalid_token from 403 insufficient_scope.
+  if (record.expires_at <= Date.now() || record.resource !== expectedResource || (expectedTenant !== undefined && record.tenant_id !== expectedTenant) || !scopeAllowed) return null;
   return { client_id: record.client_id, scope: record.scope, tenant_id: record.tenant_id };
 }
 export function oauthRequired(): boolean { if (process.env.NODE_ENV === 'production') return true; return process.env.VUA_OAUTH_REQUIRED !== 'false'; }
