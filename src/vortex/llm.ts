@@ -379,9 +379,9 @@ export async function executeGovernedLLM(
   // 3. Execute inside Gateway boundary: measures real duration and hashes real output
   const pipelineResponse = await executeVortexPipeline(vortexRequest, async () => {
     if (config.provider === 'gemini') {
-      rawResult = await callGemini(prompt, config);
+      rawResult = await callGemini(prompt, { ...config, systemInstruction: effectiveSystemInstruction });
     } else if (config.provider === 'ollama') {
-      rawResult = await callOllama(prompt, config);
+      rawResult = await callOllama(prompt, { ...config, systemInstruction: effectiveSystemInstruction });
     } else if (config.provider === 'llamacpp') {
       const llamaRes = await invokeLlama({
         prompt,
@@ -396,7 +396,7 @@ export async function executeGovernedLLM(
         usage: llamaRes.usage,
       };
     } else {
-      rawResult = await callOpenAICompatible(prompt, config);
+      rawResult = await callOpenAICompatible(prompt, { ...config, systemInstruction: effectiveSystemInstruction });
     }
 
     return {
