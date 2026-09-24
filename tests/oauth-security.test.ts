@@ -50,7 +50,8 @@ try {
     method: 'POST',
     headers: { Authorization: 'Bearer definitely-invalid' },
   });
-  assert.equal(missingTenant.status, 403);
+  assert.equal(missingTenant.status, 401);
+  assert.deepEqual(await missingTenant.json(), { error: 'invalid_token' });
 
   const unsupportedScope = await fetch(`${base}/oauth/authorize?response_type=code&client_id=missing&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&code_challenge=abc&code_challenge_method=S256&scope=admin`);
   assert.equal(unsupportedScope.status, 400);
