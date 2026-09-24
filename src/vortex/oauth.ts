@@ -102,8 +102,6 @@ export async function validateAccessToken(token: string, expectedResource: strin
   const tokenScopes = record?.scope?.split(/\s+/).filter(Boolean) || [];
   const scopeAllowed = requiredScopes.some((required) => tokenScopes.includes(required)) || (tokenScopes.includes(DEFAULT_SCOPE) && requiredScopes.length > 0);
   if (!record) return null;
-  // Preserve valid tokens on authorization failures so requireBearer() can
-  // distinguish 401 invalid_token from 403 insufficient_scope.
   if (record.expires_at <= Date.now() || record.resource !== expectedResource || (expectedTenant !== undefined && record.tenant_id !== expectedTenant) || !scopeAllowed) return null;
   return { client_id: record.client_id, scope: record.scope, tenant_id: record.tenant_id };
 }
@@ -114,14 +112,15 @@ export function requireBearer(expectedResource: (req: Request) => string, requir
     const header = req.get('authorization') || '';
     if (!header.startsWith('Bearer ')) { const b = base(req); res.setHeader('WWW-Authenticate', `Bearer realm="vua", resource_metadata="${b}/.well-known/oauth-protected-resource"`); res.status(401).json({ error: 'unauthorized', error_description: 'Bearer token required' }); return; }
     const token = header.slice(7).trim();
-    const tenant = req.get('x-vuc-tenant-id')?.trim();
-    if (!tenant || !TENANT_RE.test(tenant)) { res.status(403).json({ error: 'tenant_required' }); return; }
-    const principal = await validateAccessToken(token, expectedResource(req), tenant, requiredScopes);
+    const headerTenant = req.get('x-vuc-tenant-id')?.trim();
+    if (headerTenant && !TENANT_RE.test(headerTenant)) { res.status(403).json({ error: 'tenant_invalid' }); return; }
+    const principal = await validateAccessToken(token, expectedResource(req), headerTenant, requiredScopes);
     if (!principal) {
       const tokenRecord = await getOAuthStore().getToken(token);
-      if (tokenRecord && tokenRecord.resource === expectedResource(req) && tokenRecord.tenant_id === tenant && tokenRecord.expires_at > Date.now()) { res.status(403).json({ error: 'insufficient_scope' }); return; }
+      if (tokenRecord && tokenRecord.resource === expectedResource(req) && tokenRecord.expires_at > Date.now()) { res.status(403).json({ error: 'insufficient_scope' }); return; }
       res.status(401).json({ error: 'invalid_token' }); return;
     }
+    res.locals.mcpPrincipal = principal;
     next();
   };
 }
