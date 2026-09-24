@@ -55,7 +55,7 @@
     "test": "npm run lint && npm run test:unit && npm run test:integration && npm run test:security && npm run test:drex-integrity && npm run test:drex-backend && npm run test:drex-phase2 && npm run test:mock && npm run test:stress && npm run test:chaos && npm run test:bench && npm run test:db:bench && tsx scripts/run-full-suite.ts",
     "test:ci": "npm run test",
     "test:unit": "tsx tests/unit.test.ts",
-    "test:integration": "tsx tests/integration.test.ts && npm run test:mcp-proof",
+    "test:integration": "tsx tests/integration.test.ts && npm run test:mcp-proof && npm run test:mcp-conformance",
     "test:mock": "tsx tests/mock-detector.test.ts",
     "test:stress": "tsx tests/stress.test.ts",
     "test:chaos": "tsx tests/chaos.test.ts",
@@ -104,7 +104,8 @@
     "test:mcp-cloud": "npm run test:mcp-proof && npm run test:mcp-github-proof && npm run test:gpt-cloud-mcp",
     "test:gpt-cloud-mcp": "tsx tests/gpt-cloud-mcp-proof.test.ts",
     "test:vgpt-connector": "tsx tests/vgpt-connector-profile.test.ts",
-    "test:production-evidence": "tsx tests/production-evidence-gate.test.ts"
+    "test:production-evidence": "tsx tests/production-evidence-gate.test.ts",
+    "test:mcp-conformance": "tsx tests/mcp-execution-conformance.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
