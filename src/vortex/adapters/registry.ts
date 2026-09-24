@@ -3,6 +3,8 @@
  * Central orchestrator for multi-environment adapters: GitHub, Linux, Android, and Windows.
  */
 
+import type { AuthorizationContext } from '../types.js';
+
 import { executeVortexPipeline } from '../gateway.js';
 import { getOrCreateGOS3Session } from '../gos3.js';
 import { sha256 } from '../crypto.js';
