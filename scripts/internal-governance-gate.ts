@@ -4,7 +4,7 @@ import path from 'node:path';
 import { executeVortexPipeline } from '../src/vortex/gateway.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
 import { loadGovernanceSystemInstruction } from '../src/vortex/governance-instruction.js';
-import { generateVortexIdentity, setVortexIdentity } from '../src/vortex/crypto.js';
+import { generateVortexIdentity } from '../src/vortex/crypto.js';
 import { setVortexIdentity as setGatewayIdentity } from '../src/vortex/gateway.js';
 
 process.env.VUC_SANDBOX = 'strict';
@@ -16,7 +16,6 @@ const instruction = loadGovernanceSystemInstruction(root);
 // leaves this process or gets written to the repository. The public key is used
 // explicitly during independent verification, proving the signature is real.
 const identity = generateVortexIdentity('vuc-internal', 'agent/vuc-preflight', 'vuc-preflight-' + Date.now());
-setVortexIdentity(identity);
 setGatewayIdentity(identity);
 
 function run(label: string, command: string, args: string[]) {
