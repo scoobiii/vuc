@@ -15,6 +15,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import { loadGovernanceSystemInstruction } from './governance-instruction.js';
 import { executeVortexPipeline } from './gateway.js';
 import { getOrCreateGOS3Session } from './gos3.js';
 import { verifyExecutionProof } from './verifier.js';
@@ -332,6 +333,10 @@ export async function executeGovernedLLM(
   config: LLMConfig,
   requestId?: string
 ): Promise<LLMInvocationResult> {
+  const governanceInstruction = loadGovernanceSystemInstruction();
+  const effectiveSystemInstruction = [governanceInstruction, config.systemInstruction?.trim()]
+    .filter(Boolean)
+    .join('\\n\\n');
   const reqId = requestId || `req-llm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const resource = `llm://${config.provider}/${config.model}`;
 
@@ -365,7 +370,7 @@ export async function executeGovernedLLM(
     },
     input: {
       prompt,
-      systemInstruction: config.systemInstruction,
+      systemInstruction: effectiveSystemInstruction,
       temperature: config.temperature,
       maxTokens: config.maxTokens,
     },
