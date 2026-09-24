@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
@@ -46,15 +46,19 @@ jobs:
 
       - name: Generate Android project
         run: |
-          rm -rf android capacitor.config.json capacitor.config.js
-          cat > capacitor.config.js <<'EOF'
-          module.exports = {
+          rm -rf android capacitor.config.json capacitor.config.js capacitor.config.ts
+          cat > capacitor.config.ts <<'EOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+
+          const config: CapacitorConfig = {
             appId: 'br.eco.mex.vuc',
             appName: 'VUC',
             webDir: 'dist',
             server: { androidScheme: 'https' },
             android: { allowMixedContent: false },
           };
+
+          export default config;
           EOF
           npx cap add android
           npx cap sync android
