@@ -61,6 +61,16 @@ jobs:
       - name: Unit and integration tests
         run: npm test
 
+      - name: Publish ExecutionProof evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vortex-execution-proof-evidence-${{ github.sha }}
+          path: |
+            .vortex-execution-proofs.json
+            .vortex-evidence.json
+          if-no-files-found: warn
+
       - name: Build
         run: npm run build
 
