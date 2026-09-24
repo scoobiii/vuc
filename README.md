@@ -65,6 +65,7 @@ O VUA implementa o fluxo completo de modificação e governança de código:
 
 Documentação completa e estruturada disponível no repositório:
 
+- 📘 [**docs/ONBOARDING.md**](./docs/ONBOARDING.md) — fluxo verificável de instalação, CLI, MCP, validação local e matriz K6 local/CI.
 - 📖 [**docs/README.md**](./docs/README.md) — Índice mestre e arquitetura geral.
 - 🧪 [**docs/TESTING.md**](./docs/TESTING.md) — **Novo**: Guia mestre da suíte de testes (100% cobertura), K6 Load/Stress/Chaos/Spike/Soak e CI/CD.
 - 🛡️ [**docs/MANUAL-DE-SEGURANCA.md**](./docs/MANUAL-DE-SEGURANCA.md) — **Novo**: Manual oficial de segurança, gestão de PAT volátil, anti-replay e criptografia Ed25519.
@@ -255,38 +256,74 @@ vua baseline
 
 ## 💻 Primeiros Passos no Terminal / Alpine / Termux
 
-Ao clonar o projeto ou entrar na pasta `vua`:
+Ao clonar o projeto ou entrar na pasta `vuc`:
 
 ```bash
 # 1. Instalar dependências
-npm install
+npm ci
 
-# 2. Compilar aplicação
-npm run build
+# 2. Verificar o CLI no checkout
+npm run vua -- status
 
-# 3. Executar o CLI VUA
-node bin/vua.js status
-
-# 4. Rodar benchmark de desempenho e latência criptográfica
-node bin/vua.js bench --iterations 500
-
-# 5. Listar todos os adaptadores registrados (GitHub, Linux, Android, Windows)
-node bin/vua.js adapters
-
-# 6. Invocar ação normatizada em adaptador
-node bin/vua.js invoke github inspect_repo
-node bin/vua.js invoke android check_selinux
-node bin/vua.js invoke linux check_sandbox
-
-# 7. Executar LLM com governança (Ollama local ou Gemini)
-node bin/vua.js llm --provider ollama --model qwen2.5-coder:0.5b --prompt "console.log('VUA')"
-node bin/vua.js llm --provider gemini --model gemini-3.8-flash --prompt "Explique VUA em uma frase"
-
-# 8. Rodar suíte de conformidade de adaptadores (100% PASS)
-node bin/vua.js conformance
-
-# 9. Iniciar servidor de desenvolvimento com a interface visual completa
+# 3. Executar a interface web e o servidor HTTP/MCP
 npm run dev
+```
+
+Em outro terminal, valide o servidor:
+
+```bash
+curl -fsS http://localhost:3000/api/health
+```
+
+Validação local:
+
+```bash
+npm run lint
+npm run test:unit
+npm run test:integration
+npm run test:security
+npm run build
+```
+
+Matriz K6 completa, com o servidor rodando em outro terminal:
+
+```bash
+export BASE_URL=http://localhost:3000
+npm run test:k6:smoke
+npm run test:k6:load
+npm run test:k6:stress
+npm run test:k6:spike
+npm run test:k6:soak
+npm run test:k6:chaos
+npm run test:k6:degradation
+npm run test:k6:industry
+```
+
+O workflow de CI executa a mesma matriz. Veja [o onboarding completo](./docs/ONBOARDING.md) para distinguir o binário oficial K6 do fallback interno do runner.
+
+<!-- Os comandos abaixo são mantidos como referência do CLI; use `npm run vua --` no checkout. -->
+
+```bash
+# CLI VUA
+npm run vua -- status
+
+# Benchmark de desempenho e latência criptográfica
+npm run vua -- bench --iterations 500
+
+# Listar adaptadores registrados
+npm run vua -- adapters
+
+# Invocar ações normatizadas
+npm run vua -- invoke github inspect_repo
+npm run vua -- invoke android check_selinux
+npm run vua -- invoke linux check_sandbox
+
+# Executar LLM com governança
+npm run vua -- llm --provider ollama --model qwen2.5-coder:0.5b --prompt "console.log('VUA')"
+npm run vua -- llm --provider gemini --model gemini-3.8-flash --prompt "Explique VUA em uma frase"
+
+# Conformidade de adaptadores
+npm run vua -- conformance
 ```
 
 ---

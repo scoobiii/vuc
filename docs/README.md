@@ -1,32 +1,21 @@
 # VUC — Documentação Oficial
 
 **VUC (Vortex Universal Connector) / Governed Execution Runtime**
-*Repositório Oficial:* `https://github.com/scoobiii/vuc.git`
+Repositório oficial: `https://github.com/scoobiii/vuc.git`
 
 ## Status atual
 
-O VUC é o **Vortex Universal Connector**: runtime de execução governada, CLI `vuc` (com alias `vua`), biblioteca TypeScript/Node.js `@vortexfoundation/vuc`, adaptadores multi-ambiente, MCP e verificação criptográfica de `ExecutionProof`.
+O VUC é um runtime de execução governada com CLI `vuc` e alias `vua`, biblioteca TypeScript/Node.js `@vortexfoundation/vuc`, adaptadores multiambiente, MCP e verificação criptográfica de `ExecutionProof`.
 
-O pacote está configurado para npm como `@vortexfoundation/vuc` e expõe os comandos `vuc` e `vua` pelo campo `bin`.
+O pacote está configurado para npm como `@vortexfoundation/vuc` e expõe os comandos `vuc` e `vua` pelo campo `bin`. Isso comprova a configuração do pacote; a publicação no registry é um gate separado.
 
-A integração Linux atual é **nativa em nível de userspace/CLI**: o runtime executa diretamente em Linux e possui adaptador Linux. Ainda não é um binário ELF independente nem uma distribuição `.deb/.rpm/.apk`.
-
-### Evidência MCP auditada em 2026-09-17
-
-- `tools/list`: 314,5 req/s; p50 2,74 ms; erro 0%
-- `vortex.inspect`: 47,2 req/s; p50 21,77 ms; erro 0%
-- `vortex.verify` válido: 244,2 req/s; p50 3,82 ms; erro 0%
-- `vortex.verify` adulterado: 268,8 req/s; p50 3,49 ms; erro 0%
-- E2E inspect → verify: 36,6 req/s; p50 26,65 ms; erro 0%
-- carga concorrente C1/C5/C10/C20: erro observado 0%
-- RSS do servidor: 16,61 MB inicial → 27,50 MB após carga
-
-Esses números caracterizam o ambiente de teste ARM64/Alpine; não são SLA universal.
+A integração Linux atual é nativa em nível de userspace/CLI. Ainda não é um binário ELF independente nem uma distribuição `.deb`, `.rpm` ou `.apk`.
 
 ## Índice
 
 | Guia | Conteúdo |
 |---|---|
+| [Onboarding](./ONBOARDING.md) | instalação verificável, CLI, MCP, matriz K6 local/CI e limites de prontidão externa |
 | [01. Visão Geral e CLI](./01-visao-geral-e-instalacao.md) | instalação, CLI, biblioteca e pacote npm |
 | [02. Mobile APK](./02-mobile-apk-sem-github.md) | arquitetura mobile |
 | [03. LLM](./03-llm-browser-e-qwen-gemini.md) | integração local/cloud |
@@ -40,24 +29,49 @@ Esses números caracterizam o ambiente de teste ARM64/Alpine; não são SLA univ
 | [Linux Native CLI Status](./LINUX-NATIVE-CLI-STATUS.md) | limites atuais da integração Linux |
 | [Produtos por Indústria](./VUA-PRODUTOS-SERVICOS-POR-INDUSTRIA.md) | aplicações e modelos de oferta |
 
-## CLI
+## CLI no checkout
 
 ```bash
-npm install
-npm link
-vua status
-vua adapters
-vua bench
-vua verify proof.json
-vua mcp
+npm ci
+npm run vua -- status
+npm run vua -- adapters
+npm run vua -- bench
+npm run vua -- verify proof.json
+npm run vua -- mcp
 ```
 
-## npm
+Para o servidor HTTP e a interface web, use `npm run dev`. O health check padrão é `http://localhost:3000/api/health`.
+
+## Matriz K6
+
+A matriz declarada contém oito cenários: `smoke`, `load`, `stress`, `spike`, `soak`, `chaos`, `degradation` e `industry` (incluindo a cobertura dos oito segmentos industriais).
 
 ```bash
-npx @vortexfoundation/vua status
-npm install -g @vortexfoundation/vua
+export BASE_URL=http://localhost:3000
+npm run test:k6:smoke
+npm run test:k6:load
+npm run test:k6:stress
+npm run test:k6:spike
+npm run test:k6:soak
+npm run test:k6:chaos
+npm run test:k6:degradation
+npm run test:k6:industry
+```
+
+O workflow [K6 Scenario Coverage](../.github/workflows/k6-scenario-coverage.yml) executa a mesma matriz no CI. `100%` neste contexto significa todos os cenários e segmentos declarados; não significa cobertura de linhas TypeScript. Sem `bin/k6`, o runner usa o fallback interno documentado no onboarding.
+
+## Prontidão para clientes externos
+
+Os gates automatizados comprovam propriedades do código e do runtime, mas não equivalem a uma aprovação de produção. A disponibilização externa ainda exige autenticação/autorização e isolamento por cliente, gestão de secrets, observabilidade operacional, baseline de performance definitiva e validação das integrações cloud reais além do fallback SQLite. O PR [#11](https://github.com/scoobiii/vuc/pull/11) está aprovado e mesclado; suas evidências devem ser consideradas junto desses critérios, não como substituição deles.
+
+## Pacote npm
+
+```bash
+npx @vortexfoundation/vuc status
+npm install -g @vortexfoundation/vuc
+vuc status
+# O alias legado também é exposto:
 vua status
 ```
 
-**Nota:** os comandos acima dependem da publicação/instalação efetiva do pacote no registry. Em desenvolvimento, `npm link` executa diretamente o checkout local.
+Esses comandos dependem da publicação efetiva do pacote no registry. Em desenvolvimento, use os scripts locais acima.
