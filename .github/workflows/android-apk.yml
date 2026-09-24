@@ -46,8 +46,8 @@ jobs:
 
       - name: Generate Android project
         run: |
-          rm -rf android
-          npx cap init VUC br.eco.mex.vuc --web-dir dist
+          rm -rf android capacitor.config.json
+          printf '%s\n' '{"appId":"br.eco.mex.vuc","appName":"VUC","webDir":"dist","server":{"androidScheme":"https"},"android":{"allowMixedContent":false}}' > capacitor.config.json
           npx cap add android
           npx cap sync android
 
