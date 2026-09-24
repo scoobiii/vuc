@@ -4,7 +4,7 @@
 |---|---|
 | **ID do Registro** | `VORTEX-GOV-2026-BASELINE-TOLERANCE` |
 | **Data e Hora** | 2026-09-13T14:50:00 UTC |
-| **Status** | `APROVADO / GATES 100% VERDES (PASS_SUPERIOR / PASS_ACCEPTABLE)` |
+| **Status** | `EVIDÊNCIA INTERNA / GATES VERDES (PASS_SUPERIOR / PASS_ACCEPTABLE)` |
 | **Ambientes Suportados** | Linux x86_64, ARM64 (Termux / Alpine PRoot), Cloud Run |
 | **Invariante Central** | Separação entre Indução de Ação (LLM) e Autorização em Runtime (VUA) |
 
