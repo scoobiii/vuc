@@ -1,0 +1,22 @@
+name: Cloud Run HTTPS Smoke Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      public_url:
+        description: "Public HTTPS Cloud Run URL"
+        required: true
+        type: string
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: HTTPS smoke
+        env:
+          VUC_PUBLIC_URL: ${{ inputs.public_url }}
+        run: node scripts/cloudrun-smoke.mjs
