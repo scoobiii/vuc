@@ -70,6 +70,19 @@ curl -fsS http://localhost:3000/api/health
 
 A autenticação/configuração OAuth do servidor deve ser respeitada em ambientes onde ela estiver habilitada. Não coloque tokens em arquivos de documentação, logs ou commits.
 
+## 4.1. Barreira interna VUC/VUA antes do CI externo
+
+A primeira barreira é executada dentro do checkout, antes de qualquer push. O runtime carrega o AGENTS.md como system instruction normativo do LLM, valida os marcadores do contrato, executa os testes de governança, realiza uma execução real pelo Gateway e verifica a ExecutionProof independentemente.
+
+```bash
+npm ci
+npm run preflight
+```
+
+O preflight é fail-closed e declara `external_effect=none`. Ele não pode aprovar uma execução sem prova verificável e rejeita assinatura sintética (`mock-sig`). O `npm ci` habilita o hook `.githooks/pre-push`, que executa o mesmo preflight antes de permitir o push.
+
+No CI, o workflow `VUC Internal Governance Gate` reproduz essa barreira em ambiente limpo. Uma aprovação local não substitui os checks externos do GitHub; ela apenas impede que uma alteração conhecida como quebrada seja enviada sem passar pela primeira barreira.
+
 ## 5. Validação local convencional
 
 ```bash
