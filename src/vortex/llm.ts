@@ -385,6 +385,7 @@ export async function executeGovernedLLM(
     } else if (config.provider === 'llamacpp') {
       const llamaRes = await invokeLlama({
         prompt,
+        systemInstruction: effectiveSystemInstruction,
         model: config.model || 'qwen',
         max_tokens: config.maxTokens || 128,
         temperature: config.temperature ?? 0,
