@@ -16,7 +16,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { canonicalize } from './canonicalize.js';
 import { generateVortexIdentity, KEY_REGISTRY, sha256, signProofPayload, signCanonicalString } from './crypto.js';
-import { getOrCreateGOS3Session, validateGOS3Session } from './gos3.js';
+import { getOrCreateGOS3Session, validateGOS3Session, validatePrincipalTenantBinding } from './gos3.js';
 import { evaluatePolicy } from './policy.js';
 import { DEFAULT_SANDBOX_LIMITS, validateCredentialScope, validateFilesystemScope, validateNetworkScope } from './sandbox.js';
 import { verifyExecutionProof } from './verifier.js';
@@ -120,7 +120,41 @@ export async function executeVortexPipeline(
   // Mark request_id as consumed
   CONSUMED_REQUESTS.add(replayKey);
 
-  // 3. AUTHORIZATION & POLICY EVALUATION
+  // 3. TENANT PRINCIPAL BINDING
+  // Explicit tenant claims are fail-closed: the principal must already be bound to that tenant.
+  if (req.authorization?.tenant_id) {
+    const tenantCheck = validatePrincipalTenantBinding(principalId, req.authorization.tenant_id);
+    if (!tenantCheck.valid) {
+      const proof = createSignedProof({
+        request_id: req.request_id,
+        execution_id: executionId,
+        runtime_id: runtimeId,
+        agent_id: req.authorization?.agent_id || CURRENT_IDENTITY.agent_id,
+        principal_id: principalId,
+        connector_id: connectorId,
+        operation: req.operation,
+        execution_kind: executionKind,
+        executed: false,
+        status: 'POLICY_DENIED',
+        input_hash: inputHash,
+        output_hash: sha256({ error: tenantCheck.reason }),
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        duration_ms: Date.now() - startTime,
+        policy_id: policyId,
+        policy_version: policyVersion,
+        gos3_session_id: gos3SessionId,
+        sandbox_id: sandboxId,
+      });
+      return {
+        status: 'POLICY_DENIED',
+        error: { code: tenantCheck.reason || 'TENANT_BINDING_DENIED', message: 'Principal is not authorized for the requested tenant' },
+        execution_proof: proof,
+      };
+    }
+  }
+
+  // 4. AUTHORIZATION & POLICY EVALUATION
   const policyEval = evaluatePolicy(
     req.operation,
     req.target,
@@ -158,7 +192,7 @@ export async function executeVortexPipeline(
     };
   }
 
-  // 4. SANDBOX BOUNDARY CHECKS
+  // 5. SANDBOX BOUNDARY CHECKS
   const pathToCheck = (req.target?.path as string) || (req.input?.path as string) || '';
   if (pathToCheck) {
     const fsCheck = validateFilesystemScope(pathToCheck, req.sandbox?.filesystem_scope || DEFAULT_SANDBOX_LIMITS.filesystem_scope);
@@ -263,7 +297,7 @@ export async function executeVortexPipeline(
     }
   }
 
-  // 5. GOS3 SESSION ONBOARDING CHECK (for mutable branch.write / execute)
+  // 6. GOS3 SESSION ONBOARDING CHECK (for mutable branch.write / execute)
   if (req.operation === 'branch.write' || (req.operation === 'execute' && req.input?.modifies_state)) {
     if (!gos3SessionId) {
       const proof = createSignedProof({
@@ -327,7 +361,7 @@ export async function executeVortexPipeline(
     }
   }
 
-  // 6. EXECUTION RUNTIME (Connector.invoke)
+  // 7. EXECUTION RUNTIME (Connector.invoke)
   // At this point, all gates passed. CONNECTOR EXECUTES. executed = true!
   const execStartTime = Date.now();
   const execStartedAt = new Date(execStartTime).toISOString();
@@ -359,7 +393,7 @@ export async function executeVortexPipeline(
     connectorOutput = { error: executionError.message, execution_started: true };
   }
 
-  // 7. ASSEMBLE EXECUTION PROOF
+  // 8. ASSEMBLE EXECUTION PROOF
   const execCompletedAt = new Date().toISOString();
   const execDurationMs = Date.now() - execStartTime;
   const outputHash = sha256(connectorOutput);
