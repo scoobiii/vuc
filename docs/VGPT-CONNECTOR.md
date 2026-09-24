@@ -37,3 +37,18 @@ Expected markers: \`VGPT CONNECTOR PROFILE: PASS\`, \`protocol=MCP\`, \`oauth=PK
 
 ## Positioning
 VGPT is the **GPT-facing entry point**; VUC is the enforcement product. The downstream SaaS integrations remain governed connectors, not separate products.
+
+
+## Tenant provisioning gate
+
+For controlled onboarding, production OAuth registration is fail-closed unless the requested tenant is present in `VUC_ALLOWED_TENANTS`. This prevents an arbitrary MCP client from self-registering a new tenant namespace.
+
+The environment variable contains tenant identifiers only; it is not a credential and must not be used as a substitute for an enterprise IdP. Corporate GA still requires an external identity provider, lifecycle provisioning/deprovisioning, and production secret/key custody.
+
+The security regression suite verifies:
+
+- PKCE S256;
+- token/resource binding;
+- cross-tenant rejection;
+- insufficient-scope rejection;
+- rejection of unprovisioned tenant registration.

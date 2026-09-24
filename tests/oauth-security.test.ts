@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 process.env.NODE_ENV = 'test';
 process.env.OAUTH_STORE = 'memory';
 process.env.OAUTH_APPROVE_SECRET = 'test-approval-secret';
+process.env.VUC_ALLOWED_TENANTS = 'tenant-a';
 
 const { mountOAuth, requireBearer } = await import('../src/vortex/oauth.js');
 
@@ -65,6 +66,19 @@ try {
       tenant_id: 'tenant-a',
     }),
   });
+
+  const unprovisioned = await fetch(`${base}/oauth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      redirect_uris: ['https://client.example/callback'],
+      client_name: 'Unprovisioned tenant test',
+      tenant_id: 'tenant-b',
+    }),
+  });
+  assert.equal(unprovisioned.status, 403);
+  assert.deepEqual(await unprovisioned.json(), { error: 'tenant_not_provisioned' });
+
   assert.equal(registration.status, 201);
   const client = await registration.json() as { client_id: string; tenant_id: string };
   assert.equal(client.tenant_id, 'tenant-a');
@@ -144,6 +158,9 @@ try {
   assert.deepEqual(await insufficientScope.json(), { error: 'insufficient_scope' });
 
   console.log('OAuth 2.1 tenant/security regression tests passed.');
+  console.log('tenant_provisioning_allowlist=PASS');
+  console.log('cross_tenant_token_use=PASS');
+  console.log('pkce_s256=PASS');
 } finally {
   server.close();
 }
