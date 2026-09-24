@@ -101,7 +101,8 @@
     "test:mcp-git": "tsx tests/mcp-git-universal-connector.test.ts",
     "test:github-create-repo": "tsx tests/github-create-repository-proof.test.ts",
     "test:mcp-github-proof": "tsx tests/mcp-github-real-execution-proof.test.ts",
-    "test:mcp-cloud": "npm run test:mcp-proof && npm run test:mcp-github-proof"
+    "test:mcp-cloud": "npm run test:mcp-proof && npm run test:mcp-github-proof && npm run test:gpt-cloud-mcp",
+    "test:gpt-cloud-mcp": "tsx tests/gpt-cloud-mcp-proof.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
