@@ -105,3 +105,42 @@ console.log('ed25519_signature_verified=true');
 console.log('proof_hash_verified=true');
 console.log('remote_provider=github');
 console.log('remote_operation=read_only');
+
+const deniedRequest = await handleMCPMessage({
+  jsonrpc: '2.0',
+  id: 'mcp-github-sandbox-denied-1',
+  method: 'tools/call',
+  params: {
+    name: 'vua.adapter.invoke',
+    arguments: {
+      request_id: `mcp-github-sandbox-denied-${Date.now()}`,
+      adapter_id: 'github',
+      action: 'inspect_repo',
+      target: { owner: 'scoobiii', repo: 'vuc', branch: 'main' },
+      payload: {},
+      sandbox: {
+        network_scope: ['example.invalid'],
+        resource_limits: { timeout_ms: 10000, memory_mb: 512 },
+      },
+      authorization: {
+        principal_id: 'vuc-mcp-github-sandbox-test',
+        agent_id: 'agent/vuc-mcp-github-sandbox-test',
+        policy_id: 'vuc-mcp-cloud-read',
+        policy_version: '1.0.0',
+        capability: 'vua.github.repository.read',
+        scope: {
+          repositories: ['scoobiii/vuc'],
+          resources: ['vua://github/inspect_repo'],
+        },
+      },
+    },
+  },
+});
+assert.equal(deniedRequest.result?.success, false);
+const denied = deniedRequest.result as Record<string, any>;
+assert.equal(denied.external_effect, 'none');
+assert.equal(denied.execution_proof?.executed, false);
+assert.equal(denied.execution_proof?.status, 'SANDBOX_DENIED');
+assert.equal(verifyExecutionProof(denied.execution_proof).valid, true);
+
+console.log('MCP GITHUB SANDBOX NETWORK DENIAL: PASS');
