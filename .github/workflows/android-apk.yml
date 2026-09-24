@@ -46,7 +46,6 @@ jobs:
       - name: Generate Android project
         run: |
           rm -rf android
-          npx cap init VUC br.eco.mex.vuc --web-dir dist
           npx cap add android
           npx cap sync android
 
