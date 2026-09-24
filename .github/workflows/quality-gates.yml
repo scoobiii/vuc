@@ -55,6 +55,9 @@ jobs:
       - name: GOS3 verification
         run: npm run verify:gos3
 
+      - name: CLI contract coverage (100%)
+        run: npm run test:cli
+
       - name: Unit and integration tests
         run: npm test
 
