@@ -53,9 +53,11 @@ import {
   optionalFirebaseAuth,
   type AuthenticatedFirebaseRequest,
 } from './src/vortex/firebase-auth.js';
+import { unifiedStorage } from './src/vortex/unified-storage.js';
 import { RepositoryBootstrapper } from './src/repository/bootstrap/RepositoryBootstrapper.js';
 import { mountOAuth, requireBearer } from './src/vortex/oauth.js';
 import { bootstrapHardwareBaseline, detectHardwareFingerprint, computeDynamicBaseline } from './src/vortex/hardware-profiler.js';
+import { vucArbiter } from './src/vortex/vuc-runtime-arbiter.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const configuredPublicBase = (process.env.PUBLIC_BASE_URL || process.env.APP_URL || '').replace(/\/$/, '');
@@ -343,11 +345,16 @@ async function startServer() {
 
   app.get('/api/firestore/proofs', optionalFirebaseAuth, (req: AuthenticatedFirebaseRequest, res) => {
     const limitCount = parseInt(req.query.limit as string, 10) || 20;
-    const proofs = EXECUTION_LOGS.slice(0, limitCount);
+    const localProofs = unifiedStorage.getExecutionProofs(limitCount);
+    const proofs = localProofs.length > 0 ? localProofs : EXECUTION_LOGS.slice(0, limitCount);
+    const storageStatus = unifiedStorage.getStatus();
+
     res.json({
       collection: 'execution_proofs',
       database_id: firebaseConfig.firestoreDatabaseId,
       region: firebaseConfig.firestoreRegion || 'us-west2',
+      storage_engine: storageStatus.engine,
+      is_cloud_connected: storageStatus.isCloudConnected,
       count: proofs.length,
       authenticated_as: req.firebaseUser?.email || 'anonymous',
       role: req.firebaseRole || 'public',
@@ -361,18 +368,40 @@ async function startServer() {
       return res.status(400).json({ error: 'Payload de prova inválido. execution_id é obrigatório.' });
     }
 
-    EXECUTION_LOGS.unshift({
+    const enrichedProof = {
       ...proof,
       owner_uid: req.firebaseUser?.sub,
       recorded_at: new Date().toISOString(),
-    });
+    };
+
+    EXECUTION_LOGS.unshift(enrichedProof);
+    unifiedStorage.saveExecutionProof(enrichedProof);
 
     res.json({
       success: true,
       proof_id: proof.execution_id,
       firestore_path: `execution_proofs/${proof.execution_id}`,
+      sqlite_mirror: 'synced',
       owner_uid: req.firebaseUser?.sub,
       timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Unified Storage Status & SQLite Mirror Inspection API
+  app.get('/api/storage/status', (req, res) => {
+    res.json({
+      success: true,
+      ...unifiedStorage.getStatus(),
+    });
+  });
+
+  app.get('/api/storage/mirror/:collection', (req, res) => {
+    const limit = parseInt(req.query.limit as string, 10) || 50;
+    const docs = unifiedStorage.listCollection(req.params.collection, limit);
+    res.json({
+      collection: req.params.collection,
+      count: docs.length,
+      documents: docs,
     });
   });
 
@@ -850,12 +879,12 @@ async function startServer() {
     }
   });
 
-  // 17. VUA - Vortex Universal Connector: List Adapters
-  app.get('/api/vua/adapters', (req, res) => {
+  // 17. VUC/VUA - Vortex Universal Connector: List Adapters
+  const handleListAdapters = (req: express.Request, res: express.Response) => {
     try {
       const adapters = vuaRegistry.list();
       res.json({
-        connector: 'VUA - Vortex Universal Connector',
+        connector: 'VUC - Vortex Universal Connector',
         version: '2.5.0',
         standards: ['RFC 8785 JCS', 'Ed25519 ExecutionProof v1', 'GOS3 §8 Contract Headers'],
         adapters,
@@ -863,10 +892,12 @@ async function startServer() {
     } catch (err: any) {
       res.status(500).json({ error: err.message || String(err) });
     }
-  });
+  };
+  app.get('/api/vuc/adapters', handleListAdapters);
+  app.get('/api/vua/adapters', handleListAdapters);
 
-  // 18. VUA - Probe Adapter Status
-  app.post('/api/vua/adapters/:id/probe', async (req, res) => {
+  // 18. VUC/VUA - Probe Adapter Status
+  const handleProbeAdapter = async (req: express.Request, res: express.Response) => {
     try {
       const id = req.params.id as any;
       const adapter = vuaRegistry.get(id);
@@ -881,10 +912,12 @@ async function startServer() {
     } catch (err: any) {
       res.status(500).json({ error: err.message || String(err) });
     }
-  });
+  };
+  app.post('/api/vuc/adapters/:id/probe', handleProbeAdapter);
+  app.post('/api/vua/adapters/:id/probe', handleProbeAdapter);
 
-  // 19. VUA - Governed Adapter Action Invocation
-  app.post('/api/vua/adapters/:id/invoke', async (req, res) => {
+  // 19. VUC/VUA - Governed Adapter Action Invocation
+  const handleInvokeAdapter = async (req: express.Request, res: express.Response) => {
     try {
       const id = req.params.id as any;
       const { action, target, payload, approval_token, request_id } = req.body;
@@ -906,10 +939,11 @@ async function startServer() {
       res.status(500).json({
         success: false,
         error: err.message || String(err),
-        adapter: req.params.id,
       });
     }
-  });
+  };
+  app.post('/api/vuc/adapters/:id/invoke', handleInvokeAdapter);
+  app.post('/api/vua/adapters/:id/invoke', handleInvokeAdapter);
 
   // 19.1. VUA - Google Cloud Free Tier & Comparative Benchmarker
   app.post('/api/vua/gcloud/bench', async (req, res) => {
@@ -2009,6 +2043,172 @@ async function startServer() {
       }
       const result = await executeIndustrySegmentK6(segmentId);
       res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  // ============================================================================
+  // VUC (Vortex Universal Connector) Intranet CI, GPU/Bend2 & Mobile APK Endpoints
+  // ============================================================================
+
+  // 1. CI Status & Intranet Pipeline Telemetry
+  app.get('/api/vuc/ci/status', (req, res) => {
+    try {
+      const run = vucArbiter.getCurrentCIRun();
+      res.json(run);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.post('/api/vuc/ci/trigger', (req, res) => {
+    try {
+      const author = req.body?.author || 'intranet-gui-operator';
+      const newRun = vucArbiter.triggerIntranetCIRun(author);
+      res.json(newRun);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  // 2. Industry Segments Realtime Showcase (8 Segments)
+  app.get('/api/vuc/industry/showcases', (req, res) => {
+    try {
+      const showcases = vucArbiter.getIndustryShowcases();
+      res.json(showcases);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.post('/api/vuc/industry/run/:segmentId', (req, res) => {
+    try {
+      const segmentId = req.params.segmentId;
+      const updated = vucArbiter.runSingleIndustrySegment(segmentId);
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || String(err) });
+    }
+  });
+
+  // 3. GPU vs Bend2 CPU Auto-Arbitration Engine
+  app.get('/api/vuc/arbiter/arbitration', (req, res) => {
+    try {
+      const decision = vucArbiter.getLastArbitration();
+      res.json(decision);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.post('/api/vuc/arbiter/arbitration', (req, res) => {
+    try {
+      const workload = req.body?.workload || 'PARALLEL_TREE_REDUCTION';
+      const decision = vucArbiter.evaluateArbitration(workload);
+      res.json(decision);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  // 4. Hardware Bootstrap Profiler (Desktop, VM, Server, CUDA, Mobile APK)
+  app.get('/api/vuc/bootstrap/hardware', (req, res) => {
+    try {
+      const profile = vucArbiter.bootstrapHardwareProfile();
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  // 5. Mobile APK GPU Manifest & Direct Download
+  app.get('/api/vuc/apk/manifest', (req, res) => {
+    try {
+      const manifest = vucArbiter.getMobileApkManifest();
+      res.json(manifest);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.get('/api/vuc/apk/download', (req, res) => {
+    try {
+      const manifest = vucArbiter.getMobileApkManifest();
+      const apkBuffer = vucArbiter.generateApkBuffer();
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${manifest.fileName}"`);
+      res.setHeader('Content-Length', apkBuffer.length);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('X-VUC-Integrity-SHA256', manifest.integrityHash);
+      res.setHeader('X-VUC-Ed25519-Signature', manifest.ed25519Signature);
+      res.send(apkBuffer);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  // 6. Tri-Sync Endpoints (Cloud SQL + Firestore + SQLite Local Mirror)
+  app.get('/api/vuc/tri-sync/status', (req, res) => {
+    try {
+      res.json(unifiedStorage.getTriSyncStatus());
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.post('/api/vuc/tri-sync/write', async (req, res) => {
+    try {
+      const { collection, id, data } = req.body;
+      if (!collection || !id || !data) {
+        return res.status(400).json({ error: 'Campos collection, id e data são obrigatórios' });
+      }
+      const result = await unifiedStorage.writeTriSyncRecord({ collection, id, data });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.post('/api/vuc/tri-sync/simulate-failure', (req, res) => {
+    try {
+      const simulate = Boolean(req.body?.simulate);
+      unifiedStorage.setSimulatedCloudFailure(simulate);
+      res.json(unifiedStorage.getTriSyncStatus());
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.get('/api/vuc/tri-sync/download-sqlite', (req, res) => {
+    try {
+      const buf = unifiedStorage.getLiveSqliteBuffer();
+      res.setHeader('Content-Type', 'application/x-sqlite3');
+      res.setHeader('Content-Disposition', 'attachment; filename="vua_local.sqlite"');
+      res.setHeader('Content-Length', buf.length);
+      res.send(buf);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.get('/api/vuc/tri-sync/export-json', (req, res) => {
+    try {
+      const proofs = unifiedStorage.listCollection('execution_proofs', 100);
+      const accounts = unifiedStorage.listCollection('drex_accounts', 100);
+      const txs = unifiedStorage.listCollection('drex_transactions', 100);
+      res.json({
+        generated_at: new Date().toISOString(),
+        provenance: 'vuc:tri-sync:export',
+        counts: {
+          proofs: proofs.length,
+          accounts: accounts.length,
+          transactions: txs.length,
+        },
+        proofs,
+        accounts,
+        transactions: txs,
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message || String(err) });
     }

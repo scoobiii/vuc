@@ -95,6 +95,7 @@ async function main() {
     degradation: 'tests/k6/degradation.js',
     'industry-financial': 'tests/k6/industry_financial_drex.js',
     'industry-all': 'tests/k6/industry_all_segments.js',
+    'nginx-db': 'tests/k6/nginx_database_load_bench.js',
   };
 
   console.log('═════════════════════════════════════════════════════════════════════');
