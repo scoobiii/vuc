@@ -1,0 +1,62 @@
+name: VUC Cross-Environment Diagnostic (ARM64)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  arm64-diagnostic:
+    name: VUC diagnostic — Ubuntu 24.04 ARM64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout exact PR revision
+        uses: actions/checkout@v4
+
+      - name: Report environment
+        run: |
+          set -eux
+          uname -a
+          node --version || true
+          npm --version || true
+          dpkg --print-architecture
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install native Bend
+        run: npm run install:bend
+
+      - name: Verify native Bend
+        run: |
+          set -euo pipefail
+          test -x ./bin/native/bin/bend
+          ./bin/native/bin/bend version
+
+      - name: GOS3 verification
+        run: npm run verify:gos3
+
+      - name: CLI contract coverage
+        run: npm run test:cli
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: VUC CI gate
+        env:
+          CI: "true"
+          VUC_SANDBOX: "strict"
+        run: npm run test:ci
