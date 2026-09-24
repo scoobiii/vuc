@@ -79,7 +79,12 @@ TMP_TAR="/tmp/${TAR_NAME}"
 echo "⬇ Baixando Bend 2.0.25 para ${PLATFORM_OS}-${PLATFORM_ARCH}..."
 echo "  URL: ${DOWNLOAD_URL}"
 
-curl -fsSL -o "${TMP_TAR}" "${DOWNLOAD_URL}"
+# GitHub release assets can transiently return HTTP 5xx from the edge.
+# Retry the exact pinned asset; never fall back to an unpinned installer.
+curl --fail --silent --show-error --location \
+  --retry 5 --retry-delay 3 --retry-all-errors \
+  --connect-timeout 15 --max-time 120 \
+  -o "${TMP_TAR}" "${DOWNLOAD_URL}"
 ACTUAL_TARBALL_SHA256="$(sha256sum "${TMP_TAR}" | cut -d " " -f1)"
 if [ "${ACTUAL_TARBALL_SHA256}" != "${EXPECTED_TARBALL_SHA256}" ]; then echo "SHA-256 Bend rejeitado"; exit 1; fi
 
