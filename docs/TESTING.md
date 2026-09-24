@@ -48,20 +48,22 @@ $$\text{Safety} = \text{Authorization} + \text{Bounded Execution} + \text{Accoun
 | **Estresse** | `npm run test:stress` | `tests/stress.test.ts` | 500+ execuções concorrentes em rajada | ✅ 100% |
 | **Caos** | `npm run test:chaos` | `tests/chaos.test.ts` | Injeção de bit-flips, falhas de clock, assinaturas falsas | ✅ 100% |
 | **Benchmark** | `npm run test:bench` | `tests/performance-bench.test.ts` | Latência (<370µs), throughput (>2.700 ops/s), jitter | ✅ 100% |
-| **K6 Suite Geral**| `npm run test:k6` | `tests/k6/k6-runner.ts` | Orquestração de todos os cenários k6 | ✅ 100% |
+| **K6 Suite Geral**| `npm run test:k6` | `tests/k6/k6-runner.ts` | Cadeia padrão de cenários K6 e matriz industrial | ✅ 100% |
 | **K6 Smoke** | `npm run test:k6:smoke` | `tests/k6/smoke.js` | Validação de sanidade funcional e endpoints core | ✅ 100% |
 | **K6 Load** | `npm run test:k6:load` | `tests/k6/load.js` | Carga progressiva até 40 VUs com thresholds p95 < 120ms | ✅ 100% |
 | **K6 Stress** | `npm run test:k6:stress` | `tests/k6/stress.js` | Teste de estresse com 60 VUs e alta cadência | ✅ 100% |
 | **K6 Spike** | `npm run test:k6:spike` | `tests/k6/spike.js` | Pico instantâneo de 120 VUs simultâneos | ✅ 100% |
 | **K6 Soak** | `npm run test:k6:soak` | `tests/k6/soak.js` | Teste de resistência e ausência de vazamento de memória | ✅ 100% |
 | **K6 Chaos** | `npm run test:k6:chaos` | `tests/k6/chaos.js` | Injeção de provas adulteradas, replay attacks e traversal | ✅ 100% |
+| **K6 Degradation** | `npm run test:k6:degradation` | `tests/k6/degradation.js` | Degradação controlada e recuperação do serviço | ✅ 100% |
+| **K6 Industry** | `npm run test:k6:industry` | `tests/k6/k6-runner.ts` | Matriz completa dos 8 segmentos industriais | ✅ 100% |
 | **CI Full Suite** | `npm run test:ci` | `scripts/run-full-suite.ts` | Orquestração determinística unificada de toda a suíte | ✅ 100% |
 
 ---
 
 ## 3. K6 Load, Stress, Chaos & Performance Suite
 
-A infraestrutura de testes de carga e desempenho utiliza o binário oficial **k6** (`./bin/k6`). Todos os scripts residem em `tests/k6/` e suportam a variável de ambiente `BASE_URL` (padrão: `http://localhost:3000`).
+A infraestrutura de testes de carga e desempenho usa o binário oficial **k6** quando `bin/k6` está presente. Sem esse binário, `tests/k6/k6-runner.ts` usa um fallback interno de compatibilidade que valida o gateway e seus invariantes, mas não deve ser interpretado como uma medição do motor oficial K6. Todos os scripts suportam `BASE_URL` (padrão: `http://localhost:3000`).
 
 ### 3.1. Smoke Test (`tests/k6/smoke.js`)
 - **Objetivo**: Sanidade imediata da API e dos ciclos de prova criptográfica.
@@ -114,19 +116,20 @@ A infraestrutura de testes de carga e desempenho utiliza o binário oficial **k6
   3. **Path Traversal & Injection**: Injeção de sequências como `../../../../../../etc/passwd` e alvos privados. O sandbox intercepta e sanitiza sem vazamento de segredos.
 
 ### 3.7. Orquestrador K6 Runner (`tests/k6/k6-runner.ts`)
-Permite executar individualmente ou em cadeia qualquer cenário:
+Permite executar individualmente ou em cadeia qualquer cenário. Com o servidor VUA rodando em outro terminal, a matriz local completa é:
 ```bash
-# Rodar todos os cenários principais k6 (Smoke, Load, Chaos, Stress)
-npm run test:k6
-
-# Rodar cenários individuais
+export BASE_URL=http://localhost:3000
 npm run test:k6:smoke
 npm run test:k6:load
 npm run test:k6:stress
 npm run test:k6:spike
 npm run test:k6:soak
 npm run test:k6:chaos
+npm run test:k6:degradation
+npm run test:k6:industry
 ```
+
+`npm run test:k6` executa a cadeia padrão do runner. O workflow [`K6 Scenario Coverage`](../.github/workflows/k6-scenario-coverage.yml) inicia o servidor e executa os oito comandos da matriz no GitHub Actions. Nesse contexto, **100%** significa que todos os cenários e os oito segmentos industriais declarados foram executados e aprovados; não significa cobertura de linhas TypeScript.
 
 ---
 
@@ -201,7 +204,7 @@ npm run test:ci
 
 O comando executa sequencialmente:
 1. `npm run lint` (validação de tipos TypeScript)
-2. `npm run test:unit` (13 testes unitários)
+2. `npm run test:unit` (testes unitários, incluindo a regressão Ed25519)
 3. `npm run test:integration` (7 testes de integração)
 4. `npm run test:security` (auditoria de segurança de tokens e sandbox)
 5. `npm run test:stress` (teste de estresse nativo)

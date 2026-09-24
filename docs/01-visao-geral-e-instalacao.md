@@ -1,94 +1,95 @@
-# 📦 01. Visão Geral, Instalação e Uso como CLI / Biblioteca
+# 01. Visão geral, instalação e onboarding CLI/MCP
 
-O **VUA (Vortex Universal Connector)** foi projetado para operar com dupla personalidade:
-1. **Headless / CLI / Lib**: Código limpo, zero dependências pesadas de UI, ideal para scripts, servidores, Termux e Alpine.
-2. **GUI Web em Tempo Real**: Dashboard interativo React + Tailwind com visualizador de logs, adaptadores e atestações.
+O VUA/VUC combina um runtime de governança, um CLI `vua`, adaptadores, verificação criptográfica de `ExecutionProof`, servidor MCP e uma interface web. Este guia separa explicitamente o uso no checkout, o CLI empacotado e os dois transportes MCP disponíveis.
 
----
+## 1. Pré-requisitos e instalação
 
-## 1. Instalação Local
+Use Node.js 22 e npm. No checkout, prefira a instalação reproduzível:
 
-### A. Clonar e Instalar Dependências
 ```bash
-# Entrar na pasta do projeto
-cd vua-connector
-
-# Instalar dependências (Node.js 18+ ou 20+ recomendado)
-npm install
+git clone https://github.com/scoobiii/vuc.git
+cd vuc
+npm ci
 ```
 
-### B. Binário Global ou Link Simbólico Local
-Para usar o comando `vua` em qualquer lugar do seu terminal:
+O pacote declara o nome `@vortexfoundation/vua` e o binário `vua`, mas os comandos `npx @vortexfoundation/vua ...` e `npm install -g @vortexfoundation/vua` só funcionam depois de publicação efetiva no registry. Para desenvolvimento no checkout, use `npm run vua -- ...`.
+
+## 2. CLI no checkout
+
+O CLI de desenvolvimento usa `tsx` para carregar os módulos TypeScript do repositório. Por isso, este é o fluxo suportado:
+
 ```bash
-npm link
-# Agora o comando 'vua' está disponível globalmente:
-vua status
+npm run vua -- status
+npm run vua -- adapters
+npm run vua -- bench
+npm run vua -- verify proof.json
 ```
-Ou execute via npm scripts locais:
+
+Não documentamos `npm link` seguido de `vua status` como fluxo de desenvolvimento: o `bin/vua.js` importa módulos `.js`, enquanto o checkout contém os fontes `.ts` e não gera automaticamente um bundle independente do CLI.
+
+## 3. Comandos disponíveis
+
+| Comando | Descrição | Exemplo no checkout |
+|---|---|---|
+| `status` | Diagnóstico de hardware, memória, arquitetura e identidade | `npm run vua -- status` |
+| `adapters` | Lista adaptadores e capacidades | `npm run vua -- adapters` |
+| `bench` | Mede throughput e latência criptográfica no ambiente atual | `npm run vua -- bench` |
+| `invoke` | Executa uma ação governada em um adaptador | `npm run vua -- invoke linux check_sandbox` |
+| `conformance` | Executa a conformidade dos adaptadores | `npm run vua -- conformance` |
+| `verify` | Verifica um `ExecutionProof` | `npm run vua -- verify proof.json` |
+| `mcp` | Inicia o MCP por stdio | `npm run vua -- mcp` |
+
+## 4. Servidor web e MCP HTTP
+
+Para iniciar a interface web e o servidor HTTP local:
+
 ```bash
-npm run vua status
-npm run vua adapters
-npm run vua bench
+npm run dev
 ```
 
----
+O servidor usa `PORT` quando definido e, por padrão, escuta em `3000`. Verifique a disponibilidade com:
 
-## 2. Comandos Disponíveis no CLI (`vua`)
+```bash
+curl -fsS http://localhost:3000/api/health
+```
 
-| Comando | Descrição | Exemplo de Execução |
-| :--- | :--- | :--- |
-| `vua status` | Exibe diagnóstico de hardware, memória livre, arquitetura e status de chaves | `vua status` |
-| `vua adapters` | Lista os 4 adaptadores ativos (GitHub, Linux, Android, Windows) e suas ações | `vua adapters` |
-| `vua invoke <adapter> <action> [payload]` | Dispara uma ação governada com carimbo e assinatura Ed25519 | `vua invoke linux check_sandbox` |
-| `vua bench [--iterations N]` | Mede latência, throughput (ops/seg) de RFC 8785 e Ed25519 | `vua bench --iterations 500` |
-| `vua conformance` | Executa bateria de conformidade 100% nos adaptadores | `vua conformance` |
-| `vua llm [opções]` | Executa inferência com prova criptográfica em LLMs locais ou Cloud | `vua llm --provider gemini --prompt "Olá"` |
-| `vua mcp` | Inicia o servidor MCP (JSON-RPC 2.0 via stdio) para Cursor, Claude, etc. | `vua mcp` |
-| `vua verify <proof.json>` | Realiza auditoria matemática independente de um `ExecutionProof v1` | `vua verify proof.json` |
+Rotas relevantes:
 
----
+- `GET /api/health`: health check;
+- `GET /api/vortex/status`: status e identidade;
+- `GET /mcp`: metadados MCP ou SSE conforme o cabeçalho `Accept`;
+- `GET /sse`: SSE dedicado;
+- `POST /mcp`: transporte HTTP direto;
+- `POST /mcp/messages?sessionId=...`: mensagens do transporte SSE.
 
-## 3. Uso como Biblioteca TypeScript / Node.js
+`npm run vua -- mcp` é outro modo: inicia MCP por **stdio** para clientes como Claude Desktop, Cursor e VS Code. Ele não substitui `npm run dev` e não deve ser documentado como servidor HTTP.
 
-Você pode importar o VUA diretamente no seu código backend, agente ou script:
+## 5. Uso como biblioteca
+
+Os fontes TypeScript podem ser importados dentro do projeto com um loader TypeScript, por exemplo `tsx`. O campo `main` aponta para `src/vortex/index.ts`; isso descreve o source entrypoint e não um bundle JavaScript autônomo para Node sem loader.
 
 ```typescript
-import {
-  executeVortexPipeline,
-  vuaRegistry,
-  verifyExecutionProof,
-  canonicalizeRFC8785,
-  signProofPayload
-} from './src/vortex/index.js';
+import { executeVortexPipeline } from './src/vortex/index.js';
 
-// 1. Invocar um adaptador local (ex: Android ou Linux)
-const result = await vuaRegistry.invoke({
-  adapterId: 'android',
-  action: 'check_selinux',
-  target: { device: 'local' },
-  payload: {}
-});
-
-console.log('Sucesso:', result.success);
-console.log('Assinatura Ed25519:', result.execution_proof?.signature);
-console.log('Validação da prova:', result.verification?.valid);
-
-// 2. Executar uma operação sob pipeline governado
-const pipelineOutput = await executeVortexPipeline({
+const result = await executeVortexPipeline({
   requestId: 'req-001',
   operation: 'fs.read_restricted',
   target: { path: '/etc/os-release' },
-  input: { format: 'json' }
+  input: { format: 'json' },
 });
 
-console.log('Output Hash:', pipelineOutput.proof.output_hash);
+console.log(result);
 ```
 
----
+## 6. Validação local
 
-## 4. Estrutura do Pacote (`package.json`)
+```bash
+npm run lint
+npm run test:unit
+npm run test:integration
+npm run test:security
+npm run test:ci
+npm run build
+```
 
-O projeto está configurado com ponto de entrada limpo tanto para módulo ECMAScript quanto para CLI:
-- `"main"`: `./src/vortex/index.ts`
-- `"bin"`: `{ "vua": "./bin/vua.js" }`
-- `"type"`: `"module"` (ESM nativo)
+Consulte [ONBOARDING.md](./ONBOARDING.md) para o fluxo completo, incluindo a matriz K6.
