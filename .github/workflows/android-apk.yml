@@ -46,8 +46,16 @@ jobs:
 
       - name: Generate Android project
         run: |
-          rm -rf android capacitor.config.json
-          printf '%s\n' '{"appId":"br.eco.mex.vuc","appName":"VUC","webDir":"dist","server":{"androidScheme":"https"},"android":{"allowMixedContent":false}}' > capacitor.config.json
+          rm -rf android capacitor.config.json capacitor.config.js
+          cat > capacitor.config.js <<'EOF'
+          module.exports = {
+            appId: 'br.eco.mex.vuc',
+            appName: 'VUC',
+            webDir: 'dist',
+            server: { androidScheme: 'https' },
+            android: { allowMixedContent: false },
+          };
+          EOF
           npx cap add android
           npx cap sync android
 
