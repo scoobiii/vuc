@@ -16,6 +16,7 @@ import type {
   VUAAdapterMetadata,
 } from './types.js';
 import { VUAGitHubAdapter } from './github.js';
+import { VUAGitAdapter } from './git.js';
 import { VUALinuxAdapter } from './linux.js';
 import { VUAAndroidAdapter } from './android.js';
 import { VUAWindowsAdapter } from './windows.js';
@@ -111,6 +112,7 @@ class VUAAdapterRegistry {
 
   constructor() {
     this.register(new VUAGitHubAdapter());
+    this.register(new VUAGitAdapter());
     this.register(new VUALinuxAdapter());
     this.register(new VUAAndroidAdapter());
     this.register(new VUAWindowsAdapter());
