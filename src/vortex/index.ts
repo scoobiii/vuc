@@ -23,3 +23,4 @@ export * from './conformance.js';
 export * from './adapters/index.js';
 export * from './semantic-oracle.js';
 export * from './hardware-profiler.js';
+export * from './vgpt-connector.js';
