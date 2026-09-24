@@ -35,8 +35,8 @@ jobs:
         run: |
           npm config delete omit || true
           npm ci --include=optional --no-audit --no-fund
-          npm install --no-save @rollup/rollup-linux-arm64-gnu@4.63.1 lightningcss@1.30.2
-          node -e "require.resolve('@rollup/rollup-linux-arm64-gnu'); require.resolve('lightningcss')"
+          npm install --no-save @rollup/rollup-linux-arm64-gnu@4.63.1 lightningcss@1.30.2 @tailwindcss/oxide-linux-arm64-gnu@4.3.3
+          node -e "require.resolve('@rollup/rollup-linux-arm64-gnu'); require.resolve('lightningcss'); require.resolve('@tailwindcss/oxide-linux-arm64-gnu')"
 
       - name: Install native Bend
         run: npm run install:bend
