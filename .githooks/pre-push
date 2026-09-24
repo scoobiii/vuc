@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+echo "[VUC] Internal governance barrier before push"
+npm run preflight
+echo "[VUC] Internal barrier PASS; allowing git push"

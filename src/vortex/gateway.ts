@@ -378,9 +378,11 @@ export function createSignedProof(
 
   const canonicalString = canonicalize(proofToSign);
 
-  const signature = CURRENT_IDENTITY.private_key
-    ? signCanonicalString(canonicalString, CURRENT_IDENTITY.private_key)
-    : 'mock-sig';
+  if (!CURRENT_IDENTITY.private_key) {
+    throw new Error('PROOF_SIGNING_UNAVAILABLE: Vortex identity has no private signing key');
+  }
+
+  const signature = signCanonicalString(canonicalString, CURRENT_IDENTITY.private_key);
 
   const proofHash = sha256(canonicalString);
 

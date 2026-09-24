@@ -1,0 +1,34 @@
+name: VUC Internal Governance Gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  internal-governance:
+    name: VUC internal preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PR revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install VUC runtime
+        run: npm ci
+
+      - name: Run fail-closed internal barrier
+        env:
+          CI: "true"
+          VUC_SANDBOX: strict
+        run: npm run preflight

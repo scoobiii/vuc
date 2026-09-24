@@ -1,8 +1,8 @@
 import { Firestore } from '@google-cloud/firestore';
 
-type Client = { client_id: string; redirect_uris: string[]; client_name?: string };
-type Code = { client_id: string; redirect_uri: string; code_challenge: string; scope: string; resource: string; expires_at: number; used: boolean };
-type Token = { client_id: string; scope: string; resource: string; expires_at: number };
+type Client = { client_id: string; redirect_uris: string[]; client_name?: string; tenant_id: string };
+type Code = { client_id: string; redirect_uri: string; code_challenge: string; scope: string; resource: string; tenant_id: string; expires_at: number; used: boolean };
+type Token = { client_id: string; scope: string; resource: string; tenant_id: string; expires_at: number };
 
 export interface OAuthStore {
   saveClient(client: Client): Promise<void>;

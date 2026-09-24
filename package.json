@@ -93,7 +93,10 @@
     "build:cli": "esbuild bin/vua.js --bundle --platform=node --format=cjs --packages=external --outfile=dist/vua.cjs && chmod +x dist/vua.cjs",
     "test:drex-backend": "tsx tests/drex-backend-independence.test.ts",
     "prepublishOnly": "npm run build:cli",
-    "test:cli": "tsx tests/cli-contract.test.ts"
+    "test:cli": "tsx tests/cli-contract.test.ts",
+    "test:internal-gate": "tsx scripts/internal-governance-gate.ts",
+    "preflight": "npm run test:internal-gate",
+    "prepare": "chmod +x .githooks/pre-push scripts/enable-internal-gate-hooks.sh 2>/dev/null || true; git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",

@@ -46,24 +46,31 @@ async function ensureBackendRunning(): Promise<void> {
     // O servidor local ainda não está ativo; o teste o iniciará abaixo.
   }
 
+  let bootOutput = '';
   backendProcess = spawn('npm', ['run', 'dev'], {
     cwd: process.cwd(),
-    env: { ...process.env, PORT: '3000' },
-    stdio: 'ignore',
+    env: { ...process.env, PORT: '3000', DISABLE_HMR: 'true' },
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  backendProcess.stdout?.on('data', (chunk: Buffer) => { bootOutput += chunk.toString(); });
+  backendProcess.stderr?.on('data', (chunk: Buffer) => { bootOutput += chunk.toString(); });
 
-  const deadline = Date.now() + 10_000;
+  const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
+    if (backendProcess.exitCode !== null) {
+      throw new Error(`Servidor VUC encerrou durante o boot (exit ${backendProcess.exitCode}):\n${bootOutput}`);
+    }
     try {
       const response = await fetch(`${DIRECT_BASE_URL}/api/vuc/tri-sync/status`);
       if (response.ok) return;
     } catch {
       // Continua aguardando o servidor subir.
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
 
-  throw new Error('Servidor VUC não ficou disponível em http://127.0.0.1:3000');
+  throw new Error(`Servidor VUC não ficou disponível em ${DIRECT_BASE_URL} após 30s:\n${bootOutput}`);
 }
 
 describe('🧪 Bancamento de Carga: Banco de Dados Tri-Sync & Nginx Proxy', () => {
@@ -74,8 +81,12 @@ describe('🧪 Bancamento de Carga: Banco de Dados Tri-Sync & Nginx Proxy', () =
   });
 
   after(() => {
-    if (backendProcess && !backendProcess.killed) {
-      backendProcess.kill('SIGTERM');
+    if (backendProcess?.pid && backendProcess.exitCode === null) {
+      try {
+        process.kill(-backendProcess.pid, 'SIGTERM');
+      } catch {
+        backendProcess.kill('SIGTERM');
+      }
     }
   });
 
