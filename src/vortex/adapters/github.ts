@@ -102,16 +102,74 @@ async function createPullRequest(input: {
   };
 }
 
+
+async function createRepository(input: {
+  owner?: string;
+  name: string;
+  description?: string;
+  private?: boolean;
+  organization?: string;
+  autoInit?: boolean;
+}) {
+  const { owner, name, description = '', private: isPrivate = false, organization, autoInit = false } = input;
+  if (!name || !/^[A-Za-z0-9_.-]+$/.test(name)) {
+    throw new Error('INVALID_INPUT: repository name is invalid');
+  }
+
+  const apiPath = organization
+    ? `/orgs/${encodeURIComponent(organization)}/repos`
+    : '/user/repos';
+
+  const body: Record<string, unknown> = {
+    name,
+    description,
+    private: isPrivate,
+    auto_init: autoInit,
+  };
+
+  const created = await githubRequest<any>(apiPath, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+
+  return {
+    success: true,
+    authenticated: true,
+    external_effect: 'remote_confirmed' as const,
+    execution_kind: 'capability' as const,
+    provider: 'github',
+    data: {
+      repository: created.full_name,
+      name: created.name,
+      owner: created.owner?.login,
+      private: created.private,
+      default_branch: created.default_branch,
+      html_url: created.html_url,
+      clone_url: created.clone_url,
+      ssh_url: created.ssh_url,
+      git_url: created.git_url,
+      created_at: created.created_at,
+    },
+  };
+}
+
 export class VUAGitHubAdapter implements IVUAAdapter {
   public metadata: VUAAdapterMetadata = {
     id: 'github',
     name: 'GitHub Universal Adapter',
     environment: 'Cloud VCS',
-    version: '1.2.0',
+    version: '1.3.0',
     status: 'ready',
     description: 'Governed GitHub VCS integration: branch verification, signed commit verification, PR proposals, and workflow dispatch.',
     capabilities: ['repository.read', 'repository.propose', 'repository.write', 'vua.adapter.read', 'vua.adapter.execute'],
     supportedActions: [
+      {
+        action: 'create_repo',
+        description: 'Create a real remote GitHub repository under the authenticated user or organization.',
+        risk: 'write',
+        requiresApproval: true,
+        defaultParams: { name: 'hackathon-project', private: false, autoInit: true },
+      },
       {
         action: 'inspect_repo',
         description: 'Inspect repository metadata, default branch, branch protections, and security policies via GitHub REST API.',
@@ -224,6 +282,62 @@ export class VUAGitHubAdapter implements IVUAAdapter {
   ): Promise<{ data: Record<string, unknown>; auditLog: string[] }> {
     const auditLog: string[] = [];
     auditLog.push(`[GITHUB-VUA] Initiating governed VCS action: ${action}`);
+
+    if (action === 'create_repo') {
+      const name = (target.name || payload.name) as string;
+      const organization = (target.organization || payload.organization) as string | undefined;
+      const description = (payload.description || target.description || '') as string;
+      const isPrivate = Boolean(payload.private ?? target.private ?? false);
+      const autoInit = Boolean(payload.auto_init ?? target.auto_init ?? false);
+
+      auditLog.push(`[GITHUB-VUA] Creating real remote repository '${organization ? organization + '/' : ''}${name}'`);
+
+      if (!process.env.GITHUB_TOKEN) {
+        auditLog.push('[GITHUB-VUA] CREDENTIAL_MISSING: rejecting synthetic repository creation');
+        return {
+          data: {
+            success: false,
+            authenticated: false,
+            external_effect: 'none',
+            execution_kind: 'capability',
+            provider: 'github',
+            error: {
+              code: 'CREDENTIAL_MISSING',
+              message: 'GITHUB_TOKEN is required for remote repository creation',
+            },
+          },
+          auditLog,
+        };
+      }
+
+      try {
+        const result = await createRepository({
+          name,
+          description,
+          private: isPrivate,
+          organization,
+          autoInit,
+        });
+        auditLog.push(`[GITHUB-VUA] Repository created remotely: ${result.data.repository}`);
+        return { data: result, auditLog };
+      } catch (err: any) {
+        auditLog.push(`[GITHUB-VUA] Repository creation failed: ${err.message}`);
+        return {
+          data: {
+            success: false,
+            authenticated: true,
+            external_effect: 'remote_failed',
+            execution_kind: 'capability',
+            provider: 'github',
+            error: {
+              code: 'REMOTE_FAILED',
+              message: err.message,
+            },
+          },
+          auditLog,
+        };
+      }
+    }
 
     if (action === 'inspect_repo') {
       const owner = (target.owner || payload.owner || 'scoobiii') as string;
