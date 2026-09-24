@@ -31,13 +31,14 @@ const routeCases: Case[] = [
   { name: 'default route', argv: [], assertOutput: /Uso:/ },
   { name: 'status', argv: ['status'], assertOutput: /Diagnósticos de Sistema/ },
   { name: 'baseline', argv: ['baseline'], expectExit: 0, assertOutput: /BASELINE DINÂMICA/ },
-  { name: 'bootstrap:hw alias', argv: ['bootstrap:hw'], expectExit: 0, assertOutput: /BASELINE DINÂMICA/ },
+  { name: 'bootstrap:hw', argv: ['bootstrap:hw'], expectExit: 0, assertOutput: /BASELINE DINÂMICA/ },
   { name: 'adapters', argv: ['adapters'], assertOutput: /Adaptadores Registrados/ },
   { name: 'bench', argv: ['bench', '--iterations', '1'], assertOutput: /RESULTADOS DO BENCHMARK LOCAL/ },
   { name: 'conformance', argv: ['conformance'], assertOutput: /Bateria Completa de Conformidade/ },
   { name: 'gcloud unknown', argv: ['gcloud', '__unknown__'], assertOutput: /Subcomando desconhecido/ },
   { name: 'repo unknown', argv: ['repo', '__unknown__'], assertOutput: /Subcomando desconhecido/ },
   { name: 'bluesky unknown', argv: ['bluesky', '__unknown__'] },
+  { name: 'bsky alias unknown', argv: ['bsky', '__unknown__'] },
   { name: 'audit', argv: ['audit'], assertOutput: /VUA AUDITOR/ },
   { name: 'mock', argv: ['mock'], assertOutput: /Mock Detector/ },
   { name: 'verify missing path', argv: ['verify'], expectExit: 1, assertOutput: /Forneça o caminho/ },
@@ -120,8 +121,8 @@ try {
   const routerSource = execFileSync('grep', ['-n', '^  case ', CLI], { encoding: 'utf8' });
   const declaredRoutes = [...routerSource.matchAll(/case '([^']+)'/g)].map((m) => m[1]);
   const exercised = new Set([
-    'mock', 'gcloud', 'repo', 'status', 'baseline', 'adapters', 'invoke',
-    'bench', 'conformance', 'llm', 'bluesky', 'mcp', 'verify', 'audit',
+    'mock', 'gcloud', 'repo', 'status', 'baseline', 'bootstrap:hw', 'adapters', 'invoke',
+    'bench', 'conformance', 'llm', 'bluesky', 'bsky', 'mcp', 'verify', 'audit',
     'help', '--help', '-h',
   ]);
   const missing = declaredRoutes.filter((r) => !exercised.has(r));
