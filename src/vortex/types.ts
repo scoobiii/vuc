@@ -55,6 +55,8 @@ export interface GovernedCapability {
 }
 
 export interface AuthorizationContext {
+  /** Explicit tenant binding for multi-tenant execution governance. */
+  tenant_id?: string;
   principal_id: string;
   agent_id: string;
   policy_id: string;
