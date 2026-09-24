@@ -10,7 +10,7 @@
  * 4. Undergo independent cryptographic verification
  */
 
-import type { ExecutionProof, ExternalEffect, VerificationResult } from '../types.js';
+import type { AuthorizationContext, ExecutionProof, ExternalEffect, VerificationResult } from '../types.js';
 
 export type VUAAdapterId = 'github' | 'git' | 'linux' | 'android' | 'windows' | 'bluesky' | 'canary' | 'gcloud' | 'bend';
 
@@ -46,18 +46,7 @@ export interface VUAActionRequest {
   payload?: Record<string, unknown>;
   approvalToken?: string;
   requestId?: string;
-  authorization?: {
-    principal_id: string;
-    agent_id: string;
-    policy_id: string;
-    policy_version: string;
-    capability: string;
-    scope?: {
-      paths?: string[];
-      repositories?: string[];
-      resources?: string[];
-    };
-  };
+  authorization?: AuthorizationContext;
 }
 
 export interface VUAActionResult {
