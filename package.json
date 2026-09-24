@@ -55,7 +55,7 @@
     "test": "npm run lint && npm run test:unit && npm run test:integration && npm run test:security && npm run test:drex-integrity && npm run test:drex-backend && npm run test:drex-phase2 && npm run test:mock && npm run test:stress && npm run test:chaos && npm run test:bench && npm run test:db:bench && tsx scripts/run-full-suite.ts",
     "test:ci": "npm run test",
     "test:unit": "tsx tests/unit.test.ts",
-    "test:integration": "tsx tests/integration.test.ts",
+    "test:integration": "tsx tests/integration.test.ts && npm run test:mcp-proof",
     "test:mock": "tsx tests/mock-detector.test.ts",
     "test:stress": "tsx tests/stress.test.ts",
     "test:chaos": "tsx tests/chaos.test.ts",
