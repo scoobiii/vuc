@@ -136,8 +136,8 @@ const deniedRequest = await handleMCPMessage({
     },
   },
 });
-assert.equal(deniedRequest.result?.success, false);
 const denied = deniedRequest.result as Record<string, any>;
+assert.equal(denied?.success, false);
 assert.equal(denied.external_effect, 'none');
 assert.equal(denied.execution_proof?.executed, false);
 assert.equal(denied.execution_proof?.status, 'SANDBOX_DENIED');
