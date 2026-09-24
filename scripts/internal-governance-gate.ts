@@ -4,11 +4,20 @@ import path from 'node:path';
 import { executeVortexPipeline } from '../src/vortex/gateway.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
 import { loadGovernanceSystemInstruction } from '../src/vortex/governance-instruction.js';
+import { generateVortexIdentity, setVortexIdentity } from '../src/vortex/crypto.js';
+import { setVortexIdentity as setGatewayIdentity } from '../src/vortex/gateway.js';
 
 process.env.VUC_SANDBOX = 'strict';
 
 const root = process.cwd();
 const instruction = loadGovernanceSystemInstruction(root);
+
+// Create an ephemeral Ed25519 identity for this preflight. The private key never
+// leaves this process or gets written to the repository. The public key is used
+// explicitly during independent verification, proving the signature is real.
+const identity = generateVortexIdentity('vuc-internal', 'agent/vuc-preflight', 'vuc-preflight-' + Date.now());
+setVortexIdentity(identity);
+setGatewayIdentity(identity);
 
 function run(label: string, command: string, args: string[]) {
   console.log('\n[INTERNAL-GATE] ' + label);
@@ -48,8 +57,12 @@ assert(response.status === 'EXECUTION_SUCCESS', 'gateway status=' + response.sta
 assert(response.execution_proof, 'gateway returned no ExecutionProof');
 assert(response.execution_proof.executed === true, 'ExecutionProof.executed is not true');
 assert(response.execution_proof.signature !== 'mock-sig', 'synthetic mock signature detected');
-const verification = verifyExecutionProof(response.execution_proof);
+const verification = verifyExecutionProof(response.execution_proof, { embeddedPublicKey: identity.public_key });
 assert(verification.valid === true, 'ExecutionProof verification failed: ' + verification.reasons.join('; '));
+assert(verification.checks.signature.passed === true, 'Ed25519 signature check did not pass');
+assert(verification.checks.identity.passed === true, 'Embedded public-key identity check did not pass');
+console.log('[INTERNAL-GATE] key_id=' + identity.key_id);
+console.log('[INTERNAL-GATE] ed25519_signature_verified=true');
 
 run('Web build', 'npm', ['run', 'build']);
 
