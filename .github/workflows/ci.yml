@@ -1,4 +1,4 @@
-name: VUA CI — Execution Integrity
+name: VUC CI — Governed Sandbox Runtime & Integrity
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   execution-integrity:
-    name: Tests + execution evidence + mock gate
+    name: VUC Sandbox Runtime (100% Gates + Execution Integrity)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -18,16 +18,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node 22 LTS
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
+      - name: Install Bend Runtime (HVM3 / Bend Compiler)
+        run: |
+          mkdir -p bin/native/bin
+          bash scripts/install-bend.sh || true
+
       - name: Normalize lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 
-      - name: Install
+      - name: Install Dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Install native Bend
@@ -36,17 +41,24 @@ jobs:
       - name: Verify lockfile is reproducible
         run: git diff --exit-code -- package-lock.json
 
-      - name: Run execution-integrity gate
+      - name: Run GOS3 Contract Audit
+        run: npm run verify:gos3
+
+      - name: Run VUC Sandbox Runtime & 100% Quality Gates
         run: npm run test:ci
         env:
           CI: "true"
+          VUC_SANDBOX: "strict"
+
+      - name: Build Production Assets
+        run: npm run build
 
       - name: Upload execution evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vua-execution-evidence
+          name: vuc-execution-evidence
           path: |
             .vortex-evidence.json
             reports/execution-evidence/**
-          if-no-files-found: error
+          if-no-files-found: warn

@@ -13,13 +13,15 @@ import { MascotModal } from './components/MascotModal.js';
 import { SemanticOracleView } from './components/SemanticOracleView.js';
 import { CapabilityMatrix } from './components/CapabilityMatrix.js';
 import { FirebaseLedgerView } from './components/FirebaseLedgerView.js';
+import { CloudSqlSyncView } from './components/CloudSqlSyncView.js';
 import { BendDevelopmentView } from './components/BendDevelopmentView.js';
 import { DrexIntegrationView } from './components/DrexIntegrationView.js';
 import { K6IndustryView } from './components/K6IndustryView.js';
+import { VUCGitPageLiveView } from './components/VUCGitPageLiveView.js';
 import type { ExecutionProof } from './vortex/types.js';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('vua-adapters');
+  const [activeTab, setActiveTab] = useState<string>('vuc-gitpage');
   const [status, setStatus] = useState<any>(null);
   const [selectedProofForVerification, setSelectedProofForVerification] = useState<ExecutionProof | null>(null);
   const [activeSessions, setActiveSessions] = useState<Array<{ session_id: string; resource: string }>>([]);
@@ -77,6 +79,10 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+        {activeTab === 'vuc-gitpage' && (
+          <VUCGitPageLiveView onSendToVerifier={handleSendToVerifier} />
+        )}
+
         {activeTab === 'vua-adapters' && (
           <VUAAdaptersView onSendToVerifier={handleSendToVerifier} />
         )}
@@ -95,6 +101,10 @@ export default function App() {
 
         {activeTab === 'firebase-ledger' && (
           <FirebaseLedgerView onSendToVerifier={handleSendToVerifier} />
+        )}
+
+        {activeTab === 'cloudsql-sync' && (
+          <CloudSqlSyncView />
         )}
 
         {activeTab === 'capability-matrix' && (
@@ -151,7 +161,7 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-zinc-900 bg-zinc-950 py-4 px-6 text-center text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <span>VUA (Vortex Universal Adapter) • Open Governance Protocol</span>
+          <span>VUC (Vortex Universal Connector) • Open Governance Protocol • <a href="https://github.com/scoobiii/vuc" target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-zinc-200 underline font-mono">scoobiii/vuc</a></span>
           <span className="font-mono text-[11px] text-zinc-400">
             SAFETY = AUTHORIZATION + BOUNDED EXECUTION + ACCOUNTABILITY + INDEPENDENT VERIFICATION + IDENTITY
           </span>

@@ -54,7 +54,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vortex-execution-evidence
+          name: vuc-conformance-evidence
           path: |
             dist/
             metadata.json
+            .vortex-evidence.json

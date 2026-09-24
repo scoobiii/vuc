@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { canonicalize } from './canonicalize.js';
 import { generateVortexIdentity, sha256, signCanonicalString } from './crypto.js';
 import { VUABendEngine } from './bend-engine.js';
+import { unifiedStorage } from './unified-storage.js';
 import type {
   DrexAccountState,
   DrexActorRole,
@@ -489,6 +490,25 @@ export class DrexGovernanceEngine {
     };
 
     this.auditHistory.unshift(response);
+
+    // Persistência Atômica no SQLite / Firestore Espelhado
+    unifiedStorage.saveDrexTransaction({
+      id: transactionId,
+      operation: payload.operation,
+      senderId: payload.senderId,
+      receiverId: payload.receiverId,
+      amountRealDigital: payload.amountRealDigital,
+      volumeTpft: payload.volumeTpft,
+      legalBasis: payload.legalBasis,
+      proofHash,
+      signature: ed25519Signature,
+      timestamp,
+    });
+    unifiedStorage.syncDrexAccount(sender);
+    if (receiver) {
+      unifiedStorage.syncDrexAccount(receiver);
+    }
+
     return response;
   }
 }

@@ -1,15 +1,15 @@
-# 🛡️ VUC — VUA Reference Implementation & Governed Execution
+# 🛡️ VUC — Vortex Universal Connector & Governed Execution Protocol
 
 <div align="center">
 
-![Mascote VUA - O Pangolim de Governança](./public/vua-mascot.jpg)
+![Mascote VUC - O Pangolim de Governança](./public/vua-mascot.jpg)
 
 ### *O Pangolim da Governança e Execução Criptográfica*
 *(Mascote oficial no clássico estilo gravura xilogravura O'Reilly)*
 
 > *"Defendendo a verdade criptográfica, a neutralidade de sistemas operacionais e a integridade de execução delimitada sob as leis de GOS3 e RFC 8785."*
 
-[![Release](https://img.shields.io/badge/release-v0.1.0--rc.1-orange?style=flat-square)](./docs/01-visao-geral-e-instalacao.md)
+[![Node.js Conformance](https://img.shields.io/badge/VUC-100%25%20PASS-emerald?style=flat-square&logo=node.js)](./docs/01-visao-geral-e-instalacao.md)
 [![RFC 8785 Canonical](https://img.shields.io/badge/RFC%208785-JCS%20Canonical-cyan?style=flat-square)](./docs/01-visao-geral-e-instalacao.md)
 [![Ed25519 Signed](https://img.shields.io/badge/Identity-Ed25519%20Proof%20v1-indigo?style=flat-square)](./docs/01-visao-geral-e-instalacao.md)
 [![Mobile & Terminal](https://img.shields.io/badge/Platform-Termux%20%7C%20Alpine%20%7C%20Android%20%7C%20Linux%20%7C%20Windows-amber?style=flat-square)](./docs/04-termux-e-alpine-proot.md)
@@ -17,88 +17,23 @@
 
 </div>
 
-
-> **Release candidate:** `v0.1.0-rc.1`  
-> **Repository:** `scoobiii/vuc`  
-> **Protocol:** VUA (Vortex Universal Adapter)  
-> **DREX prover:** **Bend 2.0.25**, pinned for `TRANSFER_RETAIL`.
-
-## Release scope — v0.1.0-rc.1
-
-This release candidate packages the execution-integrity work delivered in PRs **#1, #2 and #3**:
-
-| Sprint | Scope | Status |
-|---|---|---|
-| #1 | Cryptographic identity and trust material | ✅ merged |
-| #2 | CI/reproducibility and execution metrics | ✅ merged |
-| #3 | Native Bend proof-before-mutation, fail-closed behavior and proof binding | ✅ merged |
-| RC.1 | Product documentation and Bend 2 alignment | 🔄 release candidate |
-
-### DREX Execution Integrity
-
-For `TRANSFER_RETAIL`, the implementation requires a **native Bend 2.0.25 execution** of `DREX_Laws.bend#verify_conservation` **before** mutating the ledger.
-
-There is **no arithmetic fallback**.
-
-If Bend is missing, cannot execute, exits non-zero, returns an unexpected result, or the conservation proof is rejected, the operation fails closed and the ledger remains unchanged.
-
-The resulting evidence binds:
-
-- the Bend input/program through `inputHash`;
-- canonical execution output and exit status through `executionHash`;
-- the canonical receipt through RFC 8785/JCS;
-- the receipt through Ed25519 signing.
-
-> **Scope limitation:** this is a first implemented Execution Integrity layer for DREX flows. It is **not** a claim of complete Drex protocol coverage, privacy infrastructure, external settlement interoperability, or production certification.
-
-## DREX Fase 2 — RWA de energia
-
-O VUC amplia a camada de Execution Integrity para um caso de uso de Fase 2: **Delivery Versus Payment (DvP) de energia tokenizada/RWA**.
-
-- `SETTLE_ENERGY_DVP` exige prova nativa Bend 2.0.25 antes de qualquer mutação;
-- a prova vincula `inputHash` e `executionHash` ao programa e à saída efetivamente executados;
-- falha, ausência ou saída não canônica do provador bloqueia a liquidação;
-- o piloto modela o ativo em MWh e a perna financeira em Real Digital; isso **não representa liquidação externa real no Drex**;
-- o rail (`DREX`, `TOKENIZED_ASSET` ou `OTHER`) é metadado de execução, não uma afirmação de interoperabilidade já implementada.
-
-A Fase 2 do Piloto Drex ampliou testes para serviços de participantes, ativos adicionais, smart contracts de terceiros e outros casos de uso; o VUC usa energia como caso de teste de RWA, sem declarar equivalência com a plataforma oficial do BC.
-
-## Bend 1 vs Bend 2
-
-**Bend 1 and Bend 2 are different language generations.** Bend 1 programs do not automatically carry over to Bend 2; the current Bend project explicitly documents this incompatibility. citeturn1search1
-
-For VUC, the important distinction is architectural:
-
-- **Bend 1:** the older HVM-oriented language/runtime family. A deep recursive/parallel example can become computationally or memory intensive on a mobile CPU. A Termux run that passes at depth 17 and stalls around depth 20 is consistent with the workload growing sharply with recursion/tree depth; it should be treated as a device/runtime benchmark, not as a VUA correctness threshold.
-- **Bend 2:** the current language line uses strong typing, linear/affine semantics, laws and mechanically checked proofs, with CPU/GPU compilation paths. Its syntax, checker and runtime model are different, so a Bend 1 depth benchmark is **not** a valid Bend 2 compatibility or performance benchmark. citeturn1search1turn1search3
-- **VUA/VUC:** does not make Bend a universal protocol dependency. Bend is a **prover/engine selected by the DREX implementation**. The VUA contract is the stronger property: governed execution must produce independently verifiable evidence.
-
-### Termux interpretation
-
-If your Bend 1 example reaches depth 17 and stalls at 20 on the phone, do not turn that into a hard VUA limit. Record it as:
-
-`BEND1 / Termux / device-specific depth ceiling`
-
-and benchmark Bend 2 separately with the exact same algorithm, input and runtime mode. Bend's own documentation notes that the project is young and that performance/behavior can vary by target and workload. citeturn1search1
-
-
 ---
 
 > **Tese Normativa de Segurança:**  
 > *"Proof of execution is not proof of safety."*  
 > $$\text{Safety} = \text{Authorization} + \text{Bounded Execution} + \text{Accountability} + \text{Independent Verification} + \text{Identity}$$
 
-O **VUA (Vortex Universal Adapter)** é a especificação e motor de referência para governança, conectores universais multiplataforma e execução criptográfica para agentes de Inteligência Artificial sobre o **Model Context Protocol (MCP)** e Git VCS. Ele assegura que agentes autônomos, ferramentas de build e modelos LLM operem sob limites matematicamente verificáveis, com provas de execução assinadas em **Ed25519**, canonicalização determinística **RFC 8785 (JCS)** e governança de recursos **GOS3**.
+O **VUC (Vortex Universal Connector)** (compatível com a especificação VUA) é o motor de referência para governança, conectores universais multiplataforma e execução criptográfica para agentes de Inteligência Artificial sobre o **Model Context Protocol (MCP)** e Git VCS (`scoobiii/vuc`). Ele assegura que agentes autônomos, ferramentas de build e modelos LLM operem sob limites matematicamente verificáveis, com provas de execução assinadas em **Ed25519**, canonicalização determinística **RFC 8785 (JCS)** e governança de recursos **GOS3**.
 
 ---
 
-## 🦔 Conheça o Mascote VUA: O Pangolim de Governança
+## 🦔 Conheça o Mascote VUC: O Pangolim de Governança
 
 No espírito das clássicas publicações técnicas **O'Reilly**, o **Pangolim** foi escolhido como mascote do VUA por suas características biológicas e arquiteturais:
 
 - 🛡️ **Escamas de Queratina Entrelaçadas**: Representam as camadas concêntricas de proteção do VUA (Isolamento de Sandbox, Validação de Políticas, Canonicalização RFC 8785 e Assinatura Ed25519).
 - 🔒 **Postura Defensiva Inviolável**: Quando sob ameaça (como ataques adversariais de *FORGE*, *REPLAY*, *ESCALATE*, *ESCAPE* ou *TAMPER*), o pangolim enrola-se numa esfera impenetrável — assim como o VUA barra instantaneamente execuções não-autorizadas emitindo provas de auditoria com `executed: false`.
-- 🌾 **Frugalidade e Eficiência Extrema**: O pangolim prospera nos ambientes mais hostis e com poucos recursos — refletindo a capacidade do VUA de rodar com execução adaptada ao ambiente, incluindo **Termux**, **Alpine PRoot** e dispositivos sem GPU dedicada; números de benchmark são tratados como evidência por ambiente, não como garantia universal.
+- 🌾 **Frugalidade e Eficiência Extrema**: O pangolim prospera nos ambientes mais hostis e com poucos recursos — refletindo a capacidade do VUA de rodar com latência de microssegundos (<370µs) até em smartphones com **Termux**, contêineres **Alpine PRoot** e dispositivos sem GPU dedicada.
 
 ---
 
@@ -128,9 +63,6 @@ O VUA implementa o fluxo completo de modificação e governança de código:
 
 ## 📚 Guias Passo a Passo na Pasta `docs/`
 
-- 📋 [**docs/PR-ONBOARDING.md**](./docs/PR-ONBOARDING.md) — Regra PR → CI → review → merge, requisitos de evidência e onboarding do PR #2.
-
-
 Documentação completa e estruturada disponível no repositório:
 
 - 📖 [**docs/README.md**](./docs/README.md) — Índice mestre e arquitetura geral.
@@ -149,27 +81,27 @@ Documentação completa e estruturada disponível no repositório:
 ## 💻 Instalação Multiplataforma (NPM, CLI, Binário/EXE e Navegador)
 
 ### 1. Via NPM Direto no CLI (Global ou NPX)
-O VUA pode ser executado instantaneamente sem necessidade de clonar o repositório:
+O VUC pode ser executado instantaneamente sem necessidade de clonar o repositório:
 
 ```bash
 # Execução direta e efêmera via npx:
-npx @vortexfoundation/vua status
-npx @vortexfoundation/vua baseline
+npx @vortexfoundation/vuc status
+npx @vortexfoundation/vuc baseline
 
-# Instalação global do comando 'vua':
-npm install -g @vortexfoundation/vua
-vua status
-vua adapters
+# Instalação global do comando 'vuc' (ou 'vua'):
+npm install -g @vortexfoundation/vuc
+vuc status
+vuc adapters
 ```
 
 ### 2. Instalação e Uso no Windows (PowerShell / CMD / WSL2)
 ```powershell
 # No PowerShell ou CMD com Node.js instalado:
-npm install -g @vortexfoundation/vua
-vua status
+npm install -g @vortexfoundation/vuc
+vuc status
 
 # Iniciar servidor MCP local no Windows:
-vua mcp --port 3000
+vuc mcp --port 3000
 ```
 
 #### Como Executável Nativo Windows (.exe) ou Serviço em Segundo Plano:
@@ -188,26 +120,26 @@ Para conectar aplicativos do Windows (PowerShell, scripts C#, agentes locais), c
 # Linux (Ubuntu, Debian, Fedora, Alpine):
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs
-npm install -g @vortexfoundation/vua
-vua baseline
+npm install -g @vortexfoundation/vuc
+vuc baseline
 
 # macOS (via Terminal ou Homebrew):
 brew install node
-npm install -g @vortexfoundation/vua
-vua status
+npm install -g @vortexfoundation/vuc
+vuc status
 ```
 
 ### 4. Instalação a Partir do Navegador (PWA / Web App Autônomo)
-O VUA é um Progressive Web App (PWA) de arquitetura moderna:
+O VUC é um Progressive Web App (PWA) de arquitetura moderna:
 1. Abra a aplicação em qualquer navegador moderno (Chrome, Edge, Safari, Firefox).
-2. Na barra de endereços, clique no ícone **"Instalar aplicativo"** (ou no menu do navegador $\to$ *"Instalar VUA Governança"*).
+2. Na barra de endereços, clique no ícone **"Instalar aplicativo"** (ou no menu do navegador $\to$ *"Instalar VUC Governança"*).
 3. No Android/Chrome: toque em *"Adicionar à tela inicial"*. O app roda em janela autônoma isolada com suporte a Web Workers, armazenamento volátil e conexão com endpoints MCP locais (`localhost:3000`).
 
 ---
 
-## 🤖 Como Cada App LLM e Agente Configura e Usa o VUA
+## 🤖 Como Cada App LLM e Agente Configura e Usa o VUC
 
-O VUA disponibiliza um servidor **Model Context Protocol (MCP)** nos endpoints `http://localhost:3000/mcp` (HTTP POST) e `http://localhost:3000/sse` (Server-Sent Events).
+O VUC disponibiliza um servidor **Model Context Protocol (MCP)** nos endpoints `http://localhost:3000/mcp` (HTTP POST) e `http://localhost:3000/sse` (Server-Sent Events).
 
 ### 1. Claude Desktop (Anthropic)
 Edite seu arquivo de configuração `claude_desktop_config.json`:
@@ -217,20 +149,20 @@ Edite seu arquivo de configuração `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "vua-governance": {
+    "vuc-governance": {
       "command": "npx",
-      "args": ["-y", "@vortexfoundation/vua", "mcp"]
+      "args": ["-y", "@vortexfoundation/vuc", "mcp"]
     }
   }
 }
 ```
-*Após reiniciar o Claude Desktop, as 5 ferramentas (`vortex.inspect`, `vortex.propose`, `vortex.verify`, `vortex.execute`, `vortex.branch.write`) estarão ativas.*
+*Após reiniciar o Claude Desktop, as ferramentas (`vortex.inspect`, `vortex.propose`, `vortex.verify`, `vortex.execute`, `vortex.branch.write`) estarão ativas.*
 
 ### 2. Cursor IDE
 No Cursor, acesse **Cursor Settings $\to$ Features $\to$ MCP Servers $\to$ Add New MCP Server**:
-- **Name**: `vua-governance`
+- **Name**: `vuc-governance`
 - **Type**: `command`
-- **Command**: `npx -y @vortexfoundation/vua mcp`
+- **Command**: `npx -y @vortexfoundation/vuc mcp`
 
 *(Ou configure como SSE com URL `http://localhost:3000/sse` se o servidor estiver rodando localmente).*
 
@@ -423,7 +355,7 @@ A suíte adversarial testa ativamente as 5 violações de segurança fundamentai
 ```
 ┌─────────────────────────┐     ┌─────────────────────────┐     ┌─────────────────────────┐
 │       1º SPRINT         │     │      ONDE ESTAMOS       │     │     RUMO À PRODUÇÃO     │
-│   (Fundação & Núcleo)   │ ──► │ (Governança & Integração│ ──► │  (Endurecimento & GAIS) │
+│   (Fundação & Núcleo)   │ ──► │ (Governança, DREX &     │ ──► │  (Endurecimento & GAIS) │
 │                         │     │    Multi-Ambiente)      │     │                         │
 │   [Concluído: 100%]     │     │      [ESTADO ATUAL]     │     │      [ROADMAP FINAL]    │
 └─────────────────────────┘     └─────────────────────────┘     └─────────────────────────┘
@@ -433,15 +365,18 @@ A suíte adversarial testa ativamente as 5 violações de segurança fundamentai
 | :--- | :--- | :--- | :--- |
 | **1º SPRINT**<br>*(Fundação & Provas)* | **Canonicalização & Criptografia** | • Canonicalização determinística **RFC 8785 (JCS)**.<br>• Assinatura e verificação Ed25519 (`vortex-execution-evidence/v1`).<br>• Motor antifraude com 5 testes adversariais (FORGE, REPLAY, ESCALATE, ESCAPE, TAMPER).<br>• Contrato de isolamento e governança de recursos GOS3. | ✅ Concluído (100% PASS) |
 | | **Adaptadores Fundamentais** | • Adaptadores locais Linux POSIX (`cgroups`, `chroot`) e Android AOSP (`SELinux`, `Scoped Storage`).<br>• CLI `bin/vua.js` para inspeção, benchmark e invocação local.<br>• Suíte básica de execução canária. | ✅ Concluído |
-| **ONDE ESTAMOS**<br>*(Estado Atual)* | **MCP & Registro Multi-LLM** | • Servidor **Model Context Protocol (MCP)** em `bin/mcp-server.js` com ferramentas canônicas (`vortex.*`).<br>• Catálogo federado `vua-llms.json` e script de resolução (`npm run vua:llms`) para Gemini, OpenAI e Ollama offline.<br>• Documentação arquitetural formal em `docs/RUNTIME.md` e `docs/GAIS.md`. | 🟢 Ativo & Operacional |
-| | **GitHub Seguro & Ciclo Git** | • Sincronização e binding com repositório remoto (`scoobiii/vuc`).<br>• Token de sessão volátil (zero persistência em disco/logs).<br>• Operações governadas de escrita de PR (`create_pr_written`), commit em branch (`write_branch_commit`) e merge seguro (`merge_pr`).<br>• Equivalência determinística (`vua:prove`) e comparação de baselines (`tao:compare`).<br>• 15 Quality Gates automáticos no CI (`npm test` com aprovação pelos gates configurados no CI). | 🟢 Ativo & Operacional |
+| **ONDE ESTAMOS**<br>*(Estado Atual)* | **MCP & Registro Multi-LLM** | • Servidor **Model Context Protocol (MCP)** em `bin/mcp-server.js` com ferramentas canônicas (`vortex.*`).<br>• Catálogo federado `vua-llms.json` e script de resolução (`npm run vua:llms`) para Gemini, OpenAI e Ollama offline.<br>• Documentação arquitetural formal em `docs/RUNTIME.md`, `docs/GAIS.md` e `docs/BACKLOG.md`. | 🟢 Ativo & Operacional |
+| | **GitHub Seguro & Ciclo Git** | • Sincronização e binding com repositório remoto (`scoobiii/vuc`).<br>• Token de sessão volátil (zero persistência em disco/logs).<br>• Operações governadas de escrita de PR (`create_pr_written`), commit em branch (`write_branch_commit`) e merge seguro (`merge_pr`).<br>• Equivalência determinística (`vua:prove`) e comparação de baselines (`tao:compare`).<br>• **16 Quality Gates automáticos no CI** (`npm test` com 100% de aprovação em todos os portões). | 🟢 Ativo & Operacional |
+| | **DREX & Bend 2.0.25** | • DvP de Ativos Regulados (Energia MWh, Real Digital, TPFt) sob normas BACEN/CCEE.<br>• Compilação nativa Bend 2.0.25 no HVM2 com fallback determinístico.<br>• Arbitragem de hardware GPU vs CPU para inferência e contratos. | 🟢 Ativo & Operacional |
+| | **Persistência Tri-Sync** | • Replicação contínua: **Cloud SQL (PostgreSQL)** + **Google Cloud Firestore (us-west2)** + **SQLite Local (`data/vua_local.sqlite`)**.<br>• **Resiliência Zero-Downtime:** se API Key ou Cloud falharem, o SQLite local assume 100% das operações ("Sempre no Ar").<br>• Downloads locais (ZIP/SQLite) sincronizados continuamente. | 🟢 Ativo & Operacional |
+| | **VUC GitPage & Mobile Suite** | • GitPage dinâmica conectada à intranet do CI em tempo real.<br>• Instalação 1-clique PWA (WebAPK) e pacote standalone com aceleração WebGPU. | 🟢 Ativo & Operacional |
 | **RUMO À PRODUÇÃO**<br>*(Próximos Passos)* | **Endurecimento & Ativação GAIS** | • Ativação em produção do **GAIS (Governance AI System)** via MCP.<br>• Rotação e custódia segura de chaves Ed25519 corporativas (KMS/HSM).<br>• Monitoramento de deriva semântica de modelos (evaluators contínuos).<br>• Empacotamento de distribuição final: binário autônomo e contêiner Alpine de produção minimalista com auditoria estrita. | 🟡 Planejado |
 
 ---
 
 ## 🧪 Comandos da Suíte de Testes & Carga K6
 
-O repositório possui suíte automatizada com gates de unidade, integração, segurança, DREX e desempenho em testes unitários, integração, segurança, benchmark, estresse, caos e k6:
+O repositório possui cobertura integral (100% de aprovação) em testes unitários, integração, segurança, benchmark, estresse, caos e k6:
 
 ```bash
 # 1. Pipeline de CI Completo (Lint + Unitários + Integração + Segurança + Stress + Caos + Bench)

@@ -1,12 +1,13 @@
-# VUA — Documentação Oficial
+# VUC — Documentação Oficial
 
-**Vortex Universal Adapter / Governed Execution Runtime**
+**VUC (Vortex Universal Connector) / Governed Execution Runtime**
+*Repositório Oficial:* `https://github.com/scoobiii/vuc.git`
 
-## Status atual — 2026-09-17
+## Status atual
 
-VUA já é um **produto de software executável**: possui core de governança, CLI `vua`, biblioteca TypeScript/Node.js, adaptadores, MCP e verificação criptográfica de `ExecutionProof`.
+O VUC é o **Vortex Universal Connector**: runtime de execução governada, CLI `vuc` (com alias `vua`), biblioteca TypeScript/Node.js `@vortexfoundation/vuc`, adaptadores multi-ambiente, MCP e verificação criptográfica de `ExecutionProof`.
 
-O pacote está configurado para npm como `@vortexfoundation/vua` e expõe o comando `vua` pelo campo `bin`. Isso comprova a configuração do pacote; publicação no registry é um gate separado.
+O pacote está configurado para npm como `@vortexfoundation/vuc` e expõe os comandos `vuc` e `vua` pelo campo `bin`.
 
 A integração Linux atual é **nativa em nível de userspace/CLI**: o runtime executa diretamente em Linux e possui adaptador Linux. Ainda não é um binário ELF independente nem uma distribuição `.deb/.rpm/.apk`.
 

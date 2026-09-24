@@ -45,7 +45,7 @@ export const MascotModal: React.FC<MascotModalProps> = ({ isOpen, onClose }) => 
                 </span>
               </div>
               <h2 className="text-2xl font-black tracking-tight font-serif text-zinc-950 mt-1">
-                VUA in a Nutshell
+                VUC in a Nutshell
               </h2>
               <p className="text-xs font-serif italic text-zinc-700">
                 The Definitive Guide to Governed Execution
@@ -57,7 +57,7 @@ export const MascotModal: React.FC<MascotModalProps> = ({ isOpen, onClose }) => 
               <img
                 id="img-vua-mascot-cover"
                 src="/vua-mascot.jpg"
-                alt="Mascote VUA - O Pangolim de Governança no clássico estilo de xilogravura O'Reilly"
+                alt="Mascote VUC - O Pangolim de Governança no clássico estilo de xilogravura O'Reilly"
                 className="w-48 h-48 object-contain mix-blend-multiply filter contrast-125"
                 onError={(e) => {
                   // Fallback to source asset path if static public is warming up
@@ -79,9 +79,9 @@ export const MascotModal: React.FC<MascotModalProps> = ({ isOpen, onClose }) => 
           {/* Right: Mascot Story & Specifications */}
           <div className="p-6 flex flex-col justify-between space-y-4">
             <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-cyan-400 text-xs font-mono mb-3">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-3">
                 <Sparkles className="w-3.5 h-3.5" />
-                Mascote Oficial do VUA
+                Mascote Oficial do VUC
               </div>
 
               <h3 className="text-xl font-bold tracking-tight text-white mb-2 flex items-center gap-2">
@@ -89,7 +89,7 @@ export const MascotModal: React.FC<MascotModalProps> = ({ isOpen, onClose }) => 
               </h3>
 
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Inspirado na icônica tradição das capas de manuais técnicos da <strong>O&apos;Reilly</strong>, o mascote oficial do <strong>VUA</strong> é o <strong>Pangolim</strong>: o único mamífero do planeta recoberto por uma armadura viva de escamas sobrepostas.
+                Inspirado na icônica tradição das capas de manuais técnicos da <strong>O&apos;Reilly</strong>, o mascote oficial do <strong>VUC</strong> (Vortex Universal Connector) é o <strong>Pangolim</strong>: o único mamífero do planeta recoberto por uma armadura viva de escamas sobrepostas.
               </p>
             </div>
 

@@ -18,6 +18,8 @@ import {
   LogIn,
   Landmark,
   Flame,
+  Globe,
+  HardDrive,
 } from 'lucide-react';
 import { auth, logoutUser, type User } from '../firebase/config.js';
 
@@ -78,11 +80,13 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const navItems = [
-    { id: 'vua-adapters', label: 'Adaptadores VUA', icon: Layers },
+    { id: 'vuc-gitpage', label: '⚡ VUC GitPage Dinâmica (Realtime)', icon: Globe },
+    { id: 'vua-adapters', label: 'Adaptadores VUC', icon: Layers },
     { id: 'k6-industry', label: 'K6 por Indústria (100%)', icon: Flame },
     { id: 'drex-integration', label: 'Integração DREX', icon: Landmark },
     { id: 'bend-dev', label: 'Bend Development', icon: Sparkles },
     { id: 'firebase-ledger', label: 'Firebase Cloud Ledger', icon: Database },
+    { id: 'cloudsql-sync', label: 'Cloud SQL & Tri-Sync Ledger', icon: HardDrive },
     { id: 'capability-matrix', label: 'Matriz de Capacidades (100)', icon: Sparkles },
     { id: 'semantic-oracle', label: 'Oráculo Semântico (30 Casos)', icon: Brain },
     { id: 'github-manager', label: 'GitHub & Projetos', icon: FolderGit2 },
@@ -105,12 +109,12 @@ export const Header: React.FC<HeaderProps> = ({
             id="header-mascot-badge"
             type="button"
             onClick={onOpenMascot}
-            title="Conhecer o Mascote VUA: O Pangolim de Governança (Estilo O'Reilly)"
+            title="Conhecer o Mascote VUC: O Pangolim de Governança (Estilo O'Reilly)"
             className="w-10 h-10 rounded-xl bg-zinc-900 border border-amber-600/40 p-1 flex items-center justify-center text-white shrink-0 hover:border-amber-400 hover:scale-105 transition shadow-md shadow-amber-950/20 group relative"
           >
             <img
               src="/vua-mascot.jpg"
-              alt="Mascote VUA Pangolim O'Reilly"
+              alt="Mascote VUC Pangolim O'Reilly"
               className="w-full h-full object-contain rounded-lg mix-blend-screen filter contrast-125"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = '/src/assets/images/vua_mascot_1788905946097.jpg';
@@ -125,14 +129,14 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                VUA
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/30 text-cyan-400">
-                  UNIVERSAL ADAPTER & GOVERNANCE
+                VUC
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/30 text-emerald-400">
+                  UNIVERSAL CONNECTOR & GOVERNANCE
                 </span>
               </h1>
             </div>
             <p className="text-xs text-zinc-400">
-              GitHub • Linux • Android • Windows | RFC 8785 JCS • Ed25519 ExecutionProof v1
+              GitHub (scoobiii/vuc) • Linux • Android • Windows | RFC 8785 JCS • Ed25519 ExecutionProof v1
             </p>
           </div>
         </div>
