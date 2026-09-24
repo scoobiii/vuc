@@ -12,6 +12,14 @@ const RATE_MAX = 5;
 const SUPPORTED_SCOPES = ['mcp', 'mcp:read', 'mcp:write'] as const;
 const DEFAULT_SCOPE = 'mcp';
 const TENANT_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
+function allowedTenants(): Set<string> {
+  return new Set((process.env.VUC_ALLOWED_TENANTS || '').split(',').map((v) => v.trim()).filter(Boolean));
+}
+function tenantProvisioningAllowed(tenantId: string): boolean {
+  const allowed = allowedTenants();
+  if (process.env.NODE_ENV === 'production' && allowed.size === 0) return false;
+  return allowed.size === 0 || allowed.has(tenantId);
+}
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const randomToken = (bytes = 32) => crypto.randomBytes(bytes).toString('base64url');
 const challenge = (value: string) => crypto.createHash('sha256').update(value, 'utf8').digest('base64url');
@@ -45,6 +53,7 @@ export function mountOAuth(app: Express, options: { publicBaseUrl?: string } = {
   app.post('/oauth/register', async (req, res) => {
     const { redirect_uris, client_name, tenant_id } = req.body || {};
     if (!Array.isArray(redirect_uris) || redirect_uris.length < 1 || redirect_uris.length > 20 || typeof tenant_id !== 'string' || !TENANT_RE.test(tenant_id)) return res.status(400).json({ error: 'invalid_client_metadata' });
+    if (!tenantProvisioningAllowed(tenant_id)) return res.status(403).json({ error: 'tenant_not_provisioned' });
     const valid = redirect_uris.every((u: unknown) => { if (typeof u !== 'string' || u.length > 2048) return false; try { return new URL(u).protocol === 'https:'; } catch { return false; } });
     if (!valid) return res.status(400).json({ error: 'invalid_client_metadata', error_description: 'HTTPS redirect_uris required' });
     const client_id = `vua-client-${randomToken(18)}`;
