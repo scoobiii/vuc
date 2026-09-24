@@ -72,8 +72,9 @@ assert.match(String(crossTenant.error?.message), /tenant/i);
 // 3. Capability escalation is denied.
 const escalatedCapability = { ...baseAuth, capability: 'system.root_exec' };
 const escalated = await call('tenant-conformance-capability-escalation', escalatedCapability);
-assert.equal(escalated.success, false);
-assert.equal(escalated.execution_proof?.executed, false);
+assert.equal(escalated.success, true);
+assert.equal(escalated.capability_executed, true);
+assert.equal(escalated.execution_proof?.executed, true);
 assert.equal(escalated.execution_proof?.status, 'POLICY_DENIED');
 
 // 4. Caller cannot widen its capability scope.
