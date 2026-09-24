@@ -35,6 +35,7 @@ jobs:
         run: |
           npm config delete omit || true
           npm ci --include=optional --no-audit --no-fund
+          npm install --no-save @rollup/rollup-linux-arm64-gnu@4.63.1
           node -e "require.resolve('@rollup/rollup-linux-arm64-gnu')"
 
       - name: Install native Bend
