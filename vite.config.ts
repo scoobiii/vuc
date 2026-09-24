@@ -5,6 +5,8 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // GitHub Pages serves this repository under /vuc/; BASE_URL allows other hosts.
+    base: process.env.BASE_URL || './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

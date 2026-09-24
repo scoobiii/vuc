@@ -43,6 +43,18 @@ export interface BenchmarkReport {
   verdict: 'PASS_SUPERIOR' | 'PASS_ACCEPTABLE' | 'FAIL_REGRESSION' | 'BLOCKED_BY_GATES';
 }
 
+export type BenchmarkEnvironment = 'github-actions' | 'cloud-run' | 'local' | 'physical-device' | 'unknown';
+
+export function getBenchmarkEnvironment(): BenchmarkEnvironment {
+  if (process.env.BENCHMARK_ENVIRONMENT) {
+    const value = process.env.BENCHMARK_ENVIRONMENT as BenchmarkEnvironment;
+    if (['github-actions', 'cloud-run', 'local', 'physical-device', 'unknown'].includes(value)) return value;
+  }
+  if (process.env.GITHUB_ACTIONS === 'true') return 'github-actions';
+  if (process.env.K_SERVICE) return 'cloud-run';
+  return 'local';
+}
+
 export const BASELINE_METRICS: BenchmarkMetrics = {
   rps: 850,
   p50_ms: 1.2,
@@ -56,6 +68,12 @@ export const BASELINE_METRICS: BenchmarkMetrics = {
 /**
  * Computes deterministic Execution Evidence Hash
  */
+function requiredProvenance(name: string, explicit: string | undefined, envName: string): string {
+  const value = explicit || process.env[envName];
+  if (!value) throw new Error(`EVIDENCE_PROVENANCE_MISSING:${name}`);
+  return value;
+}
+
 export function generateExecutionEvidence(params: {
   commitSha?: string;
   ciRunId?: string;
@@ -64,9 +82,9 @@ export function generateExecutionEvidence(params: {
   allTestsPassed: boolean;
   coveragePercent?: number;
 }): ExecutionEvidence {
-  const commit_sha = params.commitSha || '856920785b8392b036211cc851e1f6467961ff52';
-  const ci_run_id = params.ciRunId || '34228487367';
-  const ci_attempt = params.ciRunAttempt || '1';
+  const commit_sha = requiredProvenance('commit_sha', params.commitSha, 'GITHUB_SHA');
+  const ci_run_id = requiredProvenance('ci_run_id', params.ciRunId, 'GITHUB_RUN_ID');
+  const ci_attempt = requiredProvenance('ci_attempt', params.ciRunAttempt, 'GITHUB_RUN_ATTEMPT');
 
   const rawEvidence: Omit<ExecutionEvidence, 'canonical_hash'> = {
     schema: 'vortex-execution-evidence/v1',
@@ -76,7 +94,7 @@ export function generateExecutionEvidence(params: {
       provider: 'github-actions',
       run_id: ci_run_id,
       run_attempt: ci_attempt,
-      workflow: 'vortex-foundation-ci.yml',
+      workflow: process.env.GITHUB_WORKFLOW || 'unknown-workflow',
     },
     suite: {
       name: 'vortex-foundation-conformance',
