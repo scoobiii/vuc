@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { createVGPTConnectorProfile } from '../src/vortex/vgpt-connector.js';
+const p=createVGPTConnectorProfile('https://vuc.example.com/');
+assert.equal(p.id,'vgpt'); assert.equal(p.protocol,'MCP'); assert.equal(p.transport,'streamable-http');
+assert.equal(p.server_url,'https://vuc.example.com'); assert.equal(p.oauth.required,true); assert.equal(p.oauth.pkce,'S256');
+assert.equal(p.oauth.protected_resource_metadata,'https://vuc.example.com/.well-known/oauth-protected-resource');
+assert.equal(p.oauth.authorization_server_metadata,'https://vuc.example.com/.well-known/oauth-authorization-server');
+assert.equal(p.governance.tenant_binding,true); assert.equal(p.governance.capability_policy,true); assert.equal(p.governance.sandbox,true);
+assert.equal(p.governance.execution_proof.required,true); assert.equal(p.governance.execution_proof.algorithm,'Ed25519'); assert.equal(p.governance.execution_proof.canonicalization,'RFC8785');
+assert.ok(p.tools.includes('vua.adapter.invoke')); assert.ok(p.tools.includes('vortex.verify')); assert.equal(p.live_connection_verified,false);
+console.log('VGPT CONNECTOR PROFILE: PASS');
+console.log('protocol=MCP');
+console.log('oauth=PKCE_S256');
+console.log('tenant_binding=true');
+console.log('execution_proof=Ed25519+RFC8785');
+console.log('live_connection_verified=false');
