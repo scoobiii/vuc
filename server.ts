@@ -96,6 +96,14 @@ async function startServer() {
   app.use(express.static(path.join(process.cwd(), 'public')));
   mountOAuth(app, { publicBaseUrl: configuredPublicBase || undefined });
 
+  // Cloud Run liveness/readiness contract. Transport-only; auth is a separate gate.
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'vuc' });
+  });
+  app.get('/ready', (_req, res) => {
+    res.status(200).json({ status: 'ready', service: 'vuc' });
+  });
+
   // 0. Interactive Swagger UI & Raw OpenAPI Spec
   app.get('/api/openapi.json', (req, res) => {
     res.json(openApiSpec);
