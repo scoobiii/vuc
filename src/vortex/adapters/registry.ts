@@ -213,6 +213,7 @@ class VUAAdapterRegistry {
         ...(request.target || {}),
       },
       authorization: {
+        tenant_id: authorization.tenant_id,
         principal_id: authorization.principal_id,
         agent_id: authorization.agent_id,
         policy_id: authorization.policy_id,
