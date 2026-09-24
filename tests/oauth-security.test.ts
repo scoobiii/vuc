@@ -133,7 +133,8 @@ try {
     method: 'POST',
     headers: { Authorization: `Bearer ${token.access_token}`, 'X-VUC-Tenant-ID': 'tenant-b' },
   });
-  assert.equal(crossTenant.status, 401);
+  assert.equal(crossTenant.status, 403);
+  assert.deepEqual(await crossTenant.json(), { error: 'insufficient_scope' });
 
   const insufficientScope = await fetch(`${base}/write-protected`, {
     method: 'POST',
