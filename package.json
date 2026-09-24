@@ -99,7 +99,9 @@
     "prepare": "chmod +x .githooks/pre-push scripts/enable-internal-gate-hooks.sh 2>/dev/null || true; git config core.hooksPath .githooks 2>/dev/null || true",
     "test:mcp-proof": "tsx tests/mcp-real-execution-proof.test.ts",
     "test:mcp-git": "tsx tests/mcp-git-universal-connector.test.ts",
-    "test:github-create-repo": "tsx tests/github-create-repository-proof.test.ts"
+    "test:github-create-repo": "tsx tests/github-create-repository-proof.test.ts",
+    "test:mcp-github-proof": "tsx tests/mcp-github-real-execution-proof.test.ts",
+    "test:mcp-cloud": "npm run test:mcp-proof && npm run test:mcp-github-proof"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
