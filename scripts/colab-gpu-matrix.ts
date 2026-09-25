@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { GoogleColabAdapter } from '../src/vortex/adapters/google-colab-adapter.js';
 
 const cell = process.env.VUC_GPU_CELL;
