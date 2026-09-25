@@ -43,6 +43,7 @@ export interface CapabilityScope {
   branches?: string[];
   paths?: string[];
   credentials?: string[];
+  resources?: string[];
   max_timeout_ms?: number;
   [key: string]: unknown;
 }
@@ -55,6 +56,8 @@ export interface GovernedCapability {
 }
 
 export interface AuthorizationContext {
+  /** Explicit tenant binding for multi-tenant execution governance. */
+  tenant_id?: string;
   principal_id: string;
   agent_id: string;
   policy_id: string;
@@ -103,6 +106,8 @@ export interface ExecutionProof {
   runtime_id: string;
   agent_id: string;
   principal_id: string;
+  /** Tenant security boundary bound into the signed execution evidence. */
+  tenant_id?: string;
   connector_id: string;
   operation: VortexOperation | string;
   execution_kind?: 'llm' | 'capability' | string;
@@ -129,6 +134,7 @@ export interface VortexRequestTarget {
   repository?: string;
   branch?: string;
   path?: string;
+  resource?: string;
   [key: string]: unknown;
 }
 
@@ -174,6 +180,7 @@ export interface VerificationResult {
     session: VerificationCheck;
     anti_replay: VerificationCheck;
     scope: VerificationCheck;
+    tenant_binding?: VerificationCheck;
     proof_hash?: VerificationCheck;
   };
   verified_at: string;

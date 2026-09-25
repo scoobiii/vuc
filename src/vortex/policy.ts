@@ -151,6 +151,20 @@ function matchPattern(pattern: string, value?: string): boolean {
   return pattern === value;
 }
 
+
+function scopeAllowsTarget(
+  scope: GovernedCapability['scope'],
+  target: { repository?: string; branch?: string; path?: string; resource?: string }
+): boolean {
+  const checks: Array<[string | undefined, string[] | undefined]> = [
+    [target.repository, scope.repositories],
+    [target.branch, scope.branches],
+    [target.path, scope.paths],
+    [target.resource, scope.resources],
+  ];
+  return checks.every(([value, patterns]) => !value || !patterns || patterns.some((pattern) => matchPattern(pattern, value)));
+}
+
 export interface PolicyEvaluation {
   allowed: boolean;
   status: 'AUTHORIZED' | 'POLICY_DENIED';
@@ -164,7 +178,7 @@ export interface PolicyEvaluation {
  */
 export function evaluatePolicy(
   operation: VortexOperation,
-  target: { repository?: string; branch?: string; path?: string } | undefined,
+  target: { repository?: string; branch?: string; path?: string; resource?: string } | undefined,
   auth?: AuthorizationContext,
   approvalToken?: string,
   policy: PolicyRule = DEFAULT_DEV_POLICY
@@ -257,6 +271,31 @@ export function evaluatePolicy(
     };
   }
 
+  // The caller cannot widen the capability's governed scope through AuthorizationContext.
+  if (!scopeAllowsTarget(auth.scope, target || {})) {
+    return {
+      allowed: false,
+      status: 'POLICY_DENIED',
+      requires_approval: false,
+      is_approved: false,
+      reason: 'Requested target is outside the principal authorization scope',
+    };
+  }
+
+  // Check resource scope (when the governed capability declares resources).
+  if (target?.resource && matchingCap.scope.resources) {
+    const resourceMatch = matchingCap.scope.resources.some((p) => matchPattern(p, target.resource!));
+    if (!resourceMatch) {
+      return {
+        allowed: false,
+        status: 'POLICY_DENIED',
+        requires_approval: false,
+        is_approved: false,
+        reason: `Target resource '${target.resource}' is outside authorized scope [${matchingCap.scope.resources.join(', ')}]`,
+      };
+    }
+  }
+
   // Check repository scope
   if (target?.repository && matchingCap.scope.repositories) {
     const repoMatch = matchingCap.scope.repositories.some((p) => matchPattern(p, target.repository!));
@@ -281,6 +320,20 @@ export function evaluatePolicy(
         requires_approval: false,
         is_approved: false,
         reason: `Target branch '${target.branch}' is outside authorized scope [${matchingCap.scope.branches.join(', ')}]`,
+      };
+    }
+  }
+
+  // Check resource scope for external/governed adapters
+  if (target?.resource && matchingCap.scope.resources) {
+    const resourceMatch = matchingCap.scope.resources.some((p) => matchPattern(p, target.resource));
+    if (!resourceMatch) {
+      return {
+        allowed: false,
+        status: 'POLICY_DENIED',
+        requires_approval: false,
+        is_approved: false,
+        reason: `Target resource '${target.resource}' is outside authorized scope [${matchingCap.scope.resources.join(', ')}]`,
       };
     }
   }

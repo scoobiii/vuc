@@ -10,9 +10,9 @@
  * 4. Undergo independent cryptographic verification
  */
 
-import type { ExecutionProof, ExternalEffect, VerificationResult } from '../types.js';
+import type { AuthorizationContext, ExecutionProof, ExternalEffect, VerificationResult } from '../types.js';
 
-export type VUAAdapterId = 'github' | 'git' | 'linux' | 'android' | 'windows' | 'bluesky' | 'canary' | 'gcloud' | 'bend';
+export type VUAAdapterId = 'github' | 'git' | 'linux' | 'android' | 'windows' | 'bluesky' | 'canary' | 'gcloud' | 'bend' | 'colab';
 
 export type VUAAdapterStatus = 'online' | 'ready' | 'simulated' | 'degraded';
 
@@ -29,7 +29,7 @@ export interface VUAActionMetadata {
 export interface VUAAdapterMetadata {
   id: VUAAdapterId;
   name: string;
-  environment: 'Cloud VCS' | 'POSIX Linux' | 'AOSP Android' | 'Android AOSP' | 'Win32/NT Windows' | 'Windows NT' | 'AT Protocol / Bluesky' | 'GCP Cloud Run / Cloud APIs' | 'test' | 'POSIX Linux / Bend HVM';
+  environment: 'Cloud VCS' | 'POSIX Linux' | 'AOSP Android' | 'Android AOSP' | 'Win32/NT Windows' | 'Windows NT' | 'AT Protocol / Bluesky' | 'GCP Cloud Run / Cloud APIs' | 'test' | 'POSIX Linux / Bend HVM' | 'Google Colab Runtime API';
   version: string;
   status: VUAAdapterStatus;
   description: string;
@@ -46,18 +46,7 @@ export interface VUAActionRequest {
   payload?: Record<string, unknown>;
   approvalToken?: string;
   requestId?: string;
-  authorization?: {
-    principal_id: string;
-    agent_id: string;
-    policy_id: string;
-    policy_version: string;
-    capability: string;
-    scope?: {
-      paths?: string[];
-      repositories?: string[];
-      resources?: string[];
-    };
-  };
+  authorization?: AuthorizationContext;
 }
 
 export interface VUAActionResult {

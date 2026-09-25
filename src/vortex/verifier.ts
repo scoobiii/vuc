@@ -25,6 +25,8 @@ export function verifyExecutionProof(
     embeddedPublicKey?: string;
     expectedInputHash?: string;
     expectedOutputHash?: string;
+    /** Optional external trust anchor for the tenant security boundary. */
+    expectedTenantId?: string;
   }
 ): VerificationResult {
   const reasons: string[] = [];
@@ -39,6 +41,7 @@ export function verifyExecutionProof(
     session: { passed: false, message: '' },
     anti_replay: { passed: false, message: '' },
     scope: { passed: false, message: '' },
+    tenant_binding: { passed: false, message: '' },
   };
 
   // 1. Schema Integrity
@@ -204,6 +207,28 @@ export function verifyExecutionProof(
     passed: true,
     message: `Request ID '${proof.request_id}' verified against temporal nonce scope`,
   };
+
+  // 9. Tenant binding integrity
+  // The tenant_id is signed as part of the proof. When an independent verifier
+  // has an expected tenant from its trusted authorization context, require an exact match.
+  if (proof.tenant_id !== undefined && (typeof proof.tenant_id !== 'string' || proof.tenant_id.trim() === '')) {
+    checks.tenant_binding = { passed: false, message: 'Malformed tenant_id in execution proof' };
+    reasons.push('Malformed tenant_id in execution proof');
+  } else if (options?.expectedTenantId !== undefined) {
+    if (proof.tenant_id !== options.expectedTenantId) {
+      checks.tenant_binding = {
+        passed: false,
+        message: `Tenant binding mismatch: proof tenant '${proof.tenant_id ?? '<missing>'}' != expected '${options.expectedTenantId}'`,
+      };
+      reasons.push('TENANT_BINDING_MISMATCH: execution proof is not bound to expected tenant');
+    } else {
+      checks.tenant_binding = { passed: true, message: `Execution proof is cryptographically bound to tenant '${options.expectedTenantId}'` };
+    }
+  } else if (proof.tenant_id !== undefined) {
+    checks.tenant_binding = { passed: true, message: `Execution proof contains signed tenant binding '${proof.tenant_id}'` };
+  } else {
+    checks.tenant_binding = { passed: true, message: 'No tenant binding claim present; legacy proof compatibility mode' };
+  }
 
   // 9. Scope & Sandbox Check
   checks.scope = {

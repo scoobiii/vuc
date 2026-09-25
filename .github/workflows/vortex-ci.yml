@@ -49,7 +49,11 @@ jobs:
       - name: Run Full Conformance Suite (100% Gate Requirement)
         run: npm test
 
-      # 5. Execution Evidence Hash Generation & Archiving
+      # 5. Reproducible VUC governance overhead benchmark
+      - name: Benchmark Governance Overhead
+        run: npm run bench:governance
+
+      # 6. Execution Evidence Hash Generation & Archiving
       - name: Archive Execution Evidence Proofs
         if: always()
         uses: actions/upload-artifact@v4
@@ -59,3 +63,4 @@ jobs:
             dist/
             metadata.json
             .vortex-evidence.json
+            artifacts/
