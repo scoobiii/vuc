@@ -2,7 +2,8 @@ import { GoogleColabAdapter, type ColabAccelerator, type ColabShape } from './go
 import type { IVUAAdapter, VUAAdapterMetadata } from './types.js';
 
 export class VUAGoogleColabAdapter implements IVUAAdapter {
-  private readonly colab: GoogleColabAdapter;
+  private readonly options: ConstructorParameters<typeof GoogleColabAdapter>[0];
+  private colab?: GoogleColabAdapter;
   public readonly metadata: VUAAdapterMetadata = {
     id: 'colab', name: 'Google Colab Runtime Adapter', environment: 'Google Colab Runtime API', version: '1.0.0', status: 'online',
     description: 'Governed Google Colab GPU runtime lifecycle adapter. No browser automation and no credential persistence.',
@@ -16,12 +17,16 @@ export class VUAGoogleColabAdapter implements IVUAAdapter {
     ],
   };
 
-  constructor(options: ConstructorParameters<typeof GoogleColabAdapter>[0] = {}) { this.colab = new GoogleColabAdapter(options); }
+  constructor(options: ConstructorParameters<typeof GoogleColabAdapter>[0] = {}) { this.options = options; }
+
+  private get client(): GoogleColabAdapter {
+    return (this.colab ??= new GoogleColabAdapter(this.options));
+  }
 
   async executeAction(action: string, target: Record<string, unknown> = {}, payload: Record<string, unknown> = {}) {
     const auditLog = [`colab:${action}:started`];
     switch (action) {
-      case 'preflight': { const result = await this.colab.preflight(); auditLog.push('colab:preflight:remote_confirmed'); return { data: { ...result, external_effect: 'remote_confirmed' }, auditLog }; }
+      case 'preflight': { const result = await this.client.preflight(); auditLog.push('colab:preflight:remote_confirmed'); return { data: { ...result, external_effect: 'remote_confirmed' }, auditLog }; }
       case 'list_runtimes': { const runtimes = await this.colab.listRuntimes(); auditLog.push('colab:list_runtimes:remote_confirmed'); return { data: { runtimes, external_effect: 'remote_confirmed' }, auditLog }; }
       case 'get_connection': { const name = this.requireRuntimeName(target, payload); const c = await this.colab.getConnection(name); auditLog.push('colab:get_connection:remote_confirmed'); return { data: { runtime_name: name, url: c.url, expireTime: c.expireTime, token_present: Boolean(c.token), external_effect: 'remote_confirmed' }, auditLog }; }
       case 'create_gpu_runtime': {
