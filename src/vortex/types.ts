@@ -43,6 +43,7 @@ export interface CapabilityScope {
   branches?: string[];
   paths?: string[];
   credentials?: string[];
+  resources?: string[];
   max_timeout_ms?: number;
   [key: string]: unknown;
 }
