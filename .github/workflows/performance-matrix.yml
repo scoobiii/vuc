@@ -94,9 +94,13 @@ jobs:
           mkdir -p artifacts
           npx tsx scripts/colab-gpu-matrix.ts | tee "artifacts/${VUC_GPU_CELL}.json"
 
-      - name: Mark GPU cell unavailable
+      - name: Block uncertified GPU cell
         if: matrix.gpu == true && steps.colab_auth.outputs.available != 'true'
-        run: echo "GPU cell status: UNAVAILABLE (Colab credentials unavailable)"
+        shell: bash
+        run: |
+          echo "::error::GPU certification blocked: Google Colab credentials are unavailable."
+          echo "No GPU PASS may be inferred from implementation alone."
+          exit 1
 
       - name: Upload benchmark evidence
         if: always()
