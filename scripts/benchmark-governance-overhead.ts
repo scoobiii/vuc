@@ -12,7 +12,7 @@ import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import { executeVortexPipeline } from '../src/vortex/gateway.js';
-import { VUABendEngine, findBendBinary, readBendVersion } from '../src/vortex/bend-engine.js';
+import { VUABendEngine, findBendBinary } from '../src/vortex/bend-engine.js';
 
 const WARMUP = Number(process.env.VUC_BENCH_WARMUP ?? 50);
 const SAMPLES = Number(process.env.VUC_BENCH_SAMPLES ?? 1000);
@@ -123,7 +123,6 @@ const result = {
     bend: bendInfo(),
     selected_engine: process.env.VUC_BENCH_ENGINE ?? 'js',
     gpu: {
-    gpu: {
       status: process.env.VUC_GPU_RUNNER === 'true' ? 'GPU_RUNNER' : 'NOT_MEASURED',
       device: process.env.VUC_GPU_DEVICE ?? null,
       reason: process.env.VUC_GPU_RUNNER === 'true' ? 'Executed on the dedicated GPU runner; GPU acceleration is only claimed when the workload explicitly uses a GPU backend.' : 'No dedicated GPU runner selected.',
@@ -131,10 +130,10 @@ const result = {
   },
   measurement: await measure(),
   methodology: {
-    workload: 'executeVortexPipeline(operation=inspect)',
+    workload: (process.env.VUC_BENCH_ENGINE ?? 'js') === 'bend' ? 'VUABendEngine.execute(native Bend/HVM2)' : 'executeVortexPipeline(operation=inspect)',
     warmup: WARMUP,
     samples: SAMPLES,
-    note: 'This measures the VUC governance pipeline on the selected runtime. Bend availability is reported separately; this benchmark does not infer that Bend participated in the measured path.',
+    note: 'The selected engine is explicit. Bend results only come from VUABendEngine.execute using the native Bend/HVM2 binary. GPU runner presence is reported separately and never implies GPU acceleration.',
   },
 };
 
