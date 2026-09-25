@@ -152,11 +152,15 @@ function matchPattern(pattern: string, value?: string): boolean {
 }
 
 
-function scopeAllowsTarget(scope: GovernedCapability['scope'], target: { repository?: string; branch?: string; path?: string }): boolean {
+function scopeAllowsTarget(
+  scope: GovernedCapability['scope'],
+  target: { repository?: string; branch?: string; path?: string; resource?: string }
+): boolean {
   const checks: Array<[string | undefined, string[] | undefined]> = [
     [target.repository, scope.repositories],
     [target.branch, scope.branches],
     [target.path, scope.paths],
+    [target.resource, scope.resources],
   ];
   return checks.every(([value, patterns]) => !value || !patterns || patterns.some((pattern) => matchPattern(pattern, value)));
 }
@@ -276,6 +280,20 @@ export function evaluatePolicy(
       is_approved: false,
       reason: 'Requested target is outside the principal authorization scope',
     };
+  }
+
+  // Check resource scope (when the governed capability declares resources).
+  if (target?.resource && matchingCap.scope.resources) {
+    const resourceMatch = matchingCap.scope.resources.some((p) => matchPattern(p, target.resource!));
+    if (!resourceMatch) {
+      return {
+        allowed: false,
+        status: 'POLICY_DENIED',
+        requires_approval: false,
+        is_approved: false,
+        reason: `Target resource '${target.resource}' is outside authorized scope [${matchingCap.scope.resources.join(', ')}]`,
+      };
+    }
   }
 
   // Check repository scope
