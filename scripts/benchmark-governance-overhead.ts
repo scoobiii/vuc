@@ -12,6 +12,7 @@ import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import { executeVortexPipeline } from '../src/vortex/gateway.js';
+import { VUABendEngine, findBendBinary, readBendVersion } from '../src/vortex/bend-engine.js';
 
 const WARMUP = Number(process.env.VUC_BENCH_WARMUP ?? 50);
 const SAMPLES = Number(process.env.VUC_BENCH_SAMPLES ?? 1000);
@@ -33,6 +34,38 @@ function bendInfo() {
 }
 
 async function measure() {
+  const engine = process.env.VUC_BENCH_ENGINE ?? 'js';
+  const bendBin = findBendBinary();
+  if (engine === 'bend' && !bendBin) throw new Error('Bend benchmark requested but native Bend is unavailable.');
+  if (engine === 'bend') {
+    const code = 'def main() -> U32:\n  42';
+    for (let i = 0; i < WARMUP; i++) VUABendEngine.execute(code);
+    const latencies: number[] = [];
+    const start = performance.now();
+    for (let i = 0; i < SAMPLES; i++) {
+      const t0 = performance.now();
+      const result = VUABendEngine.execute(code);
+      if (!result.success) throw new Error(`Bend execution failed at sample ${i}`);
+      latencies.push(performance.now() - t0);
+    }
+    const totalMs = performance.now() - start;
+    const cpu = process.cpuUsage();
+    const cpuMs = (cpu.user + cpu.system) / 1000;
+    return {
+      engine: 'bend-native-hvm2',
+      samples: SAMPLES,
+      total_ms: Number(totalMs.toFixed(3)),
+      throughput_ops_s: Number((SAMPLES / (totalMs / 1000)).toFixed(2)),
+      latency_ms: {
+        p50: Number(percentile(latencies, 0.50).toFixed(4)),
+        p95: Number(percentile(latencies, 0.95).toFixed(4)),
+        p99: Number(percentile(latencies, 0.99).toFixed(4)),
+        mean: Number((latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(4)),
+      },
+      cpu_time_ms: Number(cpuMs.toFixed(3)),
+      rss_mb: Number((process.memoryUsage().rss / 1024 / 1024).toFixed(2)),
+    };
+  }
   for (let i = 0; i < WARMUP; i++) {
     await executeVortexPipeline({
       request_id: `overhead-warmup-${i}`,
@@ -63,6 +96,7 @@ async function measure() {
   const cpuMs = (cpu.user + cpu.system) / 1000;
 
   return {
+    engine: 'vuc-js-governance',
     samples: SAMPLES,
     total_ms: Number(totalMs.toFixed(3)),
     throughput_ops_s: Number((SAMPLES / (totalMs / 1000)).toFixed(2)),
@@ -87,9 +121,12 @@ const result = {
     cpus: os.cpus().length,
     cpu_model: os.cpus()[0]?.model ?? 'unknown',
     bend: bendInfo(),
+    selected_engine: process.env.VUC_BENCH_ENGINE ?? 'js',
     gpu: {
-      status: 'NOT_MEASURED',
-      reason: 'GitHub hosted CPU runner has no guaranteed GPU; use the dedicated GPU runner to populate this field.',
+    gpu: {
+      status: process.env.VUC_GPU_RUNNER === 'true' ? 'GPU_RUNNER' : 'NOT_MEASURED',
+      device: process.env.VUC_GPU_DEVICE ?? null,
+      reason: process.env.VUC_GPU_RUNNER === 'true' ? 'Executed on the dedicated GPU runner; GPU acceleration is only claimed when the workload explicitly uses a GPU backend.' : 'No dedicated GPU runner selected.',
     },
   },
   measurement: await measure(),
