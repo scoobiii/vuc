@@ -38,7 +38,7 @@ async function measure() {
   const bendBin = findBendBinary();
   if (engine === 'bend' && !bendBin) throw new Error('Bend benchmark requested but native Bend is unavailable.');
   if (engine === 'bend') {
-    const code = 'def main() -> U32:\n  42';
+    const code = 'import Base\n\ndef main() -> U32:\n  42';
     for (let i = 0; i < WARMUP; i++) VUABendEngine.execute(code);
     const latencies: number[] = [];
     const start = performance.now();
