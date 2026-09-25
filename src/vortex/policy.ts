@@ -178,7 +178,7 @@ export interface PolicyEvaluation {
  */
 export function evaluatePolicy(
   operation: VortexOperation,
-  target: { repository?: string; branch?: string; path?: string } | undefined,
+  target: { repository?: string; branch?: string; path?: string; resource?: string } | undefined,
   auth?: AuthorizationContext,
   approvalToken?: string,
   policy: PolicyRule = DEFAULT_DEV_POLICY
@@ -320,6 +320,20 @@ export function evaluatePolicy(
         requires_approval: false,
         is_approved: false,
         reason: `Target branch '${target.branch}' is outside authorized scope [${matchingCap.scope.branches.join(', ')}]`,
+      };
+    }
+  }
+
+  // Check resource scope for external/governed adapters
+  if (target?.resource && matchingCap.scope.resources) {
+    const resourceMatch = matchingCap.scope.resources.some((p) => matchPattern(p, target.resource));
+    if (!resourceMatch) {
+      return {
+        allowed: false,
+        status: 'POLICY_DENIED',
+        requires_approval: false,
+        is_approved: false,
+        reason: `Target resource '${target.resource}' is outside authorized scope [${matchingCap.scope.resources.join(', ')}]`,
       };
     }
   }
