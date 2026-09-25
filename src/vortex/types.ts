@@ -105,6 +105,8 @@ export interface ExecutionProof {
   runtime_id: string;
   agent_id: string;
   principal_id: string;
+  /** Tenant security boundary bound into the signed execution evidence. */
+  tenant_id?: string;
   connector_id: string;
   operation: VortexOperation | string;
   execution_kind?: 'llm' | 'capability' | string;
@@ -131,6 +133,7 @@ export interface VortexRequestTarget {
   repository?: string;
   branch?: string;
   path?: string;
+  resource?: string;
   [key: string]: unknown;
 }
 
