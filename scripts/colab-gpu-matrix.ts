@@ -109,13 +109,21 @@ try {
   if (execution.status !== 'ok' || !result) {
     throw new Error(`Colab ${cell} failed: ${output.slice(-4000)}`);
   }
-  console.log(JSON.stringify({
+  const evidence = {
+    schema: 'vuc-gpu-execution-evidence/v1',
     cell,
-    status: 'PASS',
+    provider: 'google-colab',
     accelerator,
     runtime: runtime.name,
+    executed_at: new Date().toISOString(),
     elapsed_ms: Date.now() - started,
     result,
+  };
+  const canonicalEvidence = JSON.stringify(evidence);
+  const evidenceHash = crypto.createHash('sha256').update(canonicalEvidence).digest('hex');
+  console.log(JSON.stringify({
+    ...evidence,
+    evidence_sha256: evidenceHash,
   }));
 } finally {
   await adapter.deleteRuntime(runtime.name).catch((error) => {
