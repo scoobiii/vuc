@@ -12,7 +12,7 @@
 
 import type { AuthorizationContext, ExecutionProof, ExternalEffect, VerificationResult } from '../types.js';
 
-export type VUAAdapterId = 'github' | 'git' | 'linux' | 'android' | 'windows' | 'bluesky' | 'canary' | 'gcloud' | 'bend';
+export type VUAAdapterId = 'github' | 'git' | 'linux' | 'android' | 'windows' | 'bluesky' | 'canary' | 'gcloud' | 'bend' | 'colab';
 
 export type VUAAdapterStatus = 'online' | 'ready' | 'simulated' | 'degraded';
 
@@ -29,7 +29,7 @@ export interface VUAActionMetadata {
 export interface VUAAdapterMetadata {
   id: VUAAdapterId;
   name: string;
-  environment: 'Cloud VCS' | 'POSIX Linux' | 'AOSP Android' | 'Android AOSP' | 'Win32/NT Windows' | 'Windows NT' | 'AT Protocol / Bluesky' | 'GCP Cloud Run / Cloud APIs' | 'test' | 'POSIX Linux / Bend HVM';
+  environment: 'Cloud VCS' | 'POSIX Linux' | 'AOSP Android' | 'Android AOSP' | 'Win32/NT Windows' | 'Windows NT' | 'AT Protocol / Bluesky' | 'GCP Cloud Run / Cloud APIs' | 'test' | 'POSIX Linux / Bend HVM' | 'Google Colab Runtime API';
   version: string;
   status: VUAAdapterStatus;
   description: string;
