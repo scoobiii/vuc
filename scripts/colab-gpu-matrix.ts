@@ -11,15 +11,46 @@ const adapter = new GoogleColabAdapter();
 const gpuJs = `
 import subprocess, json, time, platform
 subprocess.run(["nvidia-smi", "-L"], check=True)
-node = subprocess.run(["node", "--version"], text=True, capture_output=True)
-if node.returncode != 0:
-    raise SystemExit("node runtime unavailable on Colab GPU VM")
-samples = 100
+node = subprocess.run(["node", "--version"], text=True, capture_output=True, check=True)
+cuda_probe = r"""
+import json, time, torch
+if not torch.cuda.is_available():
+    raise SystemExit("CUDA is unavailable in the Colab runtime")
+device = torch.device("cuda")
+a = torch.ones((2048, 2048), device=device)
+b = torch.ones((2048, 2048), device=device)
+torch.cuda.synchronize()
 t0 = time.perf_counter()
-for _ in range(samples):
-    subprocess.run(["node", "-e", "let x=0; for(let i=0;i<10000;i++) x=(x+i)%1000003; process.stdout.write(String(x))"], check=True, stdout=subprocess.DEVNULL)
-elapsed = (time.perf_counter()-t0)*1000
-print("VUC_RESULT=" + json.dumps({"cell":"gpu-js","status":"PASS","gpu":subprocess.check_output(["nvidia-smi","--query-gpu=name","--format=csv,noheader"], text=True).strip(),"node":node.stdout.strip(),"samples":samples,"elapsed_ms":elapsed,"host":platform.platform()}))
+for _ in range(20):
+    c = torch.mm(a, b)
+torch.cuda.synchronize()
+elapsed = (time.perf_counter() - t0) * 1000
+print(json.dumps({
+    "cuda": torch.version.cuda,
+    "torch": torch.__version__,
+    "device": torch.cuda.get_device_name(0),
+    "matrix": "2048x2048",
+    "iterations": 20,
+    "elapsed_ms": elapsed,
+    "checksum": float(c[0, 0].item())
+}))
+"""
+probe = subprocess.run(["python", "-c", cuda_probe], text=True, capture_output=True, check=True)
+cuda = json.loads(probe.stdout.strip().splitlines()[-1])
+print("VUC_RESULT=" + json.dumps({
+    "cell":"gpu-js",
+    "status":"PASS",
+    "gpu":cuda["device"],
+    "node":node.stdout.strip(),
+    "cuda":cuda["cuda"],
+    "torch":cuda["torch"],
+    "compute":"torch.mm on CUDA",
+    "matrix":cuda["matrix"],
+    "iterations":cuda["iterations"],
+    "elapsed_ms":cuda["elapsed_ms"],
+    "checksum":cuda["checksum"],
+    "host":platform.platform()
+}))
 `;
 
 const gpuBend = `
