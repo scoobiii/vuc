@@ -94,6 +94,35 @@ jobs:
           mkdir -p artifacts
           npx tsx scripts/colab-gpu-matrix.ts | tee "artifacts/${VUC_GPU_CELL}.json"
 
+      - name: Validate real GPU execution evidence
+        if: matrix.gpu == true && steps.colab_auth.outputs.available == 'true'
+        env:
+          VUC_GPU_CELL: ${{ matrix.name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "artifacts/${VUC_GPU_CELL}.json"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const cell = process.env.VUC_GPU_CELL;
+          const raw = fs.readFileSync(`artifacts/${cell}.json`, 'utf8').trim();
+          const evidence = JSON.parse(raw);
+          if (evidence.schema !== 'vuc-gpu-execution-evidence/v1') throw new Error('missing GPU evidence schema');
+          if (evidence.provider !== 'google-colab') throw new Error('evidence provider is not Google Colab');
+          if (evidence.cell !== cell) throw new Error(`evidence cell mismatch: ${evidence.cell}`);
+          if (evidence.result?.status !== 'PASS') throw new Error('GPU result is not PASS');
+          if (!evidence.result?.gpu) throw new Error('GPU device was not identified');
+          if (!evidence.evidence_sha256) throw new Error('missing evidence_sha256');
+          const copy = { ...evidence };
+          delete copy.evidence_sha256;
+          const digest = crypto.createHash('sha256').update(JSON.stringify(copy)).digest('hex');
+          if (digest !== evidence.evidence_sha256) throw new Error('GPU evidence SHA-256 mismatch');
+          if (cell === 'gpu-js' && evidence.result?.compute !== 'torch.mm on CUDA') throw new Error('gpu-js did not execute a CUDA workload');
+          if (cell === 'gpu-bend' && evidence.result?.bend !== '2.0.25') throw new Error('gpu-bend did not report Bend 2.0.25');
+          console.log(JSON.stringify({certified: true, cell, gpu: evidence.result.gpu, evidence_sha256: evidence.evidence_sha256}));
+          NODE
+
       - name: Block uncertified GPU cell
         if: matrix.gpu == true && steps.colab_auth.outputs.available != 'true'
         shell: bash
