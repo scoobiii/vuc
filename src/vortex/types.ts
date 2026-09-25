@@ -179,6 +179,7 @@ export interface VerificationResult {
     session: VerificationCheck;
     anti_replay: VerificationCheck;
     scope: VerificationCheck;
+    tenant_binding?: VerificationCheck;
     proof_hash?: VerificationCheck;
   };
   verified_at: string;
