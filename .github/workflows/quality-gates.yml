@@ -122,26 +122,41 @@ jobs:
           # the 5% acceptance threshold itself is unchanged. A persistent regression
           # still fails the gate.
           if ! node scripts/verify-performance-baseline.mjs "${args[@]}"; then
-            echo "First benchmark sample exceeded the verified 5% regression threshold; collecting one independent retry."
-            node scripts/capture-performance-metrics.mjs \
-              --output /tmp/current-metrics-retry.json \
-              --profile "$RUNNER_PROFILE"
+            echo "Initial benchmark exceeded the verified 5% threshold; collecting two independent retries and evaluating the median throughput."
+            for retry in 1 2; do
+              node scripts/capture-performance-metrics.mjs \
+                --output "/tmp/current-metrics-retry-${retry}.json" \
+                --profile "$RUNNER_PROFILE"
+            done
+
+            node <<'NODE'
+const fs = require('node:fs');
+const files = ['/tmp/current-metrics.json', '/tmp/current-metrics-retry-1.json', '/tmp/current-metrics-retry-2.json'];
+const metrics = files.map(f => JSON.parse(fs.readFileSync(f, 'utf8')));
+const sorted = [...metrics].sort((a,b) => a.throughput_ops_sec - b.throughput_ops_sec);
+const median = sorted[1];
+fs.writeFileSync('/tmp/current-metrics.json', JSON.stringify(median, null, 2) + '\\n');
+console.log(JSON.stringify({
+  status: 'MEDIAN_SELECTED',
+  throughput_ops_sec: sorted.map(x => x.throughput_ops_sec),
+  selected: median.throughput_ops_sec
+}, null, 2));
+NODE
+
             retry_args=(
               --baseline "$BASELINE_PATH"
-              --metrics /tmp/current-metrics-retry.json
+              --metrics /tmp/current-metrics.json
               --public-key "$BASELINE_PUBLIC_KEY"
               --profile "$RUNNER_PROFILE"
-              --result /tmp/benchmark-verdict-retry.json
+              --result /tmp/benchmark-verdict.json
             )
             if test -s "$MOBILE_EVIDENCE_PATH"; then
               retry_args+=(--mobile-evidence "$MOBILE_EVIDENCE_PATH")
             fi
             if node scripts/verify-performance-baseline.mjs "${retry_args[@]}"; then
-              cp /tmp/current-metrics-retry.json /tmp/current-metrics.json
-              cp /tmp/benchmark-verdict-retry.json /tmp/benchmark-verdict.json
-              echo "Independent retry is within the verified threshold; accepting the retry sample."
+              echo "Median of three independent samples is within the verified 5% threshold."
             else
-              echo "Independent retry also exceeded the verified threshold."
+              echo "Median of three independent samples still exceeds the verified threshold."
               exit 1
             fi
           fi
