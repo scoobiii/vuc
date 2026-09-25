@@ -58,8 +58,9 @@ assert.equal(allowed.success, true);
 assert.equal(allowed.capability_executed, true);
 assert.equal(allowed.execution_proof?.executed, true);
 assert.equal(allowed.execution_proof?.principal_id, principal);
+assert.equal(allowed.execution_proof?.tenant_id, tenant);
 assert.equal(allowed.execution_proof?.proof_hash !== undefined, true);
-assert.equal(verifyExecutionProof(allowed.execution_proof).valid, true);
+assert.equal(verifyExecutionProof(allowed.execution_proof, { expectedTenantId: tenant }).valid, true);
 
 // 2. Cross-tenant request fails closed before connector execution.
 const crossTenantAuth = { ...baseAuth, tenant_id: 'tenant-other' };
@@ -91,9 +92,33 @@ assert.equal(scopeEscalation.execution_proof?.executed, false);
 assert.equal(scopeEscalation.execution_proof?.status, 'POLICY_DENIED');
 assert.match(String(scopeEscalation.error?.message), /scope/i);
 
+// 5. Resource scope cannot be widened.
+const resourceEscalation = await call(
+  'tenant-conformance-resource-escalation',
+  baseAuth,
+  { resource: 'vua://linux/other_resource' }
+);
+assert.equal(resourceEscalation.success, false);
+assert.equal(resourceEscalation.execution_proof?.executed, false);
+assert.equal(resourceEscalation.execution_proof?.status, 'POLICY_DENIED');
+assert.match(String(resourceEscalation.error?.message), /scope|resource/i);
+
+// 6. Path scope cannot be widened.
+const pathEscalation = await call(
+  'tenant-conformance-path-escalation',
+  baseAuth,
+  { path: '/linux/outside-sandbox' }
+);
+assert.equal(pathEscalation.success, false);
+assert.equal(pathEscalation.execution_proof?.executed, false);
+assert.equal(pathEscalation.execution_proof?.status, 'POLICY_DENIED');
+assert.match(String(pathEscalation.error?.message), /scope|path/i);
+
 console.log('TENANT_PRINCIPAL_POLICY_CONFORMANCE=PASS');
 console.log('tenant_binding=PASS');
 console.log('cross_tenant_denied=PASS');
 console.log('capability_escalation_denied=PASS');
 console.log('scope_escalation_denied=PASS');
-console.log('allowed_execution_proof_verified=PASS');
+console.log('resource_escalation_denied=PASS');
+console.log('path_escalation_denied=PASS');
+console.log('tenant_bound_execution_proof_verified=PASS');
