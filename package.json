@@ -73,6 +73,7 @@
     "bench:gcloud": "tsx bin/vua.js bench --cloud",
     "bench:mcp": "tsx scripts/run-mcp-benchmark.ts",
     "bench:semantic": "tsx scripts/run-semantic-benchmark.ts",
+    "bench:governance": "tsx scripts/benchmark-governance-overhead.ts",
     "tao:compare": "tsx scripts/tao-compare.ts",
     "vuc:prove": "tsx scripts/vua-prove-equivalent.ts",
     "vua:prove": "tsx scripts/vua-prove-equivalent.ts",
