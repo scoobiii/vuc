@@ -1,0 +1,27 @@
+{
+  "schema": "vuc-termux-gpu-execution/v1",
+  "timestamp": "2026-09-26T00:59:36.045Z",
+  "environment": {
+    "termux": true,
+    "platform": "android",
+    "arch": "arm64",
+    "node": "v24.17.0"
+  },
+  "gpu": {
+    "device": "Mali-G57",
+    "driver_version": "171966464"
+  },
+  "execution": {
+    "backend": "Vulkan",
+    "api": "Vulkan Compute",
+    "dispatch_workgroups": 16,
+    "elements": 1024,
+    "status": "EXECUTED",
+    "result_verified": true
+  },
+  "provenance": {
+    "capability": "OBSERVED",
+    "execution": "OBSERVED",
+    "result": "VERIFIED"
+  }
+}
