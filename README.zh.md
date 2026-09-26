@@ -1,6 +1,6 @@
 # VUC — Vortex Universal Connector
 
-**语言 / Language:** [Português](./README.md) · [English](./README.en.md) · **中文**
+[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Português](README.md) | [Tiếng Việt](README.vi.md) | [Français](README.fr.md) | [Italiano](README.it.md) | [Bahasa Indonesia](README.id.md) | [Malay](README.ms.md) | **English**
 
 **可治理执行 · 通用连接器 · 加密证据**
 
