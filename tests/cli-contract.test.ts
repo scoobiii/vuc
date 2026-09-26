@@ -95,7 +95,7 @@ const helpProbe = spawnSync(process.execPath, [...TSX_ARGS, CLI, '--help'], {
 assert(!helpProbe.error, `help discovery probe failed: ${helpProbe.error?.message ?? 'unknown error'}`);
 assert(helpProbe.status === 0, `help discovery probe exited ${helpProbe.status}: ${helpProbe.stdout}\n${helpProbe.stderr}`);
 assert(/Uso:/.test(helpProbe.stdout), 'help discovery probe did not print help text');
-assert(!/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏\\|/-]/.test(helpProbe.stdout), 'help discovery probe leaked a spinner/progress indicator');
+assert(!/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(helpProbe.stdout), 'help discovery probe leaked a spinner/progress indicator');
 
 const temp = mkdtempSync(join(tmpdir(), 'vuc-cli-contract-'));
 try {
