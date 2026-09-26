@@ -1,145 +1,157 @@
-# Onboarding VUA/VUC
+# Onboarding VUA/VUC — Developers & Agents
 
-Este guia descreve o fluxo verificável para obter o projeto, executar o CLI, iniciar o servidor, conectar clientes MCP e rodar a matriz completa de testes K6. Os comandos abaixo foram alinhados com os scripts existentes no `package.json` e com os workflows do repositório.
+Este é o onboarding operacional único para **Developer** e **Agent**. Ele cobre runtime, dependências, Bend/DREX, GPU, VUA, MCP e ExecutionProof.
 
-## 1. Pré-requisitos
+## 0. Pré-requisitos obrigatórios
 
-Use Node.js 22 ou uma versão compatível com o campo `engines` do projeto. Para instalação reproduzível, tenha npm disponível. O binário oficial `k6` é opcional: quando `bin/k6` não existe, `tests/k6/k6-runner.ts` usa o runner de compatibilidade interno, que valida disponibilidade do gateway e os invariantes básicos; isso não deve ser confundido com uma medição feita pelo motor oficial K6.
-
-## 2. Instalação do checkout
+- Node.js **>= 22.0.0**
+- npm **>= 10.0.0**
+- Termux GPU: shaderc + vulkan-loader
+- Linux/Debian GPU: glslc + libvulkan-dev
 
 ```bash
-git clone https://github.com/scoobiii/vuc.git
-cd vuc
-npm ci
+node -v
+npm -v
 ```
 
-`npm ci` é o caminho recomendado tanto localmente quanto no CI. O pacote npm está configurado como `@vortexfoundation/vua`, mas os comandos `npx @vortexfoundation/vua ...` e `npm install -g @vortexfoundation/vua` dependem de publicação efetiva no registry. Para trabalhar no checkout, use os scripts locais.
+Se necessário: `nvm install 22 && nvm use 22` ou `fnm install 22 && fnm use 22`.
 
-## 2.1. Limite de prontidão para clientes externos
+**Não rode `npm ci` com Node 20.**
 
-Este onboarding valida instalação, execução local, MCP e a matriz de cenários. **Ele não declara o serviço pronto para clientes externos.** Antes de uma disponibilização externa, a equipe deve fechar e evidenciar, de forma repetível:
-
-- autenticação, autorização e isolamento por cliente (multi-tenant);
-- gestão de credenciais e secrets em produção, sem depender de valores locais ou de desenvolvimento;
-- observabilidade operacional completa, incluindo logs estruturados, métricas, traces, alertas e correlação por requisição;
-- resolução definitiva da baseline de performance, com perfil, hardware, tolerâncias e procedimento de atualização versionados;
-- integração dos resultados e evidências do PR [#11](https://github.com/scoobiii/vuc/pull/11), que já foi aprovado e mesclado, sem tratá-lo como substituto da validação operacional;
-- validação real das integrações cloud suportadas, além do fallback SQLite.
-
-Até que esses itens tenham evidência de aceite em ambiente de produção ou staging representativo, o uso recomendado é desenvolvimento, validação interna ou ambiente controlado.
-
-## 3. CLI local
-
-No checkout, use `npm run vua -- ...`; não use `npm link` seguido de `vua status`, porque o entrypoint JavaScript do CLI importa módulos TypeScript do código-fonte e requer o loader `tsx` durante o desenvolvimento.
+## 1. Bootstrap do Developer
 
 ```bash
-npm run vua -- status
-npm run vua -- adapters
-npm run vua -- bench
-npm run vua -- verify proof.json
-npm run vua -- mcp
+cd ~/vuc
+npm ci --no-audit --no-fund
 ```
 
-O comando `npm run vua -- mcp` inicia o servidor MCP por **stdio**, destinado a clientes como Claude Desktop, Cursor e VS Code. O comando não inicia o servidor HTTP.
-
-## 4. Servidor web e MCP HTTP
-
-Para iniciar a interface web e o servidor HTTP local:
+Se houve tentativa anterior com Node incompatível:
 
 ```bash
-npm run dev
+npm cache clean --force
+rm -rf node_modules ~/.npm/_cacache/tmp
+npm ci --no-audit --no-fund
 ```
 
-O servidor escuta na porta definida por `PORT` (a porta padrão do projeto é 3000) e expõe, entre outros, os endpoints:
+**Não remova `package-lock.json` como rotina.**
 
-| Endpoint | Uso |
-|---|---|
-| `GET /api/health` | health check do servidor |
-| `GET /api/vortex/status` | identidade e diagnóstico VUA |
-| `GET /mcp` | metadados MCP ou canal SSE conforme `Accept` |
-| `GET /sse` | canal SSE dedicado |
-| `POST /mcp` | transporte HTTP direto MCP |
-| `POST /mcp/messages?sessionId=...` | mensagens do transporte SSE |
-
-Em outro terminal:
+## 2. Bend + DREX — obrigatório
 
 ```bash
-curl -fsS http://localhost:3000/api/health
+export BEND_BIN="$PWD/bin/native/bin/bend"
+chmod +x "$BEND_BIN"
+test -x "$BEND_BIN"
+"$BEND_BIN" version
+test -f DREX_Laws.bend
 ```
 
-A autenticação/configuração OAuth do servidor deve ser respeitada em ambientes onde ela estiver habilitada. Não coloque tokens em arquivos de documentação, logs ou commits.
+Esperado: `bend 2.0.25`.
 
-## 4.1. Barreira interna VUC/VUA antes do CI externo
+Sem `BEND_BIN`, Bend 2.0.25 ou `DREX_Laws.bend`, a trilha DREX está **NOT READY**.
 
-A primeira barreira é executada dentro do checkout, antes de qualquer push. O runtime carrega o AGENTS.md como system instruction normativo do LLM, valida os marcadores do contrato, executa os testes de governança, realiza uma execução real pelo Gateway e verifica a ExecutionProof independentemente.
+## 3. GPU — gerar shader antes de testar
+
+Termux:
 
 ```bash
-npm ci
+pkg install shaderc vulkan-loader
+./bin/native/gpu/shader/gen_spv_header.sh
+
+c++ -std=c++17 -O2 -I$PREFIX/include \
+  bin/native/gpu/vuc_gpu_compute.cpp \
+  -L$PREFIX/lib -lvulkan \
+  -o bin/native/gpu/vuc-gpu-compute
+
+./bin/native/gpu/vuc-gpu-compute --warmup 20 --samples 100
+```
+
+Linux/Debian:
+
+```bash
+sudo apt install glslc libvulkan-dev
+./bin/native/gpu/shader/gen_spv_header.sh
+```
+
+A evidência GPU precisa demonstrar execução real e resultado verificado. Fallback CPU não é execução GPU.
+
+Depois:
+
+```bash
+npm run gpu:termux:probe
+npm run test:termux-gpu-execution
+```
+
+## 4. Preflight e VUA
+
+```bash
 npm run preflight
-```
-
-O preflight é fail-closed e declara `external_effect=none`. Ele não pode aprovar uma execução sem prova verificável e rejeita assinatura sintética (`mock-sig`). O `npm ci` habilita o hook `.githooks/pre-push`, que executa o mesmo preflight antes de permitir o push.
-
-No CI, o workflow `VUC Internal Governance Gate` reproduz essa barreira em ambiente limpo. Uma aprovação local não substitui os checks externos do GitHub; ela apenas impede que uma alteração conhecida como quebrada seja enviada sem passar pela primeira barreira.
-
-## 4.2. MCP → connector real → ExecutionProof
-
-O caminho mínimo validado pelo projeto é:
-
-    MCP tools/call
-      → VUA adapter
-      → real execution
-      → ExecutionProof
-      → independent Ed25519/JCS/hash verification
-      → VERIFIED
-
-A integração deve ser executável e verificável. Um retorno de CI, log ou resposta textual não substitui a prova criptográfica.
-
-O teste de integração dedicado é:
-
-    npm run test:mcp-proof
-
-A suíte de integração também incorpora esse gate:
-
-    npm run test:integration
-
-O contrato proíbe mock-sig e falha quando a prova está ausente, a assinatura é inválida, a identidade não corresponde ou os hashes não conferem.
-
-### Primeiro alvo de compatibilidade
-
-O primeiro host de referência é GPT. O desenho permanece independente do host sempre que o cliente puder consumir MCP.
-
-A sequência de certificação é:
-
-1. MCP local;
-2. connector real;
-3. ExecutionProof verificável;
-4. primeiro connector cloud;
-5. host GPT;
-6. demais hosts LLM;
-7. catálogo de connectors.
-
-### Operação comercial futura
-
-O primeiro agente comercial previsto é o Onboarding & Discovery Agent. Ele poderá consultar, auditar e registrar dados autorizados via connectors CRM/ERP, separando fatos, hipóteses, evidências e premissas para CAPEX/OPEX/ROI.
-
-Isso é roadmap de produto, não declaração de disponibilidade GA.
-## 5. Validação local convencional
-
-```bash
 npm run lint
 npm run test:unit
 npm run test:integration
 npm run test:security
-npm run test:ci
+npm run build
+
+npm run vua -- status
+npm run vua -- adapters
+npm run vua -- conformance
 ```
 
-`npm run test:ci` executa os gates de execução e evidência definidos pelo projeto. O benchmark local (`npm run bench`) é uma medição do ambiente atual e não deve ser apresentado como SLA universal.
+Se `tsc: not found` ou `tsx: not found`, o `npm ci` não terminou corretamente.
 
-## 6. Matriz K6 completa local
+## 5. Servidor e MCP
 
-A matriz cobre oito cenários: smoke, load, stress, spike, soak, chaos, degradation e os segmentos industriais financeiros/todos. Com o servidor rodando em outro terminal, execute:
+```bash
+npm run dev
+curl -fsS http://localhost:3000/api/health
+```
+
+- HTTP: `POST /mcp`
+- SSE: `GET /sse`
+- stdio: `npm run vua -- mcp`
+
+## 6. Onboarding do Agent
+
+```text
+Agent / LLM
+    ↓ MCP
+VUC
+    ↓ Identity + Tenant + Capability + Policy
+Connector
+    ↓
+REAL EXECUTION
+    ↓
+ExecutionProof
+    ↓
+Independent Verification
+```
+
+Ferramentas:
+
+| Tool | Efeito | Uso |
+|---|---:|---|
+| `vortex.inspect` | false | inspeção |
+| `vortex.propose` | false | proposta |
+| `vortex.verify` | false | verificação |
+| `vortex.execute` | true | execução autorizada |
+| `vortex.branch.write` | true | escrita/merge autorizado |
+
+**Agent Junior:** `inspect → understand → propose → verify`
+
+**Agent Senior:** `inspect → capability/policy → propose → verify → execute [authorized] → verify ExecutionProof → branch.write [authorized] → CI → review → merge`
+
+Junior/Senior são perfis operacionais, não modos nativos distintos do VUC.
+
+## 7. ExecutionProof
+
+Nunca confunda HTTP 200, log, texto de sucesso ou CI com prova criptográfica.
+
+```bash
+npm run test:mcp-proof
+```
+
+Caminho: `MCP → policy → connector → real execution → ExecutionProof → independent verification`.
+
+## 8. K6
 
 ```bash
 export BASE_URL=http://localhost:3000
@@ -153,37 +165,29 @@ npm run test:k6:degradation
 npm run test:k6:industry
 ```
 
-Para executar a cadeia padrão do runner:
+Se `bin/k6` não existir, o fallback interno não é equivalente ao motor oficial K6.
 
-```bash
-npm run test:k6
+## 9. Fluxo rápido
+
+### Developer
+
+```text
+Node >=22 → npm ci → BEND_BIN/Bend 2.0.25 → DREX_Laws.bend
+→ gen_spv_header.sh → GPU evidence → preflight
+→ VUA conformance → dev/MCP
 ```
 
-A cadeia padrão cobre smoke, load, chaos, stress e a matriz industrial. Os cenários spike, soak e degradation são executados explicitamente pelos comandos acima para que a cobertura da matriz inteira seja inequívoca. A execução industrial informa `8/8` segmentos quando a matriz completa é concluída.
+### Agent
 
-Se `bin/k6` existir, o runner executa os arquivos `tests/k6/*.js` com o binário K6. Se não existir, ele usa o fallback interno e registra essa condição; nesse modo, os resultados não são equivalentes a uma medição oficial do motor K6.
-
-## 7. Cobertura K6 no CI
-
-O workflow `K6 Scenario Coverage` executa a mesma matriz em ambiente GitHub Actions. Ele instala dependências com `npm ci`, inicia o servidor, espera o health check e executa os oito comandos de cenário. O workflow falha no primeiro cenário que não retornar sucesso.
-
-A cobertura indicada pelo workflow significa **100% dos cenários K6 e segmentos industriais declarados**, não 100% de cobertura de linhas TypeScript. Para cobertura de código, use os gates de lint, unitários, integração e segurança.
-
-## 8. Critérios de interpretação
-
-Um cenário aprovado demonstra que seus checks e thresholds foram satisfeitos no ambiente executado. Os resultados de carga variam com hardware, runner, rede e concorrência. Não compare números de K6 entre ambientes diferentes como se fossem uma única baseline. Evidência de execução também não substitui autorização, verificação semântica ou revisão de segurança.
-
-## 9. Fluxo mínimo para uma alteração
-
-```bash
-npm ci
-npm run lint
-npm run test:unit
-npm run test:integration
-npm run test:security
-npm run test:k6
-npm run build
-git diff --check
+```text
+MCP → inspect → propose → verify → execute [authorized]
+→ verify proof → branch.write [authorized] → CI → review → merge
 ```
 
-Antes de abrir ou mesclar um PR, confirme os checks do GitHub Actions e não faça merge apenas com base em uma execução local.
+> **Proof of execution is not proof of safety.**
+
+---
+
+## 10. Guias existentes
+
+As seções históricas e específicas de prontidão externa, CLI, servidor HTTP, K6 e critérios de interpretação permanecem abaixo deste onboarding.
