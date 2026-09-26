@@ -1,13 +1,13 @@
 {
-  "name": "@vortexfoundation/vuc",
-  "version": "1.0.0",
+  "name": "@vucfoundation/vuc",
+  "version": "1.0.1",
   "description": "Vortex Universal Connector & Governed Execution Protocol for AI Agents, MCP and LLMs",
   "type": "module",
   "main": "./src/vortex/index.ts",
   "types": "./src/vortex/index.ts",
   "bin": {
-    "vuc": "./bin/vuc.js",
-    "vua": "./bin/vua.js"
+    "vuc": "./dist/vua.cjs",
+    "vua": "./dist/vua.cjs"
   },
   "repository": {
     "type": "git",
