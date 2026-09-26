@@ -73,12 +73,14 @@ jobs:
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
             mkdir -p artifacts
-            cat > "artifacts/gpu-status.json" <<'EOF'
+            cat > "artifacts/gpu-status.json" <<EOF
           {
             "status": "UNAVAILABLE",
             "provider": "google-colab",
+            "event": "${{ github.event_name }}",
             "reason": "GOOGLE_COLAB_ACCESS_TOKEN is not configured for this workflow context",
-            "required_for_certification": true
+            "required_for_certification": true,
+            "certification_mode": "${{ github.event_name == 'workflow_dispatch' && 'required' || 'manual-dispatch' }}"
           }
           EOF
           fi
@@ -123,8 +125,16 @@ jobs:
           console.log(JSON.stringify({certified: true, cell, gpu: evidence.result.gpu, evidence_sha256: evidence.evidence_sha256}));
           NODE
 
-      - name: Block uncertified GPU cell
-        if: matrix.gpu == true && steps.colab_auth.outputs.available != 'true'
+      - name: Report GPU certification unavailable on pull_request
+        if: matrix.gpu == true && steps.colab_auth.outputs.available != 'true' && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          echo "::warning::GPU certification is unavailable for pull_request because the Colab credential is not exposed."
+          echo "This job is non-certifying in pull_request context; no GPU PASS is inferred."
+          echo "Run this workflow manually from a trusted branch after configuring GOOGLE_COLAB_ACCESS_TOKEN to obtain GPU certification."
+
+      - name: Block uncertified GPU cell in certification mode
+        if: matrix.gpu == true && steps.colab_auth.outputs.available != 'true' && github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           echo "::error::GPU certification blocked: Google Colab credentials are unavailable."
