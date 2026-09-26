@@ -90,6 +90,7 @@
     "test:k6:soak": "tsx tests/k6/k6-runner.ts soak",
     "test:k6:chaos": "tsx tests/k6/k6-runner.ts chaos",
     "test:k6:degradation": "tsx tests/k6/k6-runner.ts degradation",
+    "bench:k6:degradation": "npm run test:k6:degradation",
     "test:k6:nginx-db": "tsx tests/k6/k6-runner.ts nginx-db",
     "build:cli": "esbuild bin/vua.js --bundle --platform=node --format=cjs --packages=external --outfile=dist/vua.cjs && chmod +x dist/vua.cjs",
     "test:drex-backend": "tsx tests/drex-backend-independence.test.ts",
