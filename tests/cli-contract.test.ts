@@ -83,6 +83,20 @@ function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
 }
 
+// Discovery gate: help must complete without initializing the VUA application graph.
+// Five seconds is a generous CI ceiling; the contract is termination, not a
+// performance benchmark. VUA_OFFLINE makes the intent explicit.
+const helpProbe = spawnSync(process.execPath, [...TSX_ARGS, CLI, '--help'], {
+  cwd: process.cwd(),
+  env: { ...process.env, VUA_OFFLINE: '1', GEMINI_API_KEY: '', GITHUB_TOKEN: '' },
+  encoding: 'utf8',
+  timeout: 5_000,
+});
+assert(!helpProbe.error, `help discovery probe failed: ${helpProbe.error?.message ?? 'unknown error'}`);
+assert(helpProbe.status === 0, `help discovery probe exited ${helpProbe.status}: ${helpProbe.stdout}\n${helpProbe.stderr}`);
+assert(/Uso:/.test(helpProbe.stdout), 'help discovery probe did not print help text');
+assert(!/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏\\|/-]/.test(helpProbe.stdout), 'help discovery probe leaked a spinner/progress indicator');
+
 const temp = mkdtempSync(join(tmpdir(), 'vuc-cli-contract-'));
 try {
   // Verify both accepted proof envelope paths without requiring a valid signature.
