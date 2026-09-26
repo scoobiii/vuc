@@ -108,7 +108,9 @@
     "test:production-evidence": "tsx tests/production-evidence-gate.test.ts",
     "test:mcp-conformance": "tsx tests/mcp-execution-conformance.test.ts",
     "test:execution-evidence": "tsx tests/execution-proof-evidence-artifact.test.ts",
-    "test:tenant-policy": "tsx tests/tenant-principal-policy-conformance.test.ts"
+    "test:tenant-policy": "tsx tests/tenant-principal-policy-conformance.test.ts",
+    "gpu:termux:probe": "node scripts/probe-termux-gpu.mjs",
+    "test:termux-gpu": "tsx tests/termux-gpu-evidence.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
