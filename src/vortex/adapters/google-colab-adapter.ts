@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { ColabJupyterKernelClient, type ColabExecutionResult } from './colab-jupyter-kernel.js';
 
 export type ColabAccelerator = 'T4' | 'L4' | 'A100' | string;
 export type ColabShape = 'SHAPE_STANDARD' | 'SHAPE_HIGHMEM';
@@ -109,6 +110,29 @@ export class GoogleColabAdapter {
 
   async deleteRuntime(runtimeName: string): Promise<void> {
     await this.request(`/${this.normalizeRuntimeName(runtimeName)}`, { method: 'DELETE' });
+  }
+
+  async executeCode(runtimeName: string, code: string, timeoutMs = 120_000): Promise<ColabExecutionResult> {
+    const connection = await this.getConnection(runtimeName);
+    return new ColabJupyterKernelClient(connection, timeoutMs).execute(code);
+  }
+
+  async executeOnEphemeralGpu(options: {
+    accelerator?: ColabAccelerator;
+    shape?: ColabShape;
+    code: string;
+    timeoutMs?: number;
+  }): Promise<{ runtime: GoogleColabRuntime; execution: ColabExecutionResult }> {
+    const runtime = await this.createGpuRuntime({
+      accelerator: options.accelerator,
+      shape: options.shape,
+    });
+    try {
+      const execution = await this.executeCode(runtime.name, options.code, options.timeoutMs);
+      return { runtime: { ...runtime, connectionInfo: undefined }, execution };
+    } finally {
+      await this.deleteRuntime(runtime.name).catch(() => undefined);
+    }
   }
 
   async getConnection(runtimeName: string): Promise<NonNullable<GoogleColabRuntime['connectionInfo']>> {

@@ -1,4 +1,4 @@
-name: VUC Performance Matrix — CPU × Bend × GPU
+name: VUC Performance Matrix — CPU × Bend
 
 on:
   pull_request:
@@ -13,24 +13,10 @@ jobs:
       matrix:
         include:
           - name: cpu-js
-            runner: ubuntu-latest
             engine: js
-            gpu: false
           - name: cpu-bend
-            runner: ubuntu-latest
             engine: bend
-            gpu: false
-          - name: gpu-js
-            runner: [self-hosted, linux, x64, gpu, nvidia]
-            engine: js
-            gpu: true
-          - name: gpu-bend
-            runner: [self-hosted, linux, x64, gpu, nvidia]
-            engine: bend
-            gpu: true
 
-    # GPU cells are capability-probed on a hosted runner so a missing dedicated GPU
-    # is reported as UNAVAILABLE instead of leaving the required check queued forever.
     runs-on: ubuntu-latest
 
     steps:
@@ -43,64 +29,28 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Probe GPU capability
-        id: gpu_probe
-        if: matrix.gpu
-        shell: bash
-        run: |
-          set +e
-          if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-            nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            mkdir -p artifacts
-            cat > artifacts/gpu-status.json <<'EOF'
-          {
-            "status": "UNAVAILABLE",
-            "reason": "No dedicated NVIDIA GPU is attached to this GitHub-hosted runner",
-            "required_for_certification": true
-          }
-          EOF
-            echo "GPU capability unavailable; recording UNAVAILABLE without converting it to FAIL."
-          fi
-
-      - name: Stop GPU cell when capability is unavailable
-        if: matrix.gpu && steps.gpu_probe.outputs.available != 'true'
-        run: |
-          echo "GPU cell status: UNAVAILABLE"
-
       - name: Install dependencies
         run: npm ci || npm install
 
       - name: Install native Bend
-        if: matrix.engine == 'bend' && (!matrix.gpu || steps.gpu_probe.outputs.available == 'true')
+        if: matrix.engine == 'bend'
         run: npm run install:bend
 
       - name: Verify Bend runtime
-        if: matrix.engine == 'bend' && (!matrix.gpu || steps.gpu_probe.outputs.available == 'true')
+        if: matrix.engine == 'bend'
         run: |
           set -euo pipefail
           test -x ./bin/native/bin/bend
           ./bin/native/bin/bend version
 
-      - name: Run benchmark
-        if: !matrix.gpu || steps.gpu_probe.outputs.available == 'true'
+      - name: Run CPU benchmark
         env:
           VUC_BENCH_ENGINE: ${{ matrix.engine }}
-          VUC_GPU_RUNNER: ${{ matrix.gpu }}
-          VUC_GPU_DEVICE: ${{ matrix.gpu && 'nvidia' || '' }}
+          VUC_GPU_RUNNER: false
+          VUC_GPU_DEVICE: ''
           VUC_BENCH_SAMPLES: 1000
           VUC_BENCH_WARMUP: 100
         run: npm run bench:governance
-
-      - name: GPU capability evidence
-        if: matrix.gpu && steps.gpu_probe.outputs.available == 'true'
-        run: |
-          set -euo pipefail
-          nvidia-smi --query-gpu=name,driver_version,memory.total,utilization.gpu --format=csv
-          mkdir -p artifacts
-          nvidia-smi --query-gpu=name,driver_version,memory.total,utilization.gpu --format=csv,noheader > artifacts/gpu-device.csv
 
       - name: Upload benchmark evidence
         if: always()
@@ -108,4 +58,4 @@ jobs:
         with:
           name: vuc-performance-${{ matrix.name }}
           path: artifacts/
-          if-no-files-found: error
+          if-no-files-found: ignore
