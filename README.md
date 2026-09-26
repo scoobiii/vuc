@@ -17,6 +17,12 @@
 
 </div>
 
+<div align="center">
+
+**Language / Idioma:** **Português (Brasil)** · [English](./README.en.md)
+
+</div>
+
 ---
 
 > **Tese Normativa de Segurança:**  
