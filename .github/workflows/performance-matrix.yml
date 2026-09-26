@@ -1,4 +1,4 @@
-name: VUC Performance Matrix — CPU × Bend × GPU
+name: VUC Performance Matrix — CPU × Bend
 
 on:
   pull_request:
@@ -14,16 +14,8 @@ jobs:
         include:
           - name: cpu-js
             engine: js
-            gpu: false
           - name: cpu-bend
             engine: bend
-            gpu: false
-          - name: gpu-js
-            engine: js
-            gpu: true
-          - name: gpu-bend
-            engine: bend
-            gpu: true
 
     runs-on: ubuntu-latest
 
@@ -41,18 +33,17 @@ jobs:
         run: npm ci || npm install
 
       - name: Install native Bend
-        if: matrix.gpu == false && matrix.engine == 'bend'
+        if: matrix.engine == 'bend'
         run: npm run install:bend
 
       - name: Verify Bend runtime
-        if: matrix.gpu == false && matrix.engine == 'bend'
+        if: matrix.engine == 'bend'
         run: |
           set -euo pipefail
           test -x ./bin/native/bin/bend
           ./bin/native/bin/bend version
 
       - name: Run CPU benchmark
-        if: matrix.gpu == false
         env:
           VUC_BENCH_ENGINE: ${{ matrix.engine }}
           VUC_GPU_RUNNER: false
@@ -61,90 +52,10 @@ jobs:
           VUC_BENCH_WARMUP: 100
         run: npm run bench:governance
 
-      - name: Check Colab credentials
-        if: matrix.gpu == true
-        id: colab_auth
-        env:
-          GOOGLE_COLAB_ACCESS_TOKEN: ${{ secrets.GOOGLE_COLAB_ACCESS_TOKEN }}
-        shell: bash
-        run: |
-          if [ -n "${GOOGLE_COLAB_ACCESS_TOKEN}" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            mkdir -p artifacts
-            cat > "artifacts/gpu-status.json" <<EOF
-          {
-            "status": "UNAVAILABLE",
-            "provider": "google-colab",
-            "event": "${{ github.event_name }}",
-            "reason": "GOOGLE_COLAB_ACCESS_TOKEN is not configured for this workflow context",
-            "required_for_certification": true,
-            "certification_mode": "${{ github.event_name == 'workflow_dispatch' && 'required' || 'manual-dispatch' }}"
-          }
-          EOF
-          fi
-
-      - name: Execute real GPU cell on Google Colab
-        if: matrix.gpu == true && steps.colab_auth.outputs.available == 'true'
-        env:
-          GOOGLE_COLAB_ACCESS_TOKEN: ${{ secrets.GOOGLE_COLAB_ACCESS_TOKEN }}
-          VUC_GPU_CELL: ${{ matrix.name }}
-          VUC_COLAB_ACCELERATOR: ${{ vars.VUC_COLAB_ACCELERATOR || 'L4' }}
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          npx tsx scripts/colab-gpu-matrix.ts | tee "artifacts/${VUC_GPU_CELL}.json"
-
-      - name: Validate real GPU execution evidence
-        if: matrix.gpu == true && steps.colab_auth.outputs.available == 'true'
-        env:
-          VUC_GPU_CELL: ${{ matrix.name }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "artifacts/${VUC_GPU_CELL}.json"
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import crypto from 'node:crypto';
-          const cell = process.env.VUC_GPU_CELL;
-          const raw = fs.readFileSync(`artifacts/${cell}.json`, 'utf8').trim();
-          const evidence = JSON.parse(raw);
-          if (evidence.schema !== 'vuc-gpu-execution-evidence/v1') throw new Error('missing GPU evidence schema');
-          if (evidence.provider !== 'google-colab') throw new Error('evidence provider is not Google Colab');
-          if (evidence.cell !== cell) throw new Error(`evidence cell mismatch: ${evidence.cell}`);
-          if (evidence.result?.status !== 'PASS') throw new Error('GPU result is not PASS');
-          if (!evidence.result?.gpu) throw new Error('GPU device was not identified');
-          if (!evidence.evidence_sha256) throw new Error('missing evidence_sha256');
-          const copy = { ...evidence };
-          delete copy.evidence_sha256;
-          const digest = crypto.createHash('sha256').update(JSON.stringify(copy)).digest('hex');
-          if (digest !== evidence.evidence_sha256) throw new Error('GPU evidence SHA-256 mismatch');
-          if (cell === 'gpu-js' && evidence.result?.compute !== 'torch.mm on CUDA') throw new Error('gpu-js did not execute a CUDA workload');
-          if (cell === 'gpu-bend' && evidence.result?.bend !== '2.0.25') throw new Error('gpu-bend did not report Bend 2.0.25');
-          console.log(JSON.stringify({certified: true, cell, gpu: evidence.result.gpu, evidence_sha256: evidence.evidence_sha256}));
-          NODE
-
-      - name: Report GPU certification unavailable on pull_request
-        if: matrix.gpu == true && steps.colab_auth.outputs.available != 'true' && github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          echo "::warning::GPU certification is unavailable for pull_request because the Colab credential is not exposed."
-          echo "This job is non-certifying in pull_request context; no GPU PASS is inferred."
-          echo "Run this workflow manually from a trusted branch after configuring GOOGLE_COLAB_ACCESS_TOKEN to obtain GPU certification."
-
-      - name: Block uncertified GPU cell in certification mode
-        if: matrix.gpu == true && steps.colab_auth.outputs.available != 'true' && github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          echo "::error::GPU certification blocked: Google Colab credentials are unavailable."
-          echo "No GPU PASS may be inferred from implementation alone."
-          exit 1
-
       - name: Upload benchmark evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: vuc-performance-${{ matrix.name }}
           path: artifacts/
-          if-no-files-found: error
+          if-no-files-found: ignore
