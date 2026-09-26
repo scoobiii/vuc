@@ -14,19 +14,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import process from 'node:process';
 import readline from 'node:readline';
-import { executeVortexPipeline, CURRENT_IDENTITY } from '../src/vortex/gateway.js';
-import { verifyExecutionProof } from '../src/vortex/verifier.js';
-import { vuaRegistry } from '../src/vortex/adapters/registry.js';
-import { runVUAAdaptersE2ESuite } from '../src/vortex/conformance.js';
-import { executeGovernedLLM } from '../src/vortex/llm.js';
-import { canonicalizeRFC8785 } from '../src/vortex/canonicalize.js';
-import { generateVortexIdentity, signProofPayload, verifyProofSignature, sha256 } from '../src/vortex/crypto.js';
-import { handleMCPMessage } from '../src/vortex/mcp-server.js';
-import { RepositoryBootstrapper } from '../src/repository/bootstrap/RepositoryBootstrapper.js';
-import { detectHardwareFingerprint, computeDynamicBaseline, bootstrapHardwareBaseline } from '../src/vortex/hardware-profiler.js';
-import { auditPayloadForMocks } from '../src/vortex/mock-detector.js';
-import { correctAndSanitizeMock } from '../src/vortex/mock-corrector.js';
-import { scanRepositoryForMocks } from '../src/vortex/static-mock-scanner.js';
+let executeVortexPipeline, CURRENT_IDENTITY, verifyExecutionProof, vuaRegistry,
+  runVUAAdaptersE2ESuite, executeGovernedLLM, canonicalizeRFC8785,
+  generateVortexIdentity, signProofPayload, verifyProofSignature, sha256,
+  handleMCPMessage, RepositoryBootstrapper, detectHardwareFingerprint,
+  computeDynamicBaseline, bootstrapHardwareBaseline, auditPayloadForMocks,
+  correctAndSanitizeMock, scanRepositoryForMocks;
 
 const args = process.argv.slice(2);
 const command = args[0] || 'help';
@@ -38,6 +31,8 @@ function printBanner() {
 │  Architecture: ${os.arch()} | Platform: ${os.platform()} | Node: ${process.version}   │
 └─────────────────────────────────────────────────────────────┘`);
 }
+
+const isHelpCommand = command === 'help' || command === '--help' || command === '-h';
 
 function printHelp() {
   printBanner();
@@ -87,6 +82,28 @@ Exemplos de Uso:
   vua llm --provider gemini --model gemini-3.8-flash --prompt "Explique VUA em 1 frase"
 `);
 }
+
+if (isHelpCommand) {
+  printHelp();
+  process.exit(0);
+}
+
+// Lazy-load the VUA application graph only after the CLI has established that
+// this is not a help/discovery request. This keeps help free of adapter
+// initialization and other potentially blocking side effects.
+({ executeVortexPipeline, CURRENT_IDENTITY } = await import('../src/vortex/gateway.js'));
+({ verifyExecutionProof } = await import('../src/vortex/verifier.js'));
+({ vuaRegistry } = await import('../src/vortex/adapters/registry.js'));
+({ runVUAAdaptersE2ESuite } = await import('../src/vortex/conformance.js'));
+({ executeGovernedLLM } = await import('../src/vortex/llm.js'));
+({ canonicalizeRFC8785 } = await import('../src/vortex/canonicalize.js'));
+({ generateVortexIdentity, signProofPayload, verifyProofSignature, sha256 } = await import('../src/vortex/crypto.js'));
+({ handleMCPMessage } = await import('../src/vortex/mcp-server.js'));
+({ RepositoryBootstrapper } = await import('../src/repository/bootstrap/RepositoryBootstrapper.js'));
+({ detectHardwareFingerprint, computeDynamicBaseline, bootstrapHardwareBaseline } = await import('../src/vortex/hardware-profiler.js'));
+({ auditPayloadForMocks } = await import('../src/vortex/mock-detector.js'));
+({ correctAndSanitizeMock } = await import('../src/vortex/mock-corrector.js'));
+({ scanRepositoryForMocks } = await import('../src/vortex/static-mock-scanner.js'));
 
 async function handleStatus() {
   printBanner();
