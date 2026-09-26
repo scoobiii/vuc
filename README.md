@@ -19,7 +19,7 @@
 
 <div align="center">
 
-**Language / Idioma:** **Português (Brasil)** · [English](./README.en.md)
+**Language / Idioma:** **Português (Brasil)** · [English](./README.en.md) · [中文](./README.zh.md) · [日本語](./README.ja.md) · [한국어](./README.ko.md) · [Tiếng Việt](./README.vi.md) · [Français](./README.fr.md) · [Italiano](./README.it.md) · [Bahasa Indonesia](./README.id.md) · [Bahasa Melayu](./README.ms.md)
 
 </div>
 
