@@ -25,6 +25,58 @@
 
 ---
 
+## ⚡ Vortex: uma interface para execução governada
+
+**Vortex** é a interface pública do projeto. A implementação mantém três camadas com responsabilidades claras:
+
+```text
+Vortex
+├── VUC — Universal Connector + Execution Layer
+│   └── conecta operações a runtimes e serviços
+└── VUA — Adapter + Governance + Compatibility Layer
+    └── adapta, limita, verifica e preserva compatibilidade
+```
+
+A ideia é simples: **problema → adapter → execução → evidência → governança**.
+
+### Camadas
+
+| Camada | Papel |
+|---|---|
+| **Vortex** | interface/produto público para operações governadas |
+| **VUC** | camada universal de conexão e execução |
+| **VUA** | adapters, políticas, governança e compatibilidade legada |
+
+### Execução e evidência
+
+O projeto pode integrar execução local e remota, incluindo **CPU, GPU/Vulkan, Bend, Termux/ARM64, Cloud e MCP**. Resultados de benchmark devem ser tratados como evidência do workload executado, não como promessa genérica de desempenho.
+
+Para instalar e testar a versão publicada:
+
+```bash
+npx --yes @vucfoundation/vuc@1.0.1 status
+```
+
+CLI atual:
+
+```bash
+vua status
+vua adapters
+vua baseline
+vua conformance
+vua bench --iterations 500
+vua mock audit
+vua verify <proof.json>
+```
+
+> **Nota:** `vortex` é o nome da interface pública/arquitetura. O comando CLI atualmente publicado continua sendo `vua`; não documentamos um binário `vortex` como disponível até que ele seja efetivamente publicado.
+
+### Direção da plataforma
+
+O mesmo contrato pode ser aplicado a diferentes domínios — **HVAC, energia, manufatura, IoT, logística, telecom, infraestrutura, edge AI e serviços cloud** — sem transformar cada integração em uma ferramenta isolada.
+
+---
+
 > **Tese Normativa de Segurança:**  
 > *"Proof of execution is not proof of safety."*  
 > $$\text{Safety} = \text{Authorization} + \text{Bounded Execution} + \text{Accountability} + \text{Independent Verification} + \text{Identity}$$
