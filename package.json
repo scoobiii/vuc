@@ -39,7 +39,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
+    "start": "npm run build && node dist/server.cjs",
     "install:bend": "bash scripts/install-bend.sh",
     "bend": "./bin/native/bin/bend",
     "test:drex": "tsx tests/drex-bend-parity.test.ts",
@@ -134,5 +134,9 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10"
   }
 }
