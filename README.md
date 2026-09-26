@@ -37,6 +37,97 @@ No espírito das clássicas publicações técnicas **O'Reilly**, o **Pangolim**
 
 ---
 
+## 🚦 Quick Start — Developer & Agent
+
+> **Onboarding real:** Node 22+, dependências, Bend 2.0.25, `BEND_BIN`, DREX, shader/SPIR-V e GPU devem ser preparados **antes** do VUA/MCP.
+
+### Developer — primeiro boot
+
+`bash
+cd ~/vuc
+node -v                 # >= 22
+npm -v                  # >= 10
+npm ci --no-audit --no-fund
+
+export BEND_BIN="$PWD/bin/native/bin/bend"
+chmod +x "$BEND_BIN"
+"$BEND_BIN" version    # bend 2.0.25
+test -f DREX_Laws.bend
+
+./bin/native/gpu/shader/gen_spv_header.sh
+
+# Termux
+c++ -std=c++17 -O2 -I$PREFIX/include \
+  bin/native/gpu/vuc_gpu_compute.cpp \
+  -L$PREFIX/lib -lvulkan \
+  -o bin/native/gpu/vuc-gpu-compute
+./bin/native/gpu/vuc-gpu-compute --warmup 20 --samples 100
+
+npm run preflight
+npm run gpu:termux:probe
+npm run test:termux-gpu-execution
+npm run vua -- status
+npm run vua -- adapters
+npm run vua -- conformance
+npm run dev
+`
+
+**Termux:** `pkg install shaderc vulkan-loader`  
+**Linux/Debian:** `sudo apt install glslc libvulkan-dev`
+
+Se uma instalação anterior foi feita com Node 20:
+
+`bash
+npm cache clean --force
+rm -rf node_modules ~/.npm/_cacache/tmp
+npm ci --no-audit --no-fund
+`
+
+**Não apague `package-lock.json` como rotina.**
+
+### Agent — fronteira governada
+
+`text
+Agent / LLM
+    ↓ MCP
+VUC
+    ↓ Identity + Tenant + Capability + Policy
+Connector
+    ↓
+REAL EXECUTION
+    ↓
+ExecutionProof
+    ↓
+Independent Verification
+`
+
+Ferramentas:
+- `vortex.inspect` — leitura/inspeção
+- `vortex.propose` — proposta de patch/PR
+- `vortex.verify` — verificação independente
+- `vortex.execute` — execução delimitada, somente autorizada
+- `vortex.branch.write` — escrita persistente/merge, somente autorizada
+
+**Agent Junior:** `inspect → understand → propose → verify`  
+**Agent Senior:** `inspect → policy → propose → verify → execute [authorized] → verify proof → branch.write [authorized] → CI → review → merge`
+
+Junior/Senior são perfis operacionais, não modos nativos diferentes do VUC.
+
+### MCP local
+
+`bash
+npm run dev
+curl -fsS http://localhost:3000/api/health
+`
+
+MCP HTTP: `POST /mcp`  
+MCP SSE: `GET /sse`  
+MCP stdio: `npm run vua -- mcp`
+
+**Onboarding completo:** [docs/ONBOARDING.md](./docs/ONBOARDING.md)
+
+---
+
 ## 🚀 Novos Recursos: GitHub Seguro, Escrita de PR e Merge no Git
 
 O VUA disponibiliza uma interface amigável e com segurança reforçada para conexão a repositórios do GitHub, seleção de projetos e ciclos completos de entrega contínua:
