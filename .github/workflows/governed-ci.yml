@@ -1,0 +1,56 @@
+name: VUC Governed CI (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      install_command:
+        required: false
+        default: "npm ci --no-audit --no-fund"
+        type: string
+      ci_command:
+        required: false
+        default: "npm run ci"
+        type: string
+      coverage_command:
+        required: false
+        default: "npm run coverage:check"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  governed-ci:
+    name: Governed CI — 100% required gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: ${{ inputs.install_command }}
+      - name: Run canonical CI
+        run: ${{ inputs.ci_command }}
+        env:
+          CI: "true"
+          VUC_SANDBOX: "strict"
+          GOVERNED_CI: "true"
+      - name: Enforce coverage gate
+        run: ${{ inputs.coverage_command }}
+        env:
+          CI: "true"
+          GOVERNED_CI: "true"
+      - name: Emit identity/evidence context
+        run: |
+          printf '%s\n' \
+            "repository=${GITHUB_REPOSITORY}" \
+            "sha=${GITHUB_SHA}" \
+            "ref=${GITHUB_REF}" \
+            "actor=${GITHUB_ACTOR}" \
+            "event=${GITHUB_EVENT_NAME}" \
+            "governed_ci=true"
