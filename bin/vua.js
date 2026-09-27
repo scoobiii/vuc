@@ -19,7 +19,7 @@ let executeVortexPipeline, CURRENT_IDENTITY, verifyExecutionProof, vuaRegistry,
   generateVortexIdentity, signProofPayload, verifyProofSignature, sha256,
   handleMCPMessage, RepositoryBootstrapper, detectHardwareFingerprint,
   computeDynamicBaseline, bootstrapHardwareBaseline, auditPayloadForMocks,
-  correctAndSanitizeMock, scanRepositoryForMocks;
+  correctAndSanitizeMock, scanRepositoryForMocks, loadGovernanceSystemInstruction;
 
 const args = process.argv.slice(2);
 const command = args[0] || 'help';
@@ -45,7 +45,8 @@ Comandos Principais:
   vua baseline                  Gera auto-configuração de baseline dinâmica para este gadget/dev
   vua adapters                  Lista os adaptadores registrados (Linux, Android, Windows, GitHub)
   vua invoke <adapter> <action> Executa uma ação normatizada num adaptador com prova Ed25519
-  vua bench [--cloud]           Roda benchmark de desempenho local (e comparativo Cloud Run Free Tier)
+  vua bench [--cloud]           Benchmark criptográfico; --cloud exige endpoint Cloud Run descoberto
+  vua llm-bench [opções]        Compara duas LLMs sob o mesmo GAD e o mesmo preflight de execução
   vua gcloud <probe|bench|limits> Executa auditoria e benchmark de Google Cloud Free Tier
   vua conformance               Roda bateria de conformidade nos 4 adaptadores (100% test suite)
   vua llm [opções]              Executa prompt LLM governado (Qwen Coder local, Ollama ou Gemini)
@@ -66,6 +67,12 @@ Opções do comando 'vua llm':
   --model <nome>                       (Ex: qwen2.5-coder:0.5b, gemini-3.8-flash)
   --prompt <texto>                     (O prompt para envio ao modelo)
   --url <base_url>                     (Ex: http://localhost:11434 para Ollama no Termux/Alpine)
+
+Opções do comando 'vua llm-bench':
+  --provider-a <id> --model-a <nome>   Primeira LLM
+  --provider-b <id> --model-b <nome>   Segunda LLM
+  --prompt <texto>                     Mesma entrada para A e B
+  --iterations <N>                     Repetições por modelo (padrão: 3)
 
 Exemplos de Uso:
   # 1. Testar ambiente mobile Android / Termux sem conector GitHub:
@@ -96,6 +103,7 @@ if (isHelpCommand) {
 ({ vuaRegistry } = await import('../src/vortex/adapters/registry.js'));
 ({ runVUAAdaptersE2ESuite } = await import('../src/vortex/conformance.js'));
 ({ executeGovernedLLM } = await import('../src/vortex/llm.js'));
+({ loadGovernanceSystemInstruction } = await import('../src/vortex/governance-instruction.js'));
 ({ canonicalizeRFC8785 } = await import('../src/vortex/canonicalize.js'));
 ({ generateVortexIdentity, signProofPayload, verifyProofSignature, sha256 } = await import('../src/vortex/crypto.js'));
 ({ handleMCPMessage } = await import('../src/vortex/mcp-server.js'));
@@ -248,7 +256,10 @@ async function handleBench() {
   console.log(`   • Validações Ed25519   : ${verifiedCount}/${count} (100% Aprovadas)`);
   console.log(`   • Consumo de Memória   : ${(process.memoryUsage().rss / 1024 / 1024).toFixed(1)} MB`);
   console.log(`═════════════════════════════════════════════════════════════`);
-  console.log(`✅ O motor VUA está ultra-otimizado para dispositivos ARM64 / Termux / Alpine.`);
+  const preflight = benchmarkExecutionContext();
+  console.log(`🔎 PREFLIGHT: ${JSON.stringify(preflight.runtime)}`);
+  console.log(`   Hardware: ${preflight.hardware.architecture}/${preflight.hardware.platform} | CPU: ${preflight.hardware.cpuModel} | cores: ${preflight.hardware.cpuCores} | RAM: ${preflight.hardware.totalMemoryMB} MB`);
+  console.log(`   Execution fingerprint: ${preflight.execution_fingerprint}`);
 
   if (args.includes('--cloud') || args.includes('--gcloud')) {
     const cloudUrlIndex = args.indexOf('--url');
@@ -261,6 +272,133 @@ async function handleBench() {
     });
     console.log(JSON.stringify(compResult.data, null, 2));
   }
+}
+
+function benchmarkExecutionContext() {
+  const fingerprint = detectHardwareFingerprint();
+  const runtime = {
+    provider: process.env.K_SERVICE ? 'gcp' : (process.env.GITHUB_ACTIONS ? 'github' : 'local'),
+    execution: process.env.K_SERVICE ? 'cloud_run' : (process.env.GITHUB_ACTIONS ? 'github_actions' : 'process'),
+    region: process.env.K_REGION || process.env.CLOUD_RUN_REGION || null,
+    service: process.env.K_SERVICE || null,
+    revision: process.env.K_REVISION || null,
+    project_id: process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || null,
+  };
+  const stable = {
+    runtime,
+    platform: fingerprint.platform,
+    architecture: fingerprint.architecture,
+    cpuModel: fingerprint.cpuModel,
+    cpuCores: fingerprint.cpuCores,
+    totalMemoryMB: fingerprint.totalMemoryMB,
+    nodeVersion: fingerprint.nodeVersion,
+  };
+  return {
+    runtime,
+    hardware: fingerprint,
+    execution_fingerprint: sha256(canonicalizeRFC8785(stable)),
+  };
+}
+
+async function handleLLMBench() {
+  printBanner();
+  const getArg = (name) => {
+    const idx = args.indexOf(name);
+    return idx !== -1 ? args[idx + 1] : undefined;
+  };
+
+  const providerA = getArg('--provider-a');
+  const modelA = getArg('--model-a');
+  const providerB = getArg('--provider-b');
+  const modelB = getArg('--model-b');
+  const prompt = getArg('--prompt') || 'Escreva uma função TypeScript que calcula SHA-256.';
+  const iterations = Math.max(1, Number(getArg('--iterations') || 3));
+  const temperature = Number(getArg('--temperature') || 0);
+
+  if (!providerA || !modelA || !providerB || !modelB) {
+    console.error('Uso: vua llm-bench --provider-a <p> --model-a <m> --provider-b <p> --model-b <m> [--prompt <texto>] [--iterations N]');
+    process.exit(2);
+  }
+
+  const preflight = benchmarkExecutionContext();
+  const governanceInstruction = loadGovernanceSystemInstruction();
+  const gad = {
+    policy_id: 'vortex-development',
+    policy_version: '1.0.0',
+    capability: 'llm.inference',
+    governance_instruction_hash: sha256(governanceInstruction),
+  };
+  const context = {
+    benchmark_id: `llm-bench-${Date.now()}`,
+    gad,
+    execution: preflight.runtime,
+    hardware: preflight.hardware,
+    execution_fingerprint: preflight.execution_fingerprint,
+    prompt_hash: sha256(prompt),
+    temperature,
+    iterations,
+  };
+
+  console.log('🔎 PREFLIGHT OK');
+  console.log(JSON.stringify(context, null, 2));
+
+  async function runModel(label, provider, model) {
+    const durations = [];
+    const proofs = [];
+    const usages = [];
+    for (let i = 0; i < iterations; i++) {
+      const result = await executeGovernedLLM(prompt, {
+        provider,
+        model,
+        temperature,
+        maxTokens: Number(getArg('--max-tokens') || 256),
+        systemInstruction: getArg('--system'),
+        baseUrl: label === 'a' ? getArg('--url-a') : getArg('--url-b'),
+      }, `llm-bench-${context.benchmark_id}-${provider}-${i}`);
+      durations.push(result.duration_ms);
+      usages.push(result.usage || {});
+      proofs.push({
+        execution_id: result.execution_proof?.execution_id || null,
+        proof_hash: result.execution_proof?.proof_hash || null,
+        verified: result.verification?.valid === true,
+      });
+    }
+    const sorted = [...durations].sort((a, b) => a - b);
+    return {
+      provider,
+      model,
+      iterations,
+      duration_ms: {
+        mean: Number((durations.reduce((a, b) => a + b, 0) / durations.length).toFixed(3)),
+        median: Number(sorted[Math.floor(sorted.length / 2)].toFixed(3)),
+        p95: Number(sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))].toFixed(3)),
+      },
+      usage: usages,
+      proofs,
+    };
+  }
+
+  const a = await runModel('a', providerA, modelA);
+  const b = await runModel('b', providerB, modelB);
+
+  const postflight = benchmarkExecutionContext();
+  const sameExecution = postflight.execution_fingerprint === preflight.execution_fingerprint;
+
+  const result = {
+    schema: 'vua-llm-benchmark/v1',
+    context,
+    postflight_execution_fingerprint: postflight.execution_fingerprint,
+    same_execution_context: sameExecution,
+    comparable: sameExecution && a.proofs.every(p => p.verified) && b.proofs.every(p => p.verified),
+    models: { a, b },
+  };
+
+  console.log('═════════════════════════════════════════════════════════════');
+  console.log('📊 BENCHMARK LLM — MESMO GAD / MESMO EXECUTION CONTEXT');
+  console.log(JSON.stringify(result, null, 2));
+  console.log('═════════════════════════════════════════════════════════════');
+
+  if (!result.comparable) process.exit(1);
 }
 
 async function handleConformance() {
@@ -746,6 +884,9 @@ switch (command) {
     break;
   case 'llm':
     handleLLM();
+    break;
+  case 'llm-bench':
+    handleLLMBench();
     break;
   case 'bluesky':
   case 'bsky':
