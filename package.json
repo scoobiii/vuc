@@ -112,7 +112,8 @@
     "test:execution-evidence": "tsx tests/execution-proof-evidence-artifact.test.ts",
     "test:tenant-policy": "tsx tests/tenant-principal-policy-conformance.test.ts",
     "colab:preflight": "tsx scripts/colab-preflight.ts",
-    "gpu:termux": "tsx scripts/termux-gpu-matrix.ts"
+    "gpu:termux": "tsx scripts/termux-gpu-matrix.ts",
+    "test:bench-runtime-gad": "tsx tests/bench-runtime-gad.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
