@@ -342,7 +342,7 @@ async function handleLLMBench() {
   console.log('🔎 PREFLIGHT OK');
   console.log(JSON.stringify(context, null, 2));
 
-  async function runModel(provider, model) {
+  async function runModel(label, provider, model) {
     const durations = [];
     const proofs = [];
     const usages = [];
@@ -353,7 +353,7 @@ async function handleLLMBench() {
         temperature,
         maxTokens: Number(getArg('--max-tokens') || 256),
         systemInstruction: getArg('--system'),
-        baseUrl: provider === providerA ? getArg('--url-a') : getArg('--url-b'),
+        baseUrl: label === 'a' ? getArg('--url-a') : getArg('--url-b'),
       }, `llm-bench-${context.benchmark_id}-${provider}-${i}`);
       durations.push(result.duration_ms);
       usages.push(result.usage || {});
@@ -378,8 +378,8 @@ async function handleLLMBench() {
     };
   }
 
-  const a = await runModel(providerA, modelA);
-  const b = await runModel(providerB, modelB);
+  const a = await runModel('a', providerA, modelA);
+  const b = await runModel('b', providerB, modelB);
 
   const postflight = benchmarkExecutionContext();
   const sameExecution = postflight.execution_fingerprint === preflight.execution_fingerprint;
