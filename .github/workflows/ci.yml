@@ -18,6 +18,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Audit GitHub Actions Runner (sandbox runtime)
+        run: |
+          echo "=== VUC RUNNER AUDIT — GitHub Actions Sandbox ==="
+          echo "timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "hostname: $(hostname)"
+          echo "kernel: $(uname -r)"
+          echo "architecture: $(uname -m)"
+          echo "cpu_count: $(nproc)"
+          echo "cpu_model: $(lscpu | awk -F: '/Model name/{gsub(/^[ \\t]+/,"",$2); print $2}')"
+          echo "memory_bytes: $(free -b | awk '/Mem:/{print $2}')"
+          free -h
+          echo "--- disk ---"
+          df -h /
+          df -B1 / | awk 'NR==2 {printf "disk_total_bytes: %s\\ndisk_avail_bytes: %s\\n", $2, $4}'
+          echo "--- runner env ---"
+          echo "GITHUB_ACTIONS: $GITHUB_ACTIONS"
+          echo "RUNNER_OS: $RUNNER_OS"
+          echo "RUNNER_ARCH: $RUNNER_ARCH"
+          echo "RUNNER_NAME: $RUNNER_NAME"
+          echo "ImageOS: $ImageOS"
+          echo "--- node ---"
+          node -v 2>/dev/null || true
+          which node || true
+
       - name: Setup Node 22 LTS
         uses: actions/setup-node@v4
         with:
