@@ -166,13 +166,11 @@ jobs:
           VUC_LLM_TASK: "json-capability-proposal"
           VUC_LLM_TIMEOUT_MS: "180000"
           VUC_REPO_ROOT: ${{ github.workspace }}
+          VUC_EVIDENCE_DIR: ${{ github.workspace }}/reports/micro-llm-benchmark
         run: |
           set -euo pipefail
           mkdir -p reports/micro-llm-benchmark
           npm exec tsx benchmarks/micro-llm/runtime/run.ts | tee reports/micro-llm-benchmark/execution-evidence.json
-          cp "$VUC_SANDBOX/vuc-proof.log" reports/micro-llm-benchmark/vuc-proof.log 2>/dev/null || true
-          cp "$VUC_SANDBOX/llama-server.log" reports/micro-llm-benchmark/llama-server.log 2>/dev/null || true
-          cp "$VUC_SANDBOX/response.json" reports/micro-llm-benchmark/response.json 2>/dev/null || true
 
       - name: Publish real execution evidence
         if: always()
