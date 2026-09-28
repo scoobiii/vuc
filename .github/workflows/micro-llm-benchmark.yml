@@ -76,12 +76,14 @@ jobs:
           set -euo pipefail
           mkdir -p .cache/llama/bin
           if [[ ! -x .cache/llama/bin/llama-server ]]; then
-            asset_url="$(curl -fsSL "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/$LLAMA_CPP_TAG" | jq -r '.assets[] | select(.name|test("ubuntu.*x64.*\\.zip$";"i")) | select(.name|test("vulkan|cuda|rocm|openvino|sycl";"i")|not) | .browser_download_url' | head -1)"
-            test -n "$asset_url"
-            curl -fsSL "$asset_url" -o /tmp/llama.zip
-            unzip -j -o /tmp/llama.zip '*/llama-server' -d .cache/llama/bin
-            chmod +x .cache/llama/bin/llama-server
+            asset_url="https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_CPP_TAG}/llama-${LLAMA_CPP_TAG}-bin-ubuntu-x64.tar.gz"
+            curl -fsSL --retry 3 --retry-all-errors "$asset_url" -o /tmp/llama.tar.gz
+            rm -rf .cache/llama/bin/*
+            tar -xzf /tmp/llama.tar.gz -C .cache/llama/bin --strip-components=1
           fi
+          test -x .cache/llama/bin/llama-server
+          file .cache/llama/bin/llama-server
+          ldd .cache/llama/bin/llama-server
           .cache/llama/bin/llama-server --version
 
       - name: Cache GGUF model
