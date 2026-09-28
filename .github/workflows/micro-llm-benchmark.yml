@@ -74,16 +74,64 @@ jobs:
       - name: Install pinned llama.cpp CPU binary
         run: |
           set -euo pipefail
+
           mkdir -p .cache/llama/bin
+          rm -rf /tmp/llama-extract
+          mkdir -p /tmp/llama-extract
+
           if [[ ! -x .cache/llama/bin/llama-server ]]; then
-            asset_url="https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_CPP_TAG}/llama-${LLAMA_CPP_TAG}-bin-ubuntu-x64.tar.gz"
-            curl -fsSL --retry 3 --retry-all-errors "$asset_url" -o /tmp/llama.tar.gz
+            asset_url="$(curl -fsSL \
+              "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/$LLAMA_CPP_TAG" \
+              | jq -r '
+                .assets[]
+                | select(.name | test("^llama-.*-bin-ubuntu-x64\\.tar\\.gz$"; "i"))
+                | select(.name | test("vulkan|cuda|rocm|openvino|sycl"; "i") | not)
+                | .browser_download_url
+              ' \
+              | head -n 1)"
+
+            test -n "$asset_url"
+            echo "llama.cpp asset: $asset_url"
+
+            curl -fsSL \
+              --retry 3 \
+              --retry-all-errors \
+              "$asset_url" \
+              -o /tmp/llama.tar.gz
+
+            tar -xzf /tmp/llama.tar.gz -C /tmp/llama-extract
+
+            server_path="$(find /tmp/llama-extract \
+              -type f \
+              -name 'llama-server' \
+              -print -quit)"
+
+            test -n "$server_path"
+
+            bundle_dir="$(dirname "$server_path")"
             rm -rf .cache/llama/bin/*
-            tar -xzf /tmp/llama.tar.gz -C .cache/llama/bin --strip-components=1
+            cp -a "$bundle_dir"/. .cache/llama/bin/
+            chmod +x .cache/llama/bin/llama-server
           fi
+
+          export LD_LIBRARY_PATH="${PWD}/.cache/llama/bin:${LD_LIBRARY_PATH:-}"
+
           test -x .cache/llama/bin/llama-server
+
+          echo "=== llama-server ==="
           file .cache/llama/bin/llama-server
+
+          echo "=== shared libraries ==="
+          find .cache/llama/bin \
+            -maxdepth 1 \
+            -type f \
+            \( -name '*.so' -o -name '*.so.*' \) \
+            -print | sort
+
+          echo "=== dynamic dependencies ==="
           ldd .cache/llama/bin/llama-server
+
+          echo "=== llama-server version ==="
           .cache/llama/bin/llama-server --version
 
       - name: Cache GGUF model
