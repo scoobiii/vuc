@@ -32,9 +32,13 @@ JSON
 REQ_START_NS=$(date +%s%N)
 curl -fsS --max-time 120 "http://127.0.0.1:$PORT/v1/chat/completions"   -H 'Content-Type: application/json'   --data-binary @"$OUT_DIR/request.json" >"$RESPONSE"
 REQ_END_NS=$(date +%s%N)
-node --input-type=module - "$MODEL_PATH" "$PID" "$START_NS" "$READY_NS" "$REQ_START_NS" "$REQ_END_NS" "$RESPONSE" <<'NODE'
+PROOF=FAIL
+if [[ -n "${VUC_REPO_ROOT:-}" ]] && (cd "$VUC_REPO_ROOT" && npm run test:mcp-proof >"$OUT_DIR/vuc-proof.log" 2>&1); then
+  PROOF=PASS
+fi
+node --input-type=module - "$MODEL_PATH" "$PID" "$START_NS" "$READY_NS" "$REQ_START_NS" "$REQ_END_NS" "$RESPONSE" "$PROOF" <<'NODE'
 import fs from "node:fs";
-const [modelPath,pid,startNs,readyNs,reqStartNs,reqEndNs,responsePath]=process.argv.slice(2);
+const [modelPath,pid,startNs,readyNs,reqStartNs,reqEndNs,responsePath,proof]=process.argv.slice(2);
 const body=JSON.parse(fs.readFileSync(responsePath,"utf8"));
 const usage=body.usage ?? {};
 const timings=body.timings ?? {};
