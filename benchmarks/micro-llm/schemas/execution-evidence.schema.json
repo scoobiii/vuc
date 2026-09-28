@@ -1,0 +1,22 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object",
+  "required":["execution_id","agent_id","runtime_id","sandbox_id","model_id","task_id","model_loaded","process_id","tokens_generated","exit_code","startup_ms","latency_ms","status"],
+  "properties":{
+    "execution_id":{"type":"string","minLength":1},
+    "agent_id":{"type":"string","minLength":1},
+    "runtime_id":{"type":"string","minLength":1},
+    "sandbox_id":{"type":"string","minLength":1},
+    "model_id":{"type":"string","minLength":1},
+    "task_id":{"type":"string","minLength":1},
+    "model_loaded":{"const":true},
+    "process_id":{"type":"integer","minimum":1},
+    "tokens_generated":{"type":"integer","minimum":1},
+    "exit_code":{"const":0},
+    "startup_ms":{"type":"number","minimum":0},
+    "latency_ms":{"type":"number","minimum":0},
+    "status":{"const":"PASS"},
+    "proof_verification":{"const":"PASS"}
+  },
+  "additionalProperties":true
+}
