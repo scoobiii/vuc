@@ -82,7 +82,7 @@ try {
     proof_scope:payload.proof_scope??"not-specified",
     runtime:payload.runtime??"unknown",
     execution_kind:payload.execution_kind??"real_model_inference",
-    status: payload.model_loaded && payload.tokens_generated>0 && payload.proof_verification==="PASS" ? "PASS" : "FAIL",
+    status: payload.model_loaded && payload.tokens_generated>0 && payload.output_valid_json===true && payload.proof_verification==="PASS" ? "PASS" : "FAIL",
     elapsed_wrapper_ms:Date.now()-started
   };
   console.log(JSON.stringify(evidence,null,2));
