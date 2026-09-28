@@ -7,7 +7,7 @@ OUT_DIR="${4:-$PWD}"
 LOG="$OUT_DIR/llama-server.log"
 RESPONSE="$OUT_DIR/response.json"
 START_NS=$(date +%s%N)
-"$LLAMA_SERVER" -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" -c 4096 -t 4 -ngl 0 --no-webui >"$LOG" 2>&1 &
+"$LLAMA_SERVER" -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" -c 4096 -t 4 -ngl 0 >"$LOG" 2>&1 &
 PID=$!
 cleanup(){ kill "$PID" 2>/dev/null || true; wait "$PID" 2>/dev/null || true; }
 trap cleanup EXIT
@@ -44,7 +44,7 @@ try {
   const m=status.match(/^VmRSS:\s+(\d+)\s+kB$/m);
   if(m) rssBytes=Number(m[1])*1024;
 } catch {}
-const output=body.choices?.[0]?.message?.content ?? "";
+const output=body.choices?.[0]?.message?.content ?? "";\nlet proof="FAIL";\ntry { const cp=require("node:child_process"); cp.execFileSync("bash",["-lc","cd \""+process.env.VUC_REPO_ROOT+"\" && npm run test:mcp-proof > \""+process.env.VUC_SANDBOX+"/vuc-proof.log\" 2>&1"],{stdio:"ignore",timeout:120000}); proof="PASS"; } catch {}
 if(!output || Number(usage.completion_tokens ?? timings.predicted_n ?? 0)<=0) process.exit(2);
 console.log(JSON.stringify({
   model_loaded:true,
@@ -57,7 +57,7 @@ console.log(JSON.stringify({
   rss_bytes:rssBytes,
   output_bytes:Buffer.byteLength(output),
   output_valid_json:(()=>{try{JSON.parse(output);return true}catch{return false}})(),
-  proof_verification:"PASS",
+  proof_verification:proof,\n  proof_scope:"vuc-mcp-real-execution-path",
   runtime:"llama.cpp",
   execution_kind:"real_model_inference",
   model_path:modelPath
