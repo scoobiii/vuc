@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object",
+  "required":["model_id","parameters","license","architecture","format","quantization","source","track"],
+  "properties":{
+    "model_id":{"type":"string","minLength":1},
+    "parameters":{"type":"integer","minimum":1},
+    "license":{"type":"string","minLength":1},
+    "architecture":{"type":"string","minLength":1},
+    "format":{"type":"string","minLength":1},
+    "quantization":{"type":"string","minLength":1},
+    "source":{"type":"string","minLength":1},
+    "track":{"enum":["native-500m","large-quantized"]}
+  },
+  "additionalProperties":true
+}
