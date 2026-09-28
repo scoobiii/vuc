@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, mkdir, copyFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -23,6 +23,7 @@ type RuntimeResult = {
 const command=process.env.VUC_LLM_COMMAND;
 const model=process.env.VUC_LLM_MODEL ?? "";
 const timeoutMs=Number(process.env.VUC_LLM_TIMEOUT_MS ?? 120000);
+const evidenceDir=process.env.VUC_EVIDENCE_DIR ?? "";
 if (!command || !model) {
   console.error(JSON.stringify({status:"BLOCKED",reason:"VUC_LLM_COMMAND and VUC_LLM_MODEL are required for real inference"},null,2));
   process.exit(2);
@@ -85,6 +86,14 @@ try {
     status: payload.model_loaded && payload.tokens_generated>0 && payload.output_valid_json===true && payload.proof_verification==="PASS" ? "PASS" : "FAIL",
     elapsed_wrapper_ms:Date.now()-started
   };
+
+  if (evidenceDir) {
+    await mkdir(evidenceDir,{recursive:true});
+    for (const name of ["llama-server.log","response.json","vuc-proof.log","request.json"]) {
+      try { await copyFile(path.join(sandbox,name),path.join(evidenceDir,name)); } catch {}
+    }
+  }
+
   console.log(JSON.stringify(evidence,null,2));
   if (evidence.status!=="PASS") process.exit(1);
 } finally {
