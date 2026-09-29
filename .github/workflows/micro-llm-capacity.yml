@@ -1,0 +1,124 @@
+name: VUC Micro-LLM Capacity Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      repetitions:
+        description: "Repeated runs per concurrency level"
+        required: false
+        default: "3"
+      levels:
+        description: "Comma-separated concurrency levels"
+        required: false
+        default: "1,2,4,6,8"
+  pull_request:
+    paths:
+      - "benchmarks/micro-llm/**"
+      - ".github/workflows/micro-llm-capacity.yml"
+      - "package.json"
+
+permissions:
+  contents: read
+
+env:
+  LLAMA_CPP_TAG: b11225
+  LLAMA_CACHE: ${{ github.workspace }}/.cache/llama
+  CAPACITY_REPETITIONS: ${{ inputs.repetitions || '3' }}
+  CAPACITY_LEVELS: ${{ inputs.levels || '1,2,4,6,8' }}
+
+jobs:
+  capacity:
+    name: Capacity N=1,2,4,6,8 (Qwen CPU)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+      - run: npm run benchmark:models:validate
+      - run: npm run lint
+
+      - name: Cache llama.cpp binary
+        uses: actions/cache@v4
+        with:
+          path: .cache/llama/bin
+          key: llama-cpp-${{ runner.os }}-${{ runner.arch }}-${{ env.LLAMA_CPP_TAG }}-cpu-v1
+
+      - name: Install pinned llama.cpp CPU binary
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/llama/bin
+          rm -rf /tmp/llama-extract
+          mkdir -p /tmp/llama-extract
+          if [[ ! -x .cache/llama/bin/llama-server ]]; then
+            asset_url="$(curl -fsSL "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/$LLAMA_CPP_TAG" | jq -r '
+              .assets[]
+              | select(.name | test("^llama-.*-bin-ubuntu-x64\\.tar\\.gz$"; "i"))
+              | select(.name | test("vulkan|cuda|rocm|openvino|sycl"; "i") | not)
+              | .browser_download_url
+            ' | head -n 1)"
+            test -n "$asset_url"
+            curl -fsSL --retry 3 --retry-all-errors "$asset_url" -o /tmp/llama.tar.gz
+            tar -xzf /tmp/llama.tar.gz -C /tmp/llama-extract
+            server_path="$(find /tmp/llama-extract -type f -name 'llama-server' -print -quit)"
+            test -n "$server_path"
+            bundle_dir="$(dirname "$server_path")"
+            rm -rf .cache/llama/bin/*
+            cp -a "$bundle_dir"/. .cache/llama/bin/
+            chmod +x .cache/llama/bin/llama-server
+          fi
+          export LD_LIBRARY_PATH="${PWD}/.cache/llama/bin:${LD_LIBRARY_PATH:-}"
+          .cache/llama/bin/llama-server --version
+          ldd .cache/llama/bin/llama-server
+
+      - name: Cache Qwen GGUF
+        uses: actions/cache@v4
+        with:
+          path: .cache/llama/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+          key: micro-llm-qwen2.5-coder-0.5b-instruct-q4_k_m.gguf-1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32
+
+      - name: Download and verify Qwen GGUF
+        env:
+          MODEL_URL: https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+          MODEL_FILE: qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+          MODEL_SHA256: 1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/llama/models
+          if [[ ! -f ".cache/llama/models/$MODEL_FILE" ]]; then
+            curl -fL --retry 3 --retry-all-errors "$MODEL_URL" -o ".cache/llama/models/$MODEL_FILE"
+          fi
+          echo "$MODEL_SHA256  .cache/llama/models/$MODEL_FILE" | sha256sum -c -
+
+      - name: Run capacity campaign
+        env:
+          VUC_REPO_ROOT: ${{ github.workspace }}
+          VUC_CAPACITY_MODEL_PATH: ${{ github.workspace }}/.cache/llama/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+          VUC_CAPACITY_MODEL_ID: Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF
+          VUC_CAPACITY_LLAMA_SERVER: ${{ github.workspace }}/.cache/llama/bin/llama-server
+          VUC_CAPACITY_OUTPUT_DIR: ${{ github.workspace }}/reports/micro-llm-capacity
+          VUC_CAPACITY_REPETITIONS: ${{ env.CAPACITY_REPETITIONS }}
+          VUC_CAPACITY_LEVELS: ${{ env.CAPACITY_LEVELS }}
+          VUC_LLAMA_THREADS: "4"
+          VUC_LLM_TIMEOUT_MS: "180000"
+        run: |
+          set -euo pipefail
+          mkdir -p reports/micro-llm-capacity
+          npm exec tsx benchmarks/micro-llm/capacity/run-capacity.ts | tee reports/micro-llm-capacity/capacity-results.stdout.json
+
+      - name: Publish capacity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: micro-llm-capacity-qwen
+          path: reports/micro-llm-capacity/
+
+      - name: Publish failure context
+        if: failure()
+        run: |
+          find reports/micro-llm-capacity -type f -maxdepth 5 -print | sort || true

@@ -7,9 +7,11 @@ PORT="${3:-8080}"
 OUT_DIR="${4:-$PWD}"
 LOG="$OUT_DIR/llama-server.log"
 RESPONSE="$OUT_DIR/response.json"
+THREADS="${VUC_LLAMA_THREADS:-4}"
+CLK_TCK="$(getconf CLK_TCK)"
 
 START_NS=$(date +%s%N)
-"$LLAMA_SERVER" -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" -c 4096 -t 4 -ngl 0 >"$LOG" 2>&1 &
+"$LLAMA_SERVER" -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" -c 4096 -t "$THREADS" -ngl 0 >"$LOG" 2>&1 &
 PID=$!
 
 cleanup() {
@@ -33,6 +35,7 @@ for _ in $(seq 1 120); do
 done
 
 READY_NS=$(date +%s%N)
+CPU_START_TICKS="$(awk '{print $14 + $15}' "/proc/$PID/stat" 2>/dev/null || echo 0)"
 if [[ "$ready" != "1" ]]; then
   echo "llama-server health check timed out" >&2
   tail -100 "$LOG" >&2 || true
@@ -44,18 +47,19 @@ cat >"$OUT_DIR/request.json" <<'JSON'
 JSON
 
 REQ_START_NS=$(date +%s%N)
-curl -fsS --max-time 120 "http://127.0.0.1:$PORT/v1/chat/completions"   -H 'Content-Type: application/json'   --data-binary @"$OUT_DIR/request.json" >"$RESPONSE"
+curl -fsS --max-time 120 "http://127.0.0.1:$PORT/v1/chat/completions" -H 'Content-Type: application/json' --data-binary @"$OUT_DIR/request.json" >"$RESPONSE"
 REQ_END_NS=$(date +%s%N)
+CPU_END_TICKS="$(awk '{print $14 + $15}' "/proc/$PID/stat" 2>/dev/null || echo "$CPU_START_TICKS")"
 
 PROOF=FAIL
 if [[ -n "${VUC_REPO_ROOT:-}" ]] && (cd "$VUC_REPO_ROOT" && npm run test:mcp-proof >"$OUT_DIR/vuc-proof.log" 2>&1); then
   PROOF=PASS
 fi
 
-node --input-type=module - "$MODEL_PATH" "$PID" "$START_NS" "$READY_NS" "$REQ_START_NS" "$REQ_END_NS" "$RESPONSE" "$PROOF" <<'NODE'
+node --input-type=module - "$MODEL_PATH" "$PID" "$START_NS" "$READY_NS" "$REQ_START_NS" "$REQ_END_NS" "$RESPONSE" "$PROOF" "$CPU_START_TICKS" "$CPU_END_TICKS" "$CLK_TCK" <<'NODE'
 import fs from "node:fs";
 
-const [modelPath,pid,startNs,readyNs,reqStartNs,reqEndNs,responsePath,proof] = process.argv.slice(2);
+const [modelPath,pid,startNs,readyNs,reqStartNs,reqEndNs,responsePath,proof,cpuStartTicks,cpuEndTicks,clkTck] = process.argv.slice(2);
 const body = JSON.parse(fs.readFileSync(responsePath, "utf8"));
 const usage = body.usage ?? {};
 const timings = body.timings ?? {};
@@ -67,42 +71,42 @@ try {
   if (m) rssBytes = Number(m[1]) * 1024;
 } catch {}
 
+const cpuTicks = Math.max(0, Number(cpuEndTicks) - Number(cpuStartTicks));
+const cpuMs = Number(clkTck) > 0 ? (cpuTicks / Number(clkTck)) * 1000 : 0;
+const requestWallMs = (Number(reqEndNs) - Number(reqStartNs)) / 1e6;
+const cpuPercent = requestWallMs > 0 ? (cpuMs / requestWallMs) * 100 : 0;
+
 const output = body.choices?.[0]?.message?.content ?? "";
 const tokensGenerated = Number(usage.completion_tokens ?? timings.predicted_n ?? 0);
 
 if (!output || tokensGenerated <= 0) {
-  console.error(JSON.stringify({
-    status: "FAIL",
-    reason: "no model output or completion tokens",
-    response_path: responsePath
-  }, null, 2));
+  console.error(JSON.stringify({status:"FAIL",reason:"no model output or completion tokens",response_path:responsePath},null,2));
   process.exit(2);
 }
 
 let outputValidJson = false;
-try {
-  JSON.parse(output);
-  outputValidJson = true;
-} catch {}
+try { JSON.parse(output); outputValidJson = true; } catch {}
 
 const evidence = {
-  model_loaded: true,
-  tokens_generated: tokensGenerated,
-  prompt_tokens: Number(usage.prompt_tokens ?? timings.prompt_n ?? 0),
-  startup_ms: (Number(readyNs) - Number(startNs)) / 1e6,
-  latency_ms: (Number(reqEndNs) - Number(reqStartNs)) / 1e6,
-  prompt_tokens_per_second: Number(timings.prompt_per_second ?? 0),
-  generation_tokens_per_second: Number(timings.predicted_per_second ?? 0),
-  rss_bytes: rssBytes,
-  output_bytes: Buffer.byteLength(output),
-  output_valid_json: outputValidJson,
-  proof_verification: proof,
-  proof_scope: "vuc-mcp-real-execution-path",
-  runtime: "llama.cpp",
-  execution_kind: "real_model_inference",
-  model_path: modelPath
+  model_loaded:true,
+  tokens_generated:tokensGenerated,
+  prompt_tokens:Number(usage.prompt_tokens ?? timings.prompt_n ?? 0),
+  startup_ms:(Number(readyNs)-Number(startNs))/1e6,
+  latency_ms:requestWallMs,
+  prompt_tokens_per_second:Number(timings.prompt_per_second ?? 0),
+  generation_tokens_per_second:Number(timings.predicted_per_second ?? 0),
+  rss_bytes:rssBytes,
+  cpu_user_system_ms:cpuMs,
+  cpu_percent:cpuPercent,
+  output_bytes:Buffer.byteLength(output),
+  output_valid_json:outputValidJson,
+  proof_verification:proof,
+  proof_scope:"vuc-mcp-real-execution-path",
+  runtime:"llama.cpp",
+  execution_kind:"real_model_inference",
+  model_path:modelPath
 };
 
-console.log(JSON.stringify(evidence, null, 2));
+console.log(JSON.stringify(evidence,null,2));
 if (!outputValidJson || proof !== "PASS") process.exit(1);
 NODE
