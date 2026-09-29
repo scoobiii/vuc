@@ -262,6 +262,37 @@ const report = {
 
 await mkdir(OUT_DIR, { recursive: true });
 await writeFile(path.join(OUT_DIR, "capacity-results.json"), JSON.stringify(report, null, 2) + "\n");
+
+const summaryLines = [
+  "# Micro-LLM Capacity Benchmark Summary",
+  "",
+  `Model: ${MODEL_ID}`,
+  `Runtime: llama.cpp`,
+  `Levels: ${concurrency.join(", ")}`,
+  `Repetitions: ${repetitions}`,
+  "",
+  "## Observed levels",
+  "",
+  "| N | executions | passes | failures | error rate | throughput tok/s | latency p50 | latency p95 | latency p99 | RSS max | CPU p95 | proof failures |",
+  "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+  ...levels.map(x => `| ${x.n} | ${x.executions} | ${x.passes} | ${x.failures} | ${x.error_rate} | ${x.throughput_tokens_per_second.toFixed(2)} | ${x.latency_ms.p50 ?? "n/a"} | ${x.latency_ms.p95 ?? "n/a"} | ${x.latency_ms.p99 ?? "n/a"} | ${x.rss_bytes.max ?? "n/a"} | ${x.cpu_percent.p95 ?? "n/a"} | ${x.proof_failures} |`),
+  "",
+  "## Capacity",
+  "",
+  `N_technical observed maximum PASS: ${nTechnical ?? "not established"}`,
+  `N_technical boundary: ${certifiedBoundary ? "CERTIFIED" : "UNRESOLVED — no higher-level failed execution with valid ExecutionProof"}`,
+  `N_sustainable: ${report.capacity.n_sustainable ?? "not measured — explicit SLO required"}`,
+  `N_productive: ${report.capacity.n_productive ?? "not measured — explicit SLA required"}`,
+  "",
+  "## Fail-closed interpretation",
+  "",
+  "- A PASS requires real model output, valid JSON and valid ExecutionProof.",
+  "- A timeout or failure without valid ExecutionProof is preserved as evidence but does not certify the capacity boundary.",
+  "- No N_sustainable or N_productive value is fabricated without explicit thresholds.",
+  ""
+].join("\n");
+
+await writeFile(path.join(OUT_DIR, "capacity-summary.md"), summaryLines + "\n");
 console.log(JSON.stringify(report, null, 2));
 
-if (report.status !== "PASS") process.exit(1);
+if (report.status !== "MEASURED") process.exit(1);
