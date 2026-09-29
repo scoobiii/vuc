@@ -51,14 +51,31 @@ try {
     child.on("close",code=>{clearTimeout(timer);resolve({code:code??1,stdout,stderr});});
   });
 
+  if (evidenceDir) {
+    await mkdir(evidenceDir,{recursive:true});
+    for (const name of ["llama-server.log","response.json","vuc-proof.log","request.json"]) {
+      try { await copyFile(path.join(sandbox,name),path.join(evidenceDir,name)); } catch {}
+    }
+  }
+
+  let payload:RuntimeResult | null = null;
+  try { payload=JSON.parse(result.stdout.trim()); } catch {}
+
   if (result.code!==0) {
-    console.error(JSON.stringify({status:"FAIL",execution_id:executionId,exit_code:result.code,stderr:result.stderr.slice(-4000)},null,2));
+    console.error(JSON.stringify({
+      status:"FAIL",
+      execution_id:executionId,
+      exit_code:result.code,
+      stderr:result.stderr.slice(-4000),
+      runtime_output:result.stdout.slice(-4000)
+    },null,2));
     process.exit(1);
   }
 
-  let payload:RuntimeResult;
-  try { payload=JSON.parse(result.stdout.trim()); }
-  catch { console.error(JSON.stringify({status:"FAIL",reason:"runtime must emit JSON evidence",stdout:result.stdout.slice(-4000)},null,2)); process.exit(1); }
+  if (!payload) {
+    console.error(JSON.stringify({status:"FAIL",reason:"runtime must emit JSON evidence",stdout:result.stdout.slice(-4000)},null,2));
+    process.exit(1);
+  }
 
   const evidence={
     execution_id:executionId,
@@ -86,13 +103,6 @@ try {
     status: payload.model_loaded && payload.tokens_generated>0 && payload.output_valid_json===true && payload.proof_verification==="PASS" ? "PASS" : "FAIL",
     elapsed_wrapper_ms:Date.now()-started
   };
-
-  if (evidenceDir) {
-    await mkdir(evidenceDir,{recursive:true});
-    for (const name of ["llama-server.log","response.json","vuc-proof.log","request.json"]) {
-      try { await copyFile(path.join(sandbox,name),path.join(evidenceDir,name)); } catch {}
-    }
-  }
 
   console.log(JSON.stringify(evidence,null,2));
   if (evidence.status!=="PASS") process.exit(1);
