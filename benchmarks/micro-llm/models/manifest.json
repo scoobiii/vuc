@@ -1,0 +1,13 @@
+[
+  {
+    "model_id":"Qwen/Qwen2.5-0.5B-Instruct",
+    "parameters":494000000,
+    "license":"Apache-2.0",
+    "architecture":"qwen2",
+    "format":"model-native-or-runtime-supported",
+    "quantization":"unquantized-or-runtime-selected",
+    "source":"https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
+    "track":"native-500m",
+    "verified":true
+  }
+]

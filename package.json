@@ -113,7 +113,9 @@
     "test:tenant-policy": "tsx tests/tenant-principal-policy-conformance.test.ts",
     "colab:preflight": "tsx scripts/colab-preflight.ts",
     "gpu:termux": "tsx scripts/termux-gpu-matrix.ts",
-    "test:bench-runtime-gad": "tsx tests/bench-runtime-gad.test.ts"
+    "test:bench-runtime-gad": "tsx tests/bench-runtime-gad.test.ts",
+    "benchmark:models:validate": "tsx benchmarks/micro-llm/models/validate.ts",
+    "benchmark:environment": "tsx benchmarks/micro-llm/environment/collect.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
