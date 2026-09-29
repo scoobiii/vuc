@@ -40,7 +40,7 @@ if [[ "$ready" != "1" ]]; then
 fi
 
 cat >"$OUT_DIR/request.json" <<'JSON'
-{"model":"micro-llm","messages":[{"role":"system","content":"Return concise valid JSON when asked. You are an execution-proposal model; do not claim that you executed tools."},{"role":"user","content":"Return exactly one JSON object with keys action and capability. action must be inspect_repo and capability must be read."}],"temperature":0,"max_tokens":64,"stream":false}
+{"model":"micro-llm","messages":[{"role":"system","content":"Return exactly one JSON object. Do not use markdown fences or additional prose. You are an execution-proposal model; do not claim that you executed tools."},{"role":"user","content":"Return exactly one JSON object with keys action and capability. action must be inspect_repo and capability must be read."}],"temperature":0,"max_tokens":64,"stream":false,"response_format":{"type":"json_object"}}
 JSON
 
 REQ_START_NS=$(date +%s%N)
