@@ -13,6 +13,8 @@ type RuntimeResult = {
   prompt_tokens_per_second?:number;
   generation_tokens_per_second?:number;
   rss_bytes?:number;
+  cpu_user_system_ms?:number;
+  cpu_percent?:number;
   output_bytes?:number;
   output_valid_json?:boolean;
   runtime?:string;
@@ -93,6 +95,8 @@ try {
     prompt_tokens_per_second:payload.prompt_tokens_per_second??0,
     generation_tokens_per_second:payload.generation_tokens_per_second??0,
     rss_bytes:payload.rss_bytes??0,
+    cpu_user_system_ms:payload.cpu_user_system_ms??0,
+    cpu_percent:payload.cpu_percent??0,
     output_bytes:payload.output_bytes??0,
     output_valid_json:payload.output_valid_json??false,
     exit_code:result.code,
