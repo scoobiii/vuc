@@ -277,6 +277,15 @@ export class DrexGovernanceEngine {
 
       case 'SETTLE_ENERGY_DVP': {
         // Fase 2: RWA de energia — Delivery Versus Payment.
+        // O identificador do ativo e o trilho de liquidação fazem parte do
+        // domínio assinado; uma prova financeira não pode ser reutilizada
+        // para outro ativo ou outro rail.
+        if (payload.settlementRail !== 'DREX') {
+          throw new Error('Energy DvP bloqueado: settlementRail deve ser DREX.');
+        }
+        if (!payload.energyAssetId || payload.energyAssetId.trim().length < 3) {
+          throw new Error('Energy DvP bloqueado: energyAssetId obrigatório.');
+        }
         // A prova nativa é aceita antes de qualquer mutação das duas pernas.
         const price = payload.amountRealDigital;
         const volume = payload.energyMwh ?? 0;
@@ -444,6 +453,10 @@ export class DrexGovernanceEngine {
       receiverId: payload.receiverId,
       amountRealDigital: payload.amountRealDigital,
       volumeTpft: payload.volumeTpft,
+      energyMwh: payload.energyMwh,
+      energyAssetId: payload.energyAssetId,
+      settlementRail: payload.settlementRail,
+      tpftSeries: payload.tpftSeries,
       lawsVerified,
       timestamp,
       legalBasis: payload.legalBasis,
