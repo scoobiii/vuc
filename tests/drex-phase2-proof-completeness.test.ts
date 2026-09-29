@@ -59,8 +59,6 @@ const energyResult = DrexGovernanceEngine.executeTransaction({
   settlementRail: 'DREX',
   legalBasis: 'DREX Phase 2 pilot energy DvP',
   privacyPreserving: false,
-  energyAssetId: 'ENERGY-PILOT-001',
-  settlementRail: 'DREX',
 });
 
 assert.equal(energyResult.success, true);
