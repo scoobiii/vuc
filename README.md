@@ -4,16 +4,17 @@
 
 ![Mascote VUC - O Pangolim de Governança](./public/vua-mascot.jpg)
 
-### *O Pangolim da Governança e Execução Criptográfica*
-*(Mascote oficial no clássico estilo gravura xilogravura O'Reilly)*
+### VUC: promessa, entrega e prova
 
-> *"Defendendo a verdade criptográfica, a neutralidade de sistemas operacionais e a integridade de execução delimitada sob as leis de GOS3 e RFC 8785."*
+**Prometemos:** conectar operações, executar sob governança e produzir evidência verificável.
 
-[![Node.js Conformance](https://img.shields.io/badge/VUC-100%25%20PASS-emerald?style=flat-square&logo=node.js)](./docs/01-visao-geral-e-instalacao.md)
-[![RFC 8785 Canonical](https://img.shields.io/badge/RFC%208785-JCS%20Canonical-cyan?style=flat-square)](./docs/01-visao-geral-e-instalacao.md)
-[![Ed25519 Signed](https://img.shields.io/badge/Identity-Ed25519%20Proof%20v1-indigo?style=flat-square)](./docs/01-visao-geral-e-instalacao.md)
-[![Mobile & Terminal](https://img.shields.io/badge/Platform-Termux%20%7C%20Alpine%20%7C%20Android%20%7C%20Linux%20%7C%20Windows-amber?style=flat-square)](./docs/04-termux-e-alpine-proot.md)
-[![Golden Rule Gate](https://img.shields.io/badge/Merge%20Gate-CI%20100%25%20PASS%20%E2%86%92%20mergeability%20OK%20%E2%86%92%20merge-violet?style=flat-square)](./docs/05-adapters-local-vs-github-remoto.md)
+**Entregamos:** o que o código, os testes e o CI comprovam agora — não uma lista de intenções.
+
+**Você usa assim:** pessoa → CLI `vuc` · developer → CLI/MCP/API · agent → execução + prova.
+
+[Estado vivo do CI](./docs/CI-STATUS.md) · [Pacote npm `@vucfoundation/vuc@1.0.2`](https://www.npmjs.com/package/@vucfoundation/vuc)
+
+> **Regra:** se o CI não comprova, a documentação não declara como entregue.
 
 </div>
 
@@ -51,25 +52,30 @@ A ideia é simples: **problema → adapter → execução → evidência → gov
 
 O projeto pode integrar execução local e remota, incluindo **CPU, GPU/Vulkan, Bend, Termux/ARM64, Cloud e MCP**. Resultados de benchmark devem ser tratados como evidência do workload executado, não como promessa genérica de desempenho.
 
-Para instalar e testar a versão publicada:
+Para instalar e testar a versão alvo publicada:
 
 ```bash
-npx --yes @vucfoundation/vuc@1.0.1 status
+npm install -g @vucfoundation/vuc@1.0.2
+vuc status
+vuc adapters
+vuc conformance
+vuc repo inspect
 ```
 
 CLI atual:
 
 ```bash
+vuc status
+vuc adapters
+vuc conformance
+vuc repo inspect
+
+# aliases de compatibilidade/interface
 vua status
-vua adapters
-vua baseline
-vua conformance
-vua bench --iterations 500
-vua mock audit
-vua verify <proof.json>
+vortex status
 ```
 
-> **Nota:** `vortex` é o nome da interface pública/arquitetura. O comando CLI atualmente publicado continua sendo `vua`; não documentamos um binário `vortex` como disponível até que ele seja efetivamente publicado.
+> **Contrato CLI 1.0.2:** `vuc` é o comando canônico; `vua` é compatibilidade; `vortex` é alias. Os três apontam para o mesmo runtime empacotado quando instalados pelo pacote `@vucfoundation/vuc@1.0.2`.
 
 ### Direção da plataforma
 
@@ -144,11 +150,11 @@ O VUC pode ser executado instantaneamente sem necessidade de clonar o repositór
 
 ```bash
 # Execução direta e efêmera via npx:
-npx @vortexfoundation/vuc status
-npx @vortexfoundation/vuc baseline
+npx @vucfoundation/vuc status
+npx @vucfoundation/vuc baseline
 
 # Instalação global do comando 'vuc' (ou 'vua'):
-npm install -g @vortexfoundation/vuc
+npm install -g @vucfoundation/vuc@1.0.2
 vuc status
 vuc adapters
 ```
@@ -156,7 +162,7 @@ vuc adapters
 ### 2. Instalação e Uso no Windows (PowerShell / CMD / WSL2)
 ```powershell
 # No PowerShell ou CMD com Node.js instalado:
-npm install -g @vortexfoundation/vuc
+npm install -g @vucfoundation/vuc@1.0.2
 vuc status
 
 # Iniciar servidor MCP local no Windows:
@@ -179,12 +185,12 @@ Para conectar aplicativos do Windows (PowerShell, scripts C#, agentes locais), c
 # Linux (Ubuntu, Debian, Fedora, Alpine):
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs
-npm install -g @vortexfoundation/vuc
+npm install -g @vucfoundation/vuc
 vuc baseline
 
 # macOS (via Terminal ou Homebrew):
 brew install node
-npm install -g @vortexfoundation/vuc
+npm install -g @vucfoundation/vuc@1.0.2
 vuc status
 ```
 
@@ -292,7 +298,7 @@ Edite seu arquivo de configuração `claude_desktop_config.json`:
   "mcpServers": {
     "vuc-governance": {
       "command": "npx",
-      "args": ["-y", "@vortexfoundation/vuc", "mcp"]
+      "args": ["-y", "@vucfoundation/vuc", "mcp"]
     }
   }
 }
@@ -303,7 +309,7 @@ Edite seu arquivo de configuração `claude_desktop_config.json`:
 No Cursor, acesse **Cursor Settings $\to$ Features $\to$ MCP Servers $\to$ Add New MCP Server**:
 - **Name**: `vuc-governance`
 - **Type**: `command`
-- **Command**: `npx -y @vortexfoundation/vuc mcp`
+- **Command**: `npx -y @vucfoundation/vuc mcp`
 
 *(Ou configure como SSE com URL `http://localhost:3000/sse` se o servidor estiver rodando localmente).*
 
