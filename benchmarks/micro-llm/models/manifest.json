@@ -1,13 +1,30 @@
 [
   {
-    "model_id":"Qwen/Qwen2.5-0.5B-Instruct",
-    "parameters":494000000,
-    "license":"Apache-2.0",
-    "architecture":"qwen2",
-    "format":"model-native-or-runtime-supported",
-    "quantization":"unquantized-or-runtime-selected",
-    "source":"https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
-    "track":"native-500m",
-    "verified":true
+    "model_id": "Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF",
+    "native_parameters": 494000000,
+    "stored_parameters": 494000000,
+    "license": "Apache-2.0",
+    "architecture": "qwen2",
+    "format": "GGUF",
+    "quantization": "Q4_K_M",
+    "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF",
+    "file": "qwen2.5-coder-0.5b-instruct-q4_k_m.gguf",
+    "sha256": "1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32",
+    "track": "native-500m",
+    "verified": true
+  },
+  {
+    "model_id": "unsloth/SmolLM2-360M-Instruct-GGUF",
+    "native_parameters": 360000000,
+    "stored_parameters": 360000000,
+    "license": "Apache-2.0",
+    "architecture": "smollm2",
+    "format": "GGUF",
+    "quantization": "Q4_K_M",
+    "source": "https://huggingface.co/unsloth/SmolLM2-360M-Instruct-GGUF",
+    "file": "SmolLM2-360M-Instruct-Q4_K_M.gguf",
+    "sha256": "16c7f1667fea34bacad196a57b548effcb37614db4ab5677a20c8c7b823b9e63",
+    "track": "native-500m",
+    "verified": true
   }
 ]

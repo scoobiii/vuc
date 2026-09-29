@@ -5,12 +5,15 @@ on:
   pull_request:
     paths:
       - "benchmarks/micro-llm/**"
-      - "docs/micro-llm-benchmark/**"
       - ".github/workflows/micro-llm-benchmark.yml"
       - "package.json"
 
 permissions:
   contents: read
+
+env:
+  LLAMA_CPP_TAG: b11225
+  LLAMA_CACHE: ${{ github.workspace }}/.cache/llama
 
 jobs:
   validate:
@@ -30,18 +33,30 @@ jobs:
         run: |
           mkdir -p reports/micro-llm-benchmark
           npm run benchmark:environment > reports/micro-llm-benchmark/environment.json
-      - name: Publish validation evidence
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: micro-llm-contract-evidence
           path: reports/micro-llm-benchmark/environment.json
 
   real-execution:
-    name: Real Model Execution (fail-closed)
+    name: Real ${{ matrix.name }} (CPU)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: validate
-    if: ${{ vars.VUC_LLM_COMMAND != '' && vars.VUC_LLM_MODEL != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Qwen2.5-Coder-0.5B-Q4_K_M
+            model_id: Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF
+            file: qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+            sha256: 1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32
+            url: https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+          - name: SmolLM2-360M-Q4_K_M
+            model_id: unsloth/SmolLM2-360M-Instruct-GGUF
+            file: SmolLM2-360M-Instruct-Q4_K_M.gguf
+            sha256: 16c7f1667fea34bacad196a57b548effcb37614db4ab5677a20c8c7b823b9e63
+            url: https://huggingface.co/unsloth/SmolLM2-360M-Instruct-GGUF/resolve/main/SmolLM2-360M-Instruct-Q4_K_M.gguf
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,27 +64,117 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Execute configured real runtime
-        env:
-          VUC_LLM_COMMAND: ${{ vars.VUC_LLM_COMMAND }}
-          VUC_LLM_MODEL: ${{ vars.VUC_LLM_MODEL }}
-          VUC_LLM_TIMEOUT_MS: ${{ vars.VUC_LLM_TIMEOUT_MS || '120000' }}
+
+      - name: Cache llama.cpp binary
+        uses: actions/cache@v4
+        with:
+          path: .cache/llama/bin
+          key: llama-cpp-${{ runner.os }}-${{ runner.arch }}-${{ env.LLAMA_CPP_TAG }}-cpu-v1
+
+      - name: Install pinned llama.cpp CPU binary
         run: |
+          set -euo pipefail
+
+          mkdir -p .cache/llama/bin
+          rm -rf /tmp/llama-extract
+          mkdir -p /tmp/llama-extract
+
+          if [[ ! -x .cache/llama/bin/llama-server ]]; then
+            asset_url="$(curl -fsSL \
+              "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/$LLAMA_CPP_TAG" \
+              | jq -r '
+                .assets[]
+                | select(.name | test("^llama-.*-bin-ubuntu-x64\\.tar\\.gz$"; "i"))
+                | select(.name | test("vulkan|cuda|rocm|openvino|sycl"; "i") | not)
+                | .browser_download_url
+              ' \
+              | head -n 1)"
+
+            test -n "$asset_url"
+            echo "llama.cpp asset: $asset_url"
+
+            curl -fsSL \
+              --retry 3 \
+              --retry-all-errors \
+              "$asset_url" \
+              -o /tmp/llama.tar.gz
+
+            tar -xzf /tmp/llama.tar.gz -C /tmp/llama-extract
+
+            server_path="$(find /tmp/llama-extract \
+              -type f \
+              -name 'llama-server' \
+              -print -quit)"
+
+            test -n "$server_path"
+
+            bundle_dir="$(dirname "$server_path")"
+            rm -rf .cache/llama/bin/*
+            cp -a "$bundle_dir"/. .cache/llama/bin/
+            chmod +x .cache/llama/bin/llama-server
+          fi
+
+          export LD_LIBRARY_PATH="${PWD}/.cache/llama/bin:${LD_LIBRARY_PATH:-}"
+
+          test -x .cache/llama/bin/llama-server
+
+          echo "=== llama-server ==="
+          file .cache/llama/bin/llama-server
+
+          echo "=== shared libraries ==="
+          find .cache/llama/bin \
+            -maxdepth 1 \
+            -type f \
+            \( -name '*.so' -o -name '*.so.*' \) \
+            -print | sort
+
+          echo "=== dynamic dependencies ==="
+          ldd .cache/llama/bin/llama-server
+
+          echo "=== llama-server version ==="
+          .cache/llama/bin/llama-server --version
+
+      - name: Cache GGUF model
+        uses: actions/cache@v4
+        with:
+          path: .cache/llama/models/${{ matrix.file }}
+          key: micro-llm-${{ matrix.file }}-${{ matrix.sha256 }}
+
+      - name: Download and verify GGUF
+        env:
+          MODEL_URL: ${{ matrix.url }}
+          MODEL_FILE: ${{ matrix.file }}
+          MODEL_SHA256: ${{ matrix.sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/llama/models
+          if [[ ! -f ".cache/llama/models/$MODEL_FILE" ]]; then
+            curl -fL --retry 3 --retry-all-errors "$MODEL_URL" -o ".cache/llama/models/$MODEL_FILE"
+          fi
+          echo "$MODEL_SHA256  .cache/llama/models/$MODEL_FILE" | sha256sum -c -
+
+      - name: Execute real model through VUC sandbox
+        env:
+          VUC_LLM_COMMAND: >-
+            chmod +x "$GITHUB_WORKSPACE/benchmarks/micro-llm/runtime/run-llama-server.sh" &&
+            "$GITHUB_WORKSPACE/benchmarks/micro-llm/runtime/run-llama-server.sh"
+            "$GITHUB_WORKSPACE/.cache/llama/models/${{ matrix.file }}"
+            "$GITHUB_WORKSPACE/.cache/llama/bin/llama-server"
+            "8080"
+            "$VUC_SANDBOX"
+          VUC_LLM_MODEL: ${{ matrix.model_id }}
+          VUC_LLM_TASK: "json-capability-proposal"
+          VUC_LLM_TIMEOUT_MS: "180000"
+          VUC_REPO_ROOT: ${{ github.workspace }}
+          VUC_EVIDENCE_DIR: ${{ github.workspace }}/reports/micro-llm-benchmark
+        run: |
+          set -euo pipefail
           mkdir -p reports/micro-llm-benchmark
           npm exec tsx benchmarks/micro-llm/runtime/run.ts | tee reports/micro-llm-benchmark/execution-evidence.json
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: micro-llm-execution-evidence
-          path: reports/micro-llm-benchmark/execution-evidence.json
 
-  runtime-not-configured:
-    name: Real Runtime Not Configured
-    runs-on: ubuntu-latest
-    needs: validate
-    if: ${{ vars.VUC_LLM_COMMAND == '' || vars.VUC_LLM_MODEL == '' }}
-    steps:
-      - run: |
-          echo "::warning::Real LLM runtime is not configured."
-          echo "Status: BLOCKED"
-          echo "No model execution is counted."
+      - name: Publish real execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: micro-llm-execution-${{ matrix.name }}
+          path: reports/micro-llm-benchmark/
