@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 type Evidence = {
@@ -223,9 +223,12 @@ const productive = levels.filter(x => {
     x.throughput_tokens_per_second >= productiveThroughput;
 }).map(x => x.n);
 
+const higherLevelFailures = levels.filter(x => x.n > (nTechnical ?? 0) && x.failures > 0);
+const certifiedBoundary = higherLevelFailures.some(x => x.failures > 0 && x.proof_failures === 0) && nTechnical !== null;
 const report = {
   schema_version: "vuc-micro-llm-capacity-v1",
-  status: levels.every(x => x.failures === 0 && x.proof_failures === 0) ? "PASS" : "FAIL",
+  status: baseline && baseline.failures === 0 && baseline.proof_failures === 0 ? "MEASURED" : "FAIL",
+  data_quality: levels.some(x => x.proof_failures > 0) ? "UNPROVEN_FAILURE_PRESENT" : "VALID",
   model_id: MODEL_ID,
   model_path: MODEL_PATH,
   runtime: "llama.cpp",
@@ -235,6 +238,7 @@ const report = {
   levels,
   capacity: {
     n_technical: nTechnical,
+    n_technical_boundary_status: certifiedBoundary ? "CERTIFIED" : "UNRESOLVED_NO_VALID_PROOFED_FAILURE",
     n_sustainable: sustainable.length ? Math.max(...sustainable) : null,
     n_productive: productive.length ? Math.max(...productive) : null,
     n_sustainable_status: maxP95 !== null && maxRSS !== null && maxError !== null && minThroughputRatio !== null ? "MEASURED" : "UNDEFINED_NO_SLO",
