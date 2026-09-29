@@ -59,6 +59,8 @@ const energyResult = DrexGovernanceEngine.executeTransaction({
   settlementRail: 'DREX',
   legalBasis: 'DREX Phase 2 pilot energy DvP',
   privacyPreserving: false,
+  energyAssetId: 'ENERGY-PILOT-001',
+  settlementRail: 'DREX',
 });
 
 assert.equal(energyResult.success, true);
@@ -72,3 +74,34 @@ assert.equal(DrexGovernanceEngine.getAccount(buyer.id)!.energyMwhBalance, buyerE
 assert.equal(DrexGovernanceEngine.getAccount(seller.id)!.energyMwhBalance, sellerEnergyBefore - 10);
 
 console.log('PASS: Phase 2 energy DvP native proof + proof-before-mutation');
+
+const canonical = JSON.parse(energyResult.canonicalJcs);
+assert.equal(canonical.energyAssetId, 'ENERGY-PILOT-001');
+assert.equal(canonical.settlementRail, 'DREX');
+assert.equal(canonical.energyMwh, 10);
+
+const tamperedCanonical = JSON.stringify({ ...canonical, energyAssetId: 'ENERGY-ATTACKER-002' });
+assert.notEqual(tamperedCanonical, energyResult.canonicalJcs);
+assert.notEqual(
+  energyResult.proofHash,
+  (await import('../src/vortex/crypto.js')).sha256(tamperedCanonical),
+  'Changing the bound energy asset must change the proof digest',
+);
+
+assert.throws(
+  () => DrexGovernanceEngine.executeTransaction({
+    operation: 'SETTLE_ENERGY_DVP',
+    actorRole: 'END_USER',
+    senderId: buyer.id,
+    receiverId: seller.id,
+    amountRealDigital: 10_000,
+    volumeTpft: 0,
+    energyMwh: 10,
+    energyAssetId: 'ENERGY-PILOT-001',
+    settlementRail: 'TOKENIZED_ASSET',
+    legalBasis: 'DREX Phase 2 rail binding test',
+    privacyPreserving: false,
+  }),
+  /settlementRail deve ser DREX/,
+  'energy DvP must fail closed on a non-DREX settlement rail',
+);
