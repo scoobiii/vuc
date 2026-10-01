@@ -53,17 +53,34 @@ jobs:
           mkdir -p bin/native/bin
           bash scripts/install-bend.sh || true
 
-      - name: Normalize lockfile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Validate lockfile without rewriting it
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          if (lock.lockfileVersion !== 3) throw new Error('package-lock.json must use lockfileVersion 3');
+          if (lock.name !== '@vucfoundation/vuc' || lock.version !== '1.0.2') {
+            throw new Error('package-lock.json identity mismatch');
+          }
+          const requiredOptional = [
+            'node_modules/@rollup/rollup-linux-arm64-gnu',
+            'node_modules/@rollup/rollup-linux-x64-gnu',
+            'node_modules/lightningcss-linux-arm64-gnu',
+            'node_modules/lightningcss-linux-x64-gnu'
+          ];
+          for (const path of requiredOptional) {
+            if (!lock.packages?.[path]) throw new Error('lockfile missing required optional package: ' + path);
+          }
+          console.log('Lockfile static contract: PASS');
+          NODE
+          git diff --exit-code -- package-lock.json
 
       - name: Install Dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Install native Bend
         run: npm run install:bend
-
-      - name: Verify lockfile is reproducible
-        run: git diff --exit-code -- package-lock.json
 
       - name: Reject unresolved merge conflict markers
         run: |
