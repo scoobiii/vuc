@@ -53,7 +53,7 @@ jobs:
           mkdir -p bin/native/bin
           bash scripts/install-bend.sh || true
 
-      - name: Validate lockfile without rewriting it
+      - name: "AGENT dependency — validate lockfile"
         run: |
           set -euo pipefail
           node <<'NODE'
@@ -72,17 +72,17 @@ jobs:
           for (const path of requiredOptional) {
             if (!lock.packages?.[path]) throw new Error('lockfile missing required optional package: ' + path);
           }
-          console.log('Lockfile static contract: PASS');
+          console.log('dependency agent: lockfile static contract PASS');
           NODE
           git diff --exit-code -- package-lock.json
 
-      - name: Install Dependencies
+      - name: "AGENT dependency — npm ci"
         run: npm ci --no-audit --no-fund
 
       - name: Install native Bend
         run: npm run install:bend
 
-      - name: Reject unresolved merge conflict markers
+      - name: "AGENT security — reject unresolved merge markers"
         run: |
           set -euo pipefail
           matches="$(git grep -n -E '^(<<<<<<<|>>>>>>>)( |$)' -- . ':!*.lock' || true)"
@@ -91,48 +91,44 @@ jobs:
             printf '%s\\n' "$matches"
             exit 1
           fi
-          echo "Merge conflict marker gate: PASS"
+          echo "security agent: merge conflict marker gate PASS"
 
-      - name: Run GOS3 Contract Audit
+      - name: "AGENT security — GOS3 contract"
         run: npm run verify:gos3
 
-      - name: Run VUC Sandbox Runtime & 100% Quality Gates
+      - name: "AGENT test — VUC sandbox runtime and quality gates"
         run: npm run test:ci
         env:
           CI: "true"
           VUC_SANDBOX: "strict"
 
-      - name: Build Production Assets
+      - name: "AGENT build — production assets"
         run: npm run build
 
-      - name: Build CLI Release Artifact
+      - name: "AGENT cli — release artifact"
         run: npm run build:cli
 
-      - name: Verify CLI and server artifacts
+      - name: "AGENT cli — verify artifacts"
         run: |
           set -euo pipefail
           test -s dist/vua.cjs
           test -s dist/server.cjs
-          echo "dist/vua.cjs: PASS ($(wc -c < dist/vua.cjs) bytes)"
-          echo "dist/server.cjs: PASS ($(wc -c < dist/server.cjs) bytes)"
+          echo "cli agent: dist/vua.cjs PASS ($(wc -c < dist/vua.cjs) bytes)"
+          echo "cli agent: dist/server.cjs PASS ($(wc -c < dist/server.cjs) bytes)"
 
-      - name: Verify package bin contract
+      - name: "AGENT package — verify bin contract"
         run: |
           node <<'NODE'
           const fs = require('node:fs');
           const pkg = require('./package.json');
-          if (!pkg.bin || typeof pkg.bin !== 'object') {
-            throw new Error('package.json bin contract missing');
-          }
+          if (!pkg.bin || typeof pkg.bin !== 'object') throw new Error('package.json bin contract missing');
           for (const [name, target] of Object.entries(pkg.bin)) {
-            if (!fs.existsSync(target)) {
-              throw new Error(`bin contract broken: ${name} -> ${target} does not exist`);
-            }
-            console.log(`bin contract: ${name} -> ${target}: PASS`);
+            if (!fs.existsSync(target)) throw new Error('bin contract broken: ' + name + ' -> ' + target);
+            console.log('package agent: bin ' + name + ' -> ' + target + ': PASS');
           }
           NODE
 
-      - name: Execute packaged CLI contract
+      - name: "AGENT cli — execute packaged CLI"
         run: |
           set -euo pipefail
           node dist/vua.cjs --help >/tmp/vuc-help.txt
@@ -140,34 +136,7 @@ jobs:
           node dist/vua.cjs status
           node dist/vua.cjs conformance
 
-      - name: Verify ARM64 package bin contract
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const pkg = require('./package.json');
-          if (!pkg.bin || typeof pkg.bin !== 'object') throw new Error('package.json bin contract missing');
-          for (const [name, target] of Object.entries(pkg.bin)) {
-            if (!fs.existsSync(target)) throw new Error('bin contract broken: ' + name + ' -> ' + target + ' does not exist');
-            console.log('bin contract: ' + name + ' -> ' + target + ': PASS');
-          }
-          NODE
-
-      - name: Verify ARM64 npm package contract
-        run: |
-          set -euo pipefail
-          npm pack --dry-run
-          npm pack --dry-run --json > /tmp/vuc-pack-arm64.json
-          node <<'NODE'
-          const fs = require('node:fs');
-          const data = JSON.parse(fs.readFileSync('/tmp/vuc-pack-arm64.json', 'utf8'));
-          const files = new Set((data[0]?.files ?? []).map(f => f.path));
-          for (const required of ['dist/vua.cjs', 'dist/server.cjs', 'package.json']) {
-            if (!files.has(required)) throw new Error('npm package contract broken: missing ' + required);
-            console.log('npm package contract: ' + required + ': PASS');
-          }
-          NODE
-
-      - name: Verify npm package contract
+      - name: "AGENT package — verify npm package"
         run: |
           set -euo pipefail
           npm pack --dry-run
@@ -177,12 +146,17 @@ jobs:
           const data = JSON.parse(fs.readFileSync('/tmp/vuc-pack.json', 'utf8'));
           const files = new Set((data[0]?.files ?? []).map(f => f.path));
           for (const required of ['dist/vua.cjs', 'dist/server.cjs', 'package.json']) {
-            if (!files.has(required)) {
-              throw new Error(`npm package contract broken: missing ${required}`);
-            }
-            console.log(`npm package contract: ${required}: PASS`);
+            if (!files.has(required)) throw new Error('npm package contract broken: missing ' + required);
+            console.log('package agent: ' + required + ': PASS');
           }
           NODE
+
+      - name: "AGENT release — record failure owner"
+        if: failure()
+        run: |
+          echo "RELEASE = BLOCKED"
+          echo "The failing step above owns its failure class."
+          echo "Do not broaden the fix to unrelated CI responsibilities."
 
       - name: Upload execution evidence
         if: always()
@@ -209,33 +183,99 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install Dependencies (ARM64)
+      - name: "AGENT dependency — npm ci ARM64"
         run: npm ci --no-audit --no-fund
 
-      - name: Verify package identity
+      - name: "AGENT dependency — verify package identity"
         run: |
           set -euo pipefail
           node -e 'const p=require("./package.json"); if (p.name !== "@vucfoundation/vuc" || p.version !== "1.0.2") process.exit(1);'
+          echo "dependency agent: package identity PASS"
 
-      - name: Build Production Assets (ARM64)
+      - name: "AGENT native-arm64 — verify native optional packages"
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const paths = [
+            'node_modules/@rollup/rollup-linux-arm64-gnu',
+            'node_modules/lightningcss-linux-arm64-gnu',
+          ];
+          for (const dir of paths) {
+            if (!fs.existsSync(dir)) throw new Error('native-arm64 agent: missing installed package ' + dir);
+            console.log('native-arm64 agent: installed ' + dir + ': PASS');
+          }
+          NODE
+
+      - name: "AGENT native-arm64 — production build"
         run: npm run build
 
-      - name: Build CLI Release Artifact (ARM64)
+      - name: "AGENT cli — ARM64 release artifact"
         run: npm run build:cli
 
-      - name: Verify ARM64 release artifacts
+      - name: "AGENT package — ARM64 release artifacts"
         run: |
           set -euo pipefail
           test -s dist/vua.cjs
           test -s dist/server.cjs
           file dist/vua.cjs dist/server.cjs || true
-          echo "ARM64 dist/vua.cjs: PASS ($(wc -c < dist/vua.cjs) bytes)"
-          echo "ARM64 dist/server.cjs: PASS ($(wc -c < dist/server.cjs) bytes)"
+          echo "package agent: ARM64 dist/vua.cjs PASS ($(wc -c < dist/vua.cjs) bytes)"
+          echo "package agent: ARM64 dist/server.cjs PASS ($(wc -c < dist/server.cjs) bytes)"
 
-      - name: Execute ARM64 packaged CLI
+      - name: "AGENT cli — execute ARM64 CLI"
         run: |
           set -euo pipefail
           node dist/vua.cjs --help >/tmp/vuc-help.txt
-          grep -q "VUC\\|VUA" /tmp/vuc-help.txt
+          grep -q "VUC\|VUA" /tmp/vuc-help.txt
           node dist/vua.cjs status
           node dist/vua.cjs conformance
+
+      - name: "AGENT package — ARM64 npm package contract"
+        run: |
+          set -euo pipefail
+          npm pack --dry-run
+          npm pack --dry-run --json > /tmp/vuc-pack-arm64.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/vuc-pack-arm64.json', 'utf8'));
+          const files = new Set((data[0]?.files ?? []).map(f => f.path));
+          for (const required of ['dist/vua.cjs', 'dist/server.cjs', 'package.json']) {
+            if (!files.has(required)) throw new Error('npm package contract broken: missing ' + required);
+            console.log('package agent: ARM64 ' + required + ': PASS');
+          }
+          NODE
+
+      - name: "AGENT release — record ARM64 failure owner"
+        if: failure()
+        run: |
+          echo "RELEASE = BLOCKED"
+          echo "ARM64 failure remains owned by the failing agent step."
+          echo "Do not infer ARM64 compatibility from x64 success."
+
+  release-gate:
+    name: VUC Release Agent (Evidence Aggregation)
+    if: always()
+    needs:
+      - execution-integrity
+      - release-contract-arm64
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: "AGENT release — aggregate mandatory gates"
+        env:
+          SANDBOX_RESULT: ${{ needs.execution-integrity.result }}
+          ARM64_RESULT: ${{ needs.release-contract-arm64.result }}
+        run: |
+          set -euo pipefail
+          echo "execution-integrity: $SANDBOX_RESULT"
+          echo "release-contract-arm64: $ARM64_RESULT"
+
+          if [ "$SANDBOX_RESULT" != "success" ] || [ "$ARM64_RESULT" != "success" ]; then
+            echo "RELEASE = BLOCKED"
+            echo "A mandatory gate failed or did not complete successfully."
+            exit 1
+          fi
+
+          echo "RELEASE = READY"
+          echo "All mandatory CI release contracts passed."
