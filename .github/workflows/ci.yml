@@ -123,6 +123,33 @@ jobs:
           node dist/vua.cjs status
           node dist/vua.cjs conformance
 
+      - name: Verify ARM64 package bin contract
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = require('./package.json');
+          if (!pkg.bin || typeof pkg.bin !== 'object') throw new Error('package.json bin contract missing');
+          for (const [name, target] of Object.entries(pkg.bin)) {
+            if (!fs.existsSync(target)) throw new Error('bin contract broken: ' + name + ' -> ' + target + ' does not exist');
+            console.log('bin contract: ' + name + ' -> ' + target + ': PASS');
+          }
+          NODE
+
+      - name: Verify ARM64 npm package contract
+        run: |
+          set -euo pipefail
+          npm pack --dry-run
+          npm pack --dry-run --json > /tmp/vuc-pack-arm64.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/vuc-pack-arm64.json', 'utf8'));
+          const files = new Set((data[0]?.files ?? []).map(f => f.path));
+          for (const required of ['dist/vua.cjs', 'dist/server.cjs', 'package.json']) {
+            if (!files.has(required)) throw new Error('npm package contract broken: missing ' + required);
+            console.log('npm package contract: ' + required + ': PASS');
+          }
+          NODE
+
       - name: Verify npm package contract
         run: |
           set -euo pipefail
