@@ -149,3 +149,50 @@ jobs:
             .vortex-evidence.json
             reports/execution-evidence/**
           if-no-files-found: warn
+
+  release-contract-arm64:
+    name: VUC Release Contract (ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies (ARM64)
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify package identity
+        run: |
+          set -euo pipefail
+          test "$(node -p 'require(\"./package.json\").name')" = "@vucfoundation/vuc"
+          test "$(node -p 'require(\"./package.json\").version')" = "1.0.2"
+
+      - name: Build Production Assets (ARM64)
+        run: npm run build
+
+      - name: Build CLI Release Artifact (ARM64)
+        run: npm run build:cli
+
+      - name: Verify ARM64 release artifacts
+        run: |
+          set -euo pipefail
+          test -s dist/vua.cjs
+          test -s dist/server.cjs
+          file dist/vua.cjs dist/server.cjs || true
+          echo "ARM64 dist/vua.cjs: PASS ($(wc -c < dist/vua.cjs) bytes)"
+          echo "ARM64 dist/server.cjs: PASS ($(wc -c < dist/server.cjs) bytes)"
+
+      - name: Execute ARM64 packaged CLI
+        run: |
+          set -euo pipefail
+          node dist/vua.cjs --help >/tmp/vuc-help.txt
+          grep -q "VUC\\|VUA" /tmp/vuc-help.txt
+          node dist/vua.cjs status
+          node dist/vua.cjs conformance
