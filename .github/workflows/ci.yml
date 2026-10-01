@@ -12,7 +12,7 @@ jobs:
   execution-integrity:
     name: VUC Sandbox Runtime (100% Gates + Execution Integrity)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -65,6 +65,17 @@ jobs:
       - name: Verify lockfile is reproducible
         run: git diff --exit-code -- package-lock.json
 
+      - name: Reject unresolved merge conflict markers
+        run: |
+          set -euo pipefail
+          matches="$(git grep -n -E '^(<<<<<<<|>>>>>>>)( |$)' -- . ':!*.lock' || true)"
+          if [ -n "$matches" ]; then
+            echo "ERROR: unresolved Git merge conflict markers detected:"
+            printf '%s\\n' "$matches"
+            exit 1
+          fi
+          echo "Merge conflict marker gate: PASS"
+
       - name: Run GOS3 Contract Audit
         run: npm run verify:gos3
 
@@ -76,6 +87,58 @@ jobs:
 
       - name: Build Production Assets
         run: npm run build
+
+      - name: Build CLI Release Artifact
+        run: npm run build:cli
+
+      - name: Verify CLI and server artifacts
+        run: |
+          set -euo pipefail
+          test -s dist/vua.cjs
+          test -s dist/server.cjs
+          echo "dist/vua.cjs: PASS ($(wc -c < dist/vua.cjs) bytes)"
+          echo "dist/server.cjs: PASS ($(wc -c < dist/server.cjs) bytes)"
+
+      - name: Verify package bin contract
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = require('./package.json');
+          if (!pkg.bin || typeof pkg.bin !== 'object') {
+            throw new Error('package.json bin contract missing');
+          }
+          for (const [name, target] of Object.entries(pkg.bin)) {
+            if (!fs.existsSync(target)) {
+              throw new Error(`bin contract broken: ${name} -> ${target} does not exist`);
+            }
+            console.log(`bin contract: ${name} -> ${target}: PASS`);
+          }
+          NODE
+
+      - name: Execute packaged CLI contract
+        run: |
+          set -euo pipefail
+          node dist/vua.cjs --help >/tmp/vuc-help.txt
+          grep -q "VUC\|VUA" /tmp/vuc-help.txt
+          node dist/vua.cjs status
+          node dist/vua.cjs conformance
+
+      - name: Verify npm package contract
+        run: |
+          set -euo pipefail
+          npm pack --dry-run
+          npm pack --dry-run --json > /tmp/vuc-pack.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/vuc-pack.json', 'utf8'));
+          const files = new Set((data[0]?.files ?? []).map(f => f.path));
+          for (const required of ['dist/vua.cjs', 'dist/server.cjs', 'package.json']) {
+            if (!files.has(required)) {
+              throw new Error(`npm package contract broken: missing ${required}`);
+            }
+            console.log(`npm package contract: ${required}: PASS`);
+          }
+          NODE
 
       - name: Upload execution evidence
         if: always()
