@@ -98,20 +98,22 @@ if (isHelpCommand) {
 // Lazy-load the VUA application graph only after the CLI has established that
 // this is not a help/discovery request. This keeps help free of adapter
 // initialization and other potentially blocking side effects.
-({ executeVortexPipeline, CURRENT_IDENTITY } = await import('../src/vortex/gateway.js'));
-({ verifyExecutionProof } = await import('../src/vortex/verifier.js'));
-({ vuaRegistry } = await import('../src/vortex/adapters/registry.js'));
-({ runVUAAdaptersE2ESuite } = await import('../src/vortex/conformance.js'));
-({ executeGovernedLLM } = await import('../src/vortex/llm.js'));
-({ loadGovernanceSystemInstruction } = await import('../src/vortex/governance-instruction.js'));
-({ canonicalizeRFC8785 } = await import('../src/vortex/canonicalize.js'));
-({ generateVortexIdentity, signProofPayload, verifyProofSignature, sha256 } = await import('../src/vortex/crypto.js'));
-({ handleMCPMessage } = await import('../src/vortex/mcp-server.js'));
-({ RepositoryBootstrapper } = await import('../src/repository/bootstrap/RepositoryBootstrapper.js'));
-({ detectHardwareFingerprint, computeDynamicBaseline, bootstrapHardwareBaseline } = await import('../src/vortex/hardware-profiler.js'));
-({ auditPayloadForMocks } = await import('../src/vortex/mock-detector.js'));
-({ correctAndSanitizeMock } = await import('../src/vortex/mock-corrector.js'));
-({ scanRepositoryForMocks } = await import('../src/vortex/static-mock-scanner.js'));
+async function loadModules() {
+  ({ executeVortexPipeline, CURRENT_IDENTITY } = await import('../src/vortex/gateway.js'));
+  ({ verifyExecutionProof } = await import('../src/vortex/verifier.js'));
+  ({ vuaRegistry } = await import('../src/vortex/adapters/registry.js'));
+  ({ runVUAAdaptersE2ESuite } = await import('../src/vortex/conformance.js'));
+  ({ executeGovernedLLM } = await import('../src/vortex/llm.js'));
+  ({ loadGovernanceSystemInstruction } = await import('../src/vortex/governance-instruction.js'));
+  ({ canonicalizeRFC8785 } = await import('../src/vortex/canonicalize.js'));
+  ({ generateVortexIdentity, signProofPayload, verifyProofSignature, sha256 } = await import('../src/vortex/crypto.js'));
+  ({ handleMCPMessage } = await import('../src/vortex/mcp-server.js'));
+  ({ RepositoryBootstrapper } = await import('../src/repository/bootstrap/RepositoryBootstrapper.js'));
+  ({ detectHardwareFingerprint, computeDynamicBaseline, bootstrapHardwareBaseline } = await import('../src/vortex/hardware-profiler.js'));
+  ({ auditPayloadForMocks } = await import('../src/vortex/mock-detector.js'));
+  ({ correctAndSanitizeMock } = await import('../src/vortex/mock-corrector.js'));
+  ({ scanRepositoryForMocks } = await import('../src/vortex/static-mock-scanner.js'));
+}
 
 async function handleStatus() {
   printBanner();
@@ -853,7 +855,8 @@ async function handleGcloud() {
 }
 
 // Router
-switch (command) {
+function dispatch() {
+  switch (command) {
   case 'mock':
     handleMockDetector();
     break;
@@ -908,3 +911,11 @@ switch (command) {
     printHelp();
     break;
 }
+}
+
+loadModules()
+  .then(dispatch)
+  .catch((err) => {
+    console.error('Falha ao carregar módulos VUA:', err);
+    process.exit(1);
+  });
