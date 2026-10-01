@@ -171,8 +171,7 @@ jobs:
       - name: Verify package identity
         run: |
           set -euo pipefail
-          test "$(node -p 'require(\"./package.json\").name')" = "@vucfoundation/vuc"
-          test "$(node -p 'require(\"./package.json\").version')" = "1.0.2"
+          node -e 'const p=require("./package.json"); if (p.name !== "@vucfoundation/vuc" || p.version !== "1.0.2") process.exit(1);'
 
       - name: Build Production Assets (ARM64)
         run: npm run build
