@@ -65,6 +65,10 @@ jobs:
       - name: Verify lockfile is reproducible
         run: git diff --exit-code -- package-lock.json
 
+      - name: VUC Preflight — unified repository and release contract
+        run: bash scripts/vuc-preflight.sh
+
+
       - name: Reject unresolved merge conflict markers
         run: |
           set -euo pipefail
