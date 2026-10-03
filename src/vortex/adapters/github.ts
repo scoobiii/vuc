@@ -23,7 +23,7 @@ function requireGitHubToken(): string {
     );
   }
 
-  if (!/^github_pat_|^ghp_/.test(token)) {
+  if (!/^github_pat_|^ghp_|^ghs_/.test(token)) {
     throw new Error('CREDENTIAL_INVALID: unsupported GitHub token format');
   }
 

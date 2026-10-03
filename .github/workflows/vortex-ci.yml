@@ -39,18 +39,22 @@ jobs:
 
       # 2. GOS3 Contract Header Verification (Local & CI verifiable)
       - name: Audit GOS3 Contract Headers
+        if: ${{ always() }}
         run: npm run verify:gos3
 
       # 3. Production Build Compilation
       - name: Compile Applet & Server
+        if: ${{ always() }}
         run: npm run build
 
       # 4. Full Quality Gates: Unit, Integration (10/10), Stress, Performance, Degradation, Chaos
       - name: Run Full Conformance Suite (100% Gate Requirement)
+        if: ${{ always() }}
         run: npm test
 
       # 5. Reproducible VUC governance overhead benchmark
       - name: Benchmark Governance Overhead
+        if: ${{ always() }}
         run: npm run bench:governance
 
       # 6. Execution Evidence Hash Generation & Archiving

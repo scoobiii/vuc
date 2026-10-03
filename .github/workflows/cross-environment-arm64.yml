@@ -54,12 +54,15 @@ jobs:
         run: npm run test:cli
 
       - name: Unit and integration tests
+        if: ${{ always() }}
         run: npm test
 
       - name: Build
+        if: ${{ always() }}
         run: npm run build
 
       - name: VUC CI gate
+        if: ${{ always() }}
         env:
           CI: "true"
           VUC_SANDBOX: "strict"

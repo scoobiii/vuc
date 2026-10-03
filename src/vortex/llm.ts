@@ -16,7 +16,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { loadGovernanceSystemInstruction } from './governance-instruction.js';
-import { executeVortexPipeline } from './gateway.js';
+import { executeVortexPipeline, CURRENT_IDENTITY } from './gateway.js';
 import { getOrCreateGOS3Session } from './gos3.js';
 import { verifyExecutionProof } from './verifier.js';
 import { invokeLlama } from './llama-adapter.js';
@@ -30,6 +30,7 @@ export interface LLMConfig {
   baseUrl?: string;
   apiKey?: string;
   temperature?: number;
+  seed?: number;
   maxTokens?: number;
   systemInstruction?: string;
   timeoutMs?: number;
@@ -155,6 +156,7 @@ async function callOllama(
         stream: false,
         options: {
           temperature: config.temperature ?? 0.7,
+          seed: config.seed,
           num_predict: config.maxTokens ?? 2048,
         },
       }),
@@ -372,6 +374,7 @@ export async function executeGovernedLLM(
       prompt,
       systemInstruction: effectiveSystemInstruction,
       temperature: config.temperature,
+      seed: config.seed,
       maxTokens: config.maxTokens,
     },
   };
@@ -415,7 +418,7 @@ export async function executeGovernedLLM(
   // 4. Run Independent Verifier on the generated proof
   let verification: VerificationResult | undefined;
   if (pipelineResponse.execution_proof) {
-    verification = verifyExecutionProof(pipelineResponse.execution_proof);
+    verification = verifyExecutionProof(pipelineResponse.execution_proof, { trustedPublicKey: CURRENT_IDENTITY.public_key });
   }
 
   const durationMs = pipelineResponse.execution_proof?.duration_ms ?? 0;

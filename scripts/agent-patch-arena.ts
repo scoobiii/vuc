@@ -40,10 +40,6 @@ export interface AgentPatchCandidate {
     removed_lines: number;
     files_changed: number;
   };
-  simulated_metrics?: {
-    latency_p95_ms: number;
-    throughput_rps: number;
-  };
 }
 
 export interface CandidateEvaluationResult {
@@ -151,7 +147,6 @@ export async function runAgentPatchArena(
       patch_summary: 'Micro-optimized parser without external dependencies',
       changed_files: ['src/vortex/canonicalize.ts'],
       diff_stats: { added_lines: 32, removed_lines: 8, files_changed: 2 },
-      simulated_metrics: { latency_p95_ms: 0.7, throughput_rps: 1450 },
     },
     {
       agent_id: 'agent-governance-patch',
@@ -166,7 +161,6 @@ export async function runAgentPatchArena(
         '.github/workflows/agent-patch-arena.yml',
       ],
       diff_stats: { added_lines: 165, removed_lines: 14, files_changed: 4 },
-      simulated_metrics: { latency_p95_ms: 0.8, throughput_rps: 1390 },
     },
     {
       agent_id: 'agent-gemini-pro',
@@ -176,7 +170,6 @@ export async function runAgentPatchArena(
       patch_summary: 'OAuth 2.1 resource protection and strict router contract',
       changed_files: ['src/vortex/oauth.ts', 'src/vortex/policy.ts'],
       diff_stats: { added_lines: 48, removed_lines: 12, files_changed: 3 },
-      simulated_metrics: { latency_p95_ms: 0.9, throughput_rps: 1320 },
     },
     {
       agent_id: 'agent-claude-sonnet',
@@ -186,7 +179,6 @@ export async function runAgentPatchArena(
       patch_summary: 'Expanded semantic schema + additional invariant guards',
       changed_files: ['src/vortex/types.ts', 'src/vortex/adapters/registry.ts'],
       diff_stats: { added_lines: 112, removed_lines: 34, files_changed: 5 },
-      simulated_metrics: { latency_p95_ms: 1.1, throughput_rps: 1180 },
     },
     {
       agent_id: 'agent-overbroad-wildcard',
@@ -196,7 +188,6 @@ export async function runAgentPatchArena(
       patch_summary: 'Allows unrestricted wildcard scopes to bypass approvals',
       changed_files: ['src/vortex/policy.ts'],
       diff_stats: { added_lines: 5, removed_lines: 20, files_changed: 1 },
-      simulated_metrics: { latency_p95_ms: 0.4, throughput_rps: 1600 },
     },
   ];
 
@@ -287,8 +278,9 @@ export async function runAgentPatchArena(
     const candidateCanaryPass = isAdversarial ? 0 : canaryPassedCount;
     const isCanaryValid = candidateCanaryPass === 5;
     const candidateAccuracy = isAdversarial ? 20.0 : baselineAccuracy;
-    const latency = candidate.simulated_metrics?.latency_p95_ms || 1.0;
-    const rps = candidate.simulated_metrics?.throughput_rps || 1200;
+    const measuredMetric = (() => { throw new Error('LEGACY_ARENA_TS_DISABLED: use scripts/agent-patch-arena.py for real base-vs-head benchmarking'); })();
+    const latency = measuredMetric;
+    const rps = measuredMetric;
     const churn = candidate.diff_stats.added_lines + candidate.diff_stats.removed_lines;
 
     const evaluation = calculatePatchFitnessScore({
