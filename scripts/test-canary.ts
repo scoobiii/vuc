@@ -8,6 +8,7 @@
 
 import { vuaRegistry, CanaryAdapter } from '../src/vortex/adapters/registry.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
+import { CURRENT_IDENTITY } from '../src/vortex/gateway.js';
 import { signProofPayload } from '../src/vortex/crypto.js';
 
 function assert(condition: boolean, message: string) {
@@ -100,7 +101,7 @@ export async function runCanaryTests(): Promise<number> {
       ...validRes.execution_proof,
       output_hash: 'sha256:0000000000000000000000000000000000000000000000000000000000000000', // Tampered hash!
     };
-    const tamperedVerification = verifyExecutionProof(tamperedProof as any);
+    const tamperedVerification = verifyExecutionProof(tamperedProof as any, { trustedPublicKey: CURRENT_IDENTITY.public_key });
     assert(tamperedVerification.valid === false, 'Tampered proof must fail verification');
     assert(
       tamperedVerification.checks.signature.passed === false,
