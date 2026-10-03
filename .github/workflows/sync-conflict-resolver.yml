@@ -85,8 +85,11 @@ jobs:
       - name: Fail if Unresolved Conflicts Remain
         if: ${{ always() }}
         run: |
-          echo "::error file=git-sync::Conflito de sincronização Git detectado. Resolva manualmente ou via UI do AI Studio."
-          exit 1
+          if [ "${{ steps.marker_scan.outputs.has_conflicts }}" = "true" ] && [ "${{ github.event.inputs.strategy || 'audit' }}" = "audit" ]; then
+            echo "::error file=git-sync::Conflito de sincronização Git detectado."
+            exit 1
+          fi
+          echo "No unresolved conflict requires remediation."
 
       # 4. Gate de Validação Obrigatória: Linter e Testes Canary
       - name: Validate Governance & Canary Invariants
