@@ -543,6 +543,8 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
   proof_verified: boolean;
   output: Record<string, unknown>;
 }[]> {
+  // Conformance harness supplies the independent trust anchor; proof input cannot select it.
+  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
   const { vuaRegistry } = await import('./adapters/registry.js');
   const results: any[] = [];
 
