@@ -172,15 +172,12 @@ jobs:
       - name: Verify LiveBench runtime contract
         run: npm run test:livebench-runtime
 
-      - name: Verify full-suite prerequisites
+      - name: Bootstrap complete LiveBench runtime
         run: |
           set -euo pipefail
-          python3 --version
-          docker --version
-          test -n "${VUC_LIVEBENCH_API_BASE:-}${VUC_LIVEBENCH_MODEL_PATH:-}" || {
-            echo "ERROR: configure VUC_LIVEBENCH_API_BASE or VUC_LIVEBENCH_MODEL_PATH on the runner"
-            exit 1
-          }
+          bash scripts/bootstrap-livebench-runtime.sh
+          test -s "$HOME/.cache/vuc/livebench-runtime/runtime-manifest.json"
+          cat "$HOME/.cache/vuc/livebench-runtime/runtime-manifest.json"
 
       - name: Run complete LiveBench 2026
         env:
