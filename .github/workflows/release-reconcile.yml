@@ -1,28 +1,65 @@
-name: Release VUC to npm
+name: Release VUC to npm — CI Guarded
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["VUC CI — Governed Sandbox Runtime & Integrity"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "Exact main commit SHA to publish"
+        required: true
+        type: string
 
 permissions:
   contents: write
   id-token: write
 
+concurrency:
+  group: vuc-npm-release
+  cancel-in-progress: false
+
 jobs:
   reconcile-and-publish:
-    name: Reconcile release tag and publish package
+    name: Publish only after mandatory CI passes
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
     steps:
-      - name: Checkout exact main
+      - name: Select exact validated main SHA
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SHA="${{ inputs.sha }}"
+          else
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          fi
+          test -n "$SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Validated source SHA: $SHA"
+
+      - name: Checkout exact validated SHA
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
+          ref: ${{ steps.source.outputs.sha }}
+
+      - name: Assert exact current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=50
+          test "$(git rev-parse HEAD)" = "${{ steps.source.outputs.sha }}"
+          test "$(git rev-parse origin/main)" = "${{ steps.source.outputs.sha }}" || {
+            echo "ERROR: validated SHA is no longer current main."
+            echo "Refusing stale publish."
+            exit 1
+          }
 
       - name: Setup Node 22.14
         uses: actions/setup-node@v4
@@ -43,17 +80,11 @@ jobs:
           NAME="$(node -p "require('./package.json').name")"
           SHA="$(git rev-parse HEAD)"
           TAG="v${VERSION}"
-
           test "$NAME" = "@vucfoundation/vuc"
-          printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
-          printf 'name=%s\n' "$NAME" >> "$GITHUB_OUTPUT"
-          printf 'sha=%s\n' "$SHA" >> "$GITHUB_OUTPUT"
-          printf 'tag=%s\n' "$TAG" >> "$GITHUB_OUTPUT"
-
-          echo "Package: $NAME"
-          echo "Version: $VERSION"
-          echo "Main SHA: $SHA"
-          echo "Release tag: $TAG"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Check npm registry
         id: registry
@@ -63,36 +94,26 @@ jobs:
           VERSION="${{ steps.release.outputs.version }}"
           if npm view "@vucfoundation/vuc@$VERSION" version >/dev/null 2>&1; then
             echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "npm already contains @vucfoundation/vuc@$VERSION; release is already complete."
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
-            echo "npm does not contain @vucfoundation/vuc@$VERSION; CI must reconcile and publish."
           fi
 
-      - name: Reconcile release tag to main
+      - name: Reconcile release tag to exact validated main
         if: steps.registry.outputs.published != 'true'
-        shell: bash
         env:
           TAG: ${{ steps.release.outputs.tag }}
           SHA: ${{ steps.release.outputs.sha }}
         run: |
           set -euo pipefail
           git fetch origin "refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null || true
-
           if git rev-parse "$TAG^{commit}" >/dev/null 2>&1; then
             CURRENT="$(git rev-parse "$TAG^{commit}")"
             if [ "$CURRENT" != "$SHA" ]; then
-              echo "Wrong tag target detected: $TAG -> $CURRENT"
-              echo "Correct target: $SHA"
               git push --force origin "$SHA:refs/tags/$TAG"
-            else
-              echo "$TAG already points to $SHA"
             fi
           else
-            echo "$TAG is missing; creating it at $SHA"
             git push origin "$SHA:refs/tags/$TAG"
           fi
-
           git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$SHA"
 
       - name: Install dependencies
@@ -103,9 +124,20 @@ jobs:
         if: steps.registry.outputs.published != 'true'
         run: npm run build:cli
 
-      - name: Verify package
+      - name: Verify package contents
         if: steps.registry.outputs.published != 'true'
-        run: npm pack --dry-run
+        run: |
+          set -euo pipefail
+          npm pack --dry-run --json > /tmp/vuc-pack.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/vuc-pack.json', 'utf8'));
+          const files = new Set((data[0]?.files ?? []).map(f => f.path));
+          for (const required of ['dist/vua.cjs','dist/server.cjs','package.json']) {
+            if (!files.has(required)) throw new Error('missing package file: '+required);
+          }
+          console.log('package contract: PASS');
+          NODE
 
       - name: Publish to npm
         if: steps.registry.outputs.published != 'true'

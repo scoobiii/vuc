@@ -256,7 +256,7 @@ jobs:
           echo "Do not infer ARM64 compatibility from x64 success."
 
   release-gate:
-    name: VUC Release Agent (Evidence Aggregation)
+    name: VUC Release Gate (MERGE REQUIRED)
     if: always()
     needs:
       - execution-integrity
@@ -282,6 +282,12 @@ jobs:
 
           echo "RELEASE = READY"
           echo "All mandatory CI release contracts passed."
+
+      - name: "AGENT release — assert exact commit identity"
+        run: |
+          set -euo pipefail
+          test -n "${GITHUB_SHA}"
+          echo "validated_sha=${GITHUB_SHA}"
 
   livebench-2026:
     name: VUC LiveBench 2026 — Full Suite
