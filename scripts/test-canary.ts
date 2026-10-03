@@ -87,7 +87,7 @@ export async function runCanaryTests(): Promise<number> {
     payload: { task: 'safe_write' },
   });
 
-  assert(validRes.success === true, 'Authorized execution must return success: true');
+  assert(validRes.success === true, `Authorized execution must return success: true; status=${JSON.stringify(validRes)} `);
   assert(validRes.execution_kind === 'capability', 'Execution kind must be capability');
   assert(validRes.capability_executed === true, 'Capability executed must be true');
   assert(canary.sideEffectCount === 1, 'Side effect count must now increment to 1');
