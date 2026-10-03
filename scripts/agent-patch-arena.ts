@@ -40,6 +40,7 @@ export interface AgentPatchCandidate {
     removed_lines: number;
     files_changed: number;
   };
+  /** Legacy field retained only for schema compatibility; never used for verdicts. */
   simulated_metrics?: {
     latency_p95_ms: number;
     throughput_rps: number;
@@ -287,8 +288,7 @@ export async function runAgentPatchArena(
     const candidateCanaryPass = isAdversarial ? 0 : canaryPassedCount;
     const isCanaryValid = candidateCanaryPass === 5;
     const candidateAccuracy = isAdversarial ? 20.0 : baselineAccuracy;
-    const latency = candidate.simulated_metrics?.latency_p95_ms || 1.0;
-    const rps = candidate.simulated_metrics?.throughput_rps || 1200;
+    throw new Error('SIMULATED_METRICS_FORBIDDEN: use scripts/agent-patch-arena.py for real base-vs-head benchmarking');
     const churn = candidate.diff_stats.added_lines + candidate.diff_stats.removed_lines;
 
     const evaluation = calculatePatchFitnessScore({
