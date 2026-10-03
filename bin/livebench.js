@@ -10,9 +10,9 @@ import { homedir, cpus, totalmem } from "node:os";
 import { join } from "node:path";
 
 const RELEASE = process.env.VUC_LIVEBENCH_RELEASE || "2026-06-25";
-const LB_VERSION = process.env.VUC_LIVEBENCH_PACKAGE_VERSION || "0.0.4";
+const LB_REF = process.env.VUC_LIVEBENCH_REF || "8f8e5c381a16e3f24257776edd53471fe86f8091";
 const DEFAULT_MODEL = process.env.VUC_LIVEBENCH_MODEL || "vuc-local";
-const CACHE = process.env.VUC_LIVEBENCH_CACHE || join(homedir(), ".cache", "vuc", `livebench-${RELEASE}-${LB_VERSION}`);
+const CACHE = process.env.VUC_LIVEBENCH_CACHE || join(homedir(), ".cache", "vuc", `livebench-${RELEASE}`);
 const EVIDENCE = process.env.VUC_LIVEBENCH_EVIDENCE || join(process.cwd(), "livebench-2026-evidence.json");
 const BOOTSTRAP = new URL("../scripts/bootstrap-livebench-runtime.sh", import.meta.url).pathname;
 
@@ -93,7 +93,7 @@ async function main(){
   if(!apiBase) die("no local model/API source after bootstrap");
   const docker=commandExists("docker")&&output("docker",["info"]).status===0;
   if(args.bench==="live_bench"&&!docker) die("full LiveBench 2026 includes Agentic Coding; container runtime unavailable; refusing a partial run");
-  const evidence={schema:"vuc-livebench-evidence/v2",benchmark:"LiveBench",release:args.release,package_version:LB_VERSION,bench_name:args.bench,host:{platform:process.platform,arch:process.arch,cpu_cores:cpus().length,total_memory_bytes:totalmem()},runtime:{device,gpu_layers:Number(gpuLayers),docker},model:{id:args.model,path:modelPath||null,api_base:apiBase.replace(/:\/\/.*@/,"//[redacted]")},status:"RUNNING",started_at:new Date().toISOString()};
+  const evidence={schema:"vuc-livebench-evidence/v2",benchmark:"LiveBench",release:args.release,source_ref:LB_REF,bench_name:args.bench,host:{platform:process.platform,arch:process.arch,cpu_cores:cpus().length,total_memory_bytes:totalmem()},runtime:{device,gpu_layers:Number(gpuLayers),docker},model:{id:args.model,path:modelPath||null,api_base:apiBase.replace(/:\/\/.*@/,"//[redacted]")},status:"RUNNING",started_at:new Date().toISOString()};
   writeFileSync(EVIDENCE,JSON.stringify(evidence,null,2));
   const cmd=["-m","livebench.run_livebench","--model",args.model,"--bench-name",args.bench,"--livebench-release-option",args.release,"--max-tokens",args.maxTokens,"--mode",args.mode,"--parallel-requests",String(args.parallel),"--api-base",apiBase,"--api-key",args.apiKey||process.env.VUC_LIVEBENCH_API_KEY||"dummy"];
   if(args.resume)cmd.push("--resume"); if(args.retry)cmd.push("--retry-failures");
