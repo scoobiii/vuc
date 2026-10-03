@@ -1,3 +1,8 @@
+/**
+ * Vortex MCP Specification - Cryptographic Engine
+ * Ed25519 Key Discovery, SHA-256 Hashes & RFC 8785 Canonical Signing
+ */
+
  * Resolve a public key from verifier-controlled trust anchors only.
  *
  * Caller-supplied/embedded public keys are intentionally NOT accepted: a
