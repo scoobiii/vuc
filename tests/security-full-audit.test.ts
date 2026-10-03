@@ -22,7 +22,7 @@ import {
   verifyCanonicalSignature,
   sha256,
 } from '../src/vortex/crypto.js';
-import { executeVortexPipeline, resetAntiReplayCache } from '../src/vortex/gateway.js';
+import { executeVortexPipeline, resetAntiReplayCache, CURRENT_IDENTITY } from '../src/vortex/gateway.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
 import { bootstrapHardwareBaseline, detectHardwareFingerprint, computeDynamicBaseline } from '../src/vortex/hardware-profiler.js';
 
@@ -204,7 +204,7 @@ await runTest('8. Verificador Independente: Validação completa de ExecutionPro
   });
 
   assert.ok(result.execution_proof, 'Deve conter execution_proof');
-  const verification = verifyExecutionProof(result.execution_proof);
+  const verification = verifyExecutionProof(result.execution_proof, { trustedPublicKey: CURRENT_IDENTITY.public_key });
   assert.equal(verification.valid, true, 'Verificador deve atestar validade da prova');
   assert.equal(verification.status, 'VERIFIED', 'Status da prova deve ser VERIFIED');
 });
