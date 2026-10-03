@@ -5,22 +5,6 @@ on:
     types: [opened, synchronize, reopened, labeled]
     branches: [ main, develop ]
   workflow_dispatch:
-    inputs:
-      auto_merge_winner:
-        description: 'Auto-merge winning qualified patch if verdict is PASS_SUPERIOR or approved intent'
-        type: boolean
-        required: true
-        default: false
-      min_gain_threshold:
-        description: 'Minimum delta gain over baseline score (e.g. 0.0 or 0.2)'
-        type: number
-        required: false
-        default: 0.0
-
-permissions:
-  contents: read
-  pull-requests: write
-  statuses: write
 
 jobs:
   agent-tournament:
