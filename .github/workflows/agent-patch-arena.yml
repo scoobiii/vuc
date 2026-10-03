@@ -52,18 +52,21 @@ jobs:
 
       # 4. Critical Gate: Canary Invariant Validation
       - name: Execute Canary Side-Effect & Security Invariants
+        if: ${{ always() }}
         run: |
           echo "🐤 Running Canary Invariants Gate..."
           npx tsx scripts/test-canary.ts
 
       # 5. Patch Arena Policy Suite
       - name: Execute Patch Arena Intent & Policy Tests
+        if: ${{ always() }}
         run: |
           echo "🧪 Running Patch Arena Intent Classification & Policy Tests..."
           npx tsx tests/patch-arena-policy.test.ts
 
       # 6. Darwinian Agent Arena Benchmark & Intent Gain Comparator
       - name: Run Patch Tournament Benchmark & Gain Comparator
+        if: ${{ always() }}
         id: arena_eval
         run: |
           set -euo pipefail
@@ -77,6 +80,7 @@ jobs:
           test "$(node -p "require('./arena_output.json').verdict")" = "PASS_SUPERIOR"
       # 7. Evaluate Intent-Aware Decision Gate for Auto-Merge
       - name: Evaluate Merge Decision Gate
+        if: ${{ always() }}
         id: merge_gate
         run: |
           if [ "$(node -p "require(\'./arena_output.json\').verdict")" = "PASS_SUPERIOR" ]; then
@@ -112,6 +116,7 @@ jobs:
       # 9. Auto-merge is prohibited; CI only produces a verdict.
       # 10. Archive Verifiable Tournament Evidence
       - name: Archive Arena Cryptographic Evidence
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: agent-arena-evidence
