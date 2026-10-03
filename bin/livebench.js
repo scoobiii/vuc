@@ -4,8 +4,8 @@
  * Pins the 2026-06-25 release and provisions the host runtime before execution.
  * Full-suite runs fail closed when Agentic Coding cannot obtain a container runtime.
  */
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { spawnSync, spawn } from "node:child_process";
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { homedir, cpus, totalmem } from "node:os";
 import { join } from "node:path";
 
@@ -28,7 +28,7 @@ function python() {
 function loadRuntimeEnv() {
   const envFile=join(process.env.VUC_LIVEBENCH_CACHE || join(homedir(), ".cache", "vuc", "livebench-runtime"),"runtime.env");
   if (!existsSync(envFile)) return;
-  for (const line of require("node:fs").readFileSync(envFile,"utf8").split("\n")) {
+  for (const line of readFileSync(envFile,"utf8").split("\n")) {
     const i=line.indexOf("="); if (i<1) continue;
     const k=line.slice(0,i), v=line.slice(i+1);
     if (!process.env[k]) process.env[k]=v;
@@ -70,7 +70,7 @@ function startLocalServer(model, device, gpuLayers) {
   const port=process.env.VUC_LIVEBENCH_PORT||"8080";
   const args=["-m",model,"--host","127.0.0.1","--port",port,"-c",process.env.VUC_LIVEBENCH_CONTEXT||"2048","-np","1"];
   if(device==="gpu") args.push("-ngl",String(gpuLayers||999));
-  const child=require("node:child_process").spawn(llama,args,{stdio:"inherit",detached:true});
+  const child=spawn(llama,args,{stdio:"inherit",detached:true});
   child.unref();
   const base=`http://127.0.0.1:${port}/v1`;
   for(let i=0;i<60;i++){
