@@ -1,0 +1,300 @@
+name: VUC Release Gate (MERGE REQUIRED)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: vuc-release-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: VUC Release Gate (MERGE REQUIRED)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - id: checkout
+        name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: setup_node
+        if: ${{ always() }}
+        name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - id: repo_identity
+        if: ${{ always() }}
+        name: Verify repository identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = "scoobiii/vuc"
+          node --version
+          npm --version
+
+      - id: release_contract
+        if: ${{ always() }}
+        name: Verify release contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('package.json','utf8'));
+          if (p.name !== '@vucfoundation/vuc') throw new Error('wrong package name');
+          if (!/^\d+\.\d+\.\d+$/.test(p.version)) throw new Error('version must be stable semver');
+          for (const bin of ['vuc','vua','vortex']) {
+            if (p.bin?.[bin] !== './dist/vua.cjs') throw new Error('bin contract broken: '+bin);
+          }
+          for (const script of ['build:cli','test','test:cli','test:security','test:mock','preflight','verify:gos3']) {
+            if (!p.scripts?.[script]) throw new Error('required npm script missing: '+script);
+          }
+          NODE
+
+      - id: npm_ci
+        if: ${{ always() }}
+        name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - id: bend
+        if: ${{ always() }}
+        name: Install native Bend
+        run: |
+          set -euo pipefail
+          npm run install:bend
+          test -x bin/native/bin/bend
+          bin/native/bin/bend version
+          bin/native/bin/bend version | grep -F '2.0.25'
+
+      - id: boot
+        name: BOOT — detect and configure environment
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/bootstrap-environment.sh
+          VUC_BOOT_PROFILE="$RUNNER_TEMP/vuc-environment.json" scripts/bootstrap-environment.sh
+          cat "$RUNNER_TEMP/vuc-environment.json"
+
+      - id: build_cli
+        name: Build distributable CLI
+        if: ${{ always() }}
+        run: npm run build:cli
+
+      - id: cli_artifact
+        name: Verify generated CLI exists and is executable
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/vua.cjs
+          test -x dist/vua.cjs
+
+      - id: real_llm_runtime
+        name: Real runtime lifecycle — install, start, attest, execute, replay, teardown
+        if: ${{ always() }}
+        shell: bash
+        env:
+          VUC_OLLAMA_MODEL: qwen2.5-coder:0.5b
+          VUC_OLLAMA_DIGEST: 4ff64a7f502a08b7616edb8ca0a79eb1853fc363d842b7df4b46915d11a3fb09
+        run: |
+          set -euo pipefail
+          test -s AGENTS.md
+          grep -Fq 'Agent output is untrusted input.' AGENTS.md
+          export OLLAMA_HOST=127.0.0.1:11434
+          if ! command -v ollama >/dev/null 2>&1; then curl -fsSL https://ollama.com/install.sh | sh; fi
+          command -v ollama
+          ollama --version
+          OLLAMA_LOG="$RUNNER_TEMP/ollama.log"
+          ollama serve >"$OLLAMA_LOG" 2>&1 &
+          OLLAMA_PID="$!"
+          trap 'kill "$OLLAMA_PID" 2>/dev/null || true; wait "$OLLAMA_PID" 2>/dev/null || true' EXIT
+          ready=false
+          for i in $(seq 1 60); do
+            if curl --fail --silent --show-error "$OLLAMA_HOST/api/tags" >/dev/null 2>&1; then ready=true; break; fi
+            if ! kill -0 "$OLLAMA_PID" 2>/dev/null; then cat "$OLLAMA_LOG"; exit 1; fi
+            sleep 1
+          done
+          test "$ready" = true
+          curl --fail --silent --show-error "$OLLAMA_HOST/api/tags" >/dev/null
+          ollama pull "$VUC_OLLAMA_MODEL"
+          node - <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const expectedModel = process.env.VUC_OLLAMA_MODEL;
+          const expectedDigest = process.env.VUC_OLLAMA_DIGEST;
+          const raw = execFileSync('curl', ['--fail','--silent','--show-error','http://127.0.0.1:11434/api/tags'], {encoding:'utf8'});
+          const data = JSON.parse(raw);
+          const model = (data.models || []).find(m => m.name === expectedModel || m.model === expectedModel);
+          if (!model) throw new Error('REAL_LLM_MODEL_MISSING');
+          if (model.digest !== expectedDigest) throw new Error(`REAL_LLM_MODEL_DIGEST_MISMATCH got=${model.digest} expected=${expectedDigest}`);
+          console.log(JSON.stringify({provider:'ollama',model:model.name||model.model,digest:model.digest,size:model.size,quantization:model.details?.quantization_level||null,parameters:model.details?.parameter_size||null},null,2));
+          NODE
+          test -s dist/vua.cjs
+          PROOF1="$RUNNER_TEMP/vuc-real-llm.json"
+          KEY1_TMP="$RUNNER_TEMP/vuc-real-llm-public.pem"
+          node dist/vua.cjs llm --provider ollama --model "$VUC_OLLAMA_MODEL" --url http://127.0.0.1:11434 --temperature 0 --seed 7 --prompt 'Digite exatamente: X7Q' --proof-out "$PROOF1" --public-key-out "$KEY1_TMP" >"$RUNNER_TEMP/vuc-real-llm.txt" 2>&1
+          cat "$RUNNER_TEMP/vuc-real-llm.txt"
+          test -s "$PROOF1"
+          test -s "$KEY1_TMP"
+          KEY_ID="$(node -p "require(process.argv[1]).identity.key_id" "$PROOF1")"
+          TRUST_KEY="$RUNNER_TEMP/$KEY_ID.pem"
+          mv "$KEY1_TMP" "$TRUST_KEY"
+          node scripts/verify-independent-proof.mjs "$PROOF1" "$TRUST_KEY"
+
+          PROOF2="$RUNNER_TEMP/vuc-real-llm-replay.json"
+          KEY2_TMP="$RUNNER_TEMP/vuc-real-llm-replay-public.pem"
+          node dist/vua.cjs llm --provider ollama --model "$VUC_OLLAMA_MODEL" --url http://127.0.0.1:11434 --temperature 0 --seed 7 --prompt 'Digite exatamente: X7Q' --proof-out "$PROOF2" --public-key-out "$KEY2_TMP" >"$RUNNER_TEMP/vuc-real-llm-replay.txt" 2>&1
+          cat "$RUNNER_TEMP/vuc-real-llm-replay.txt"
+          KEY_ID2="$(node -p "require(process.argv[1]).identity.key_id" "$PROOF2")"
+          REPLAY_TRUST_DIR="$RUNNER_TEMP/replay-trust"
+          mkdir -p "$REPLAY_TRUST_DIR"
+          TRUST_KEY2="$REPLAY_TRUST_DIR/$KEY_ID2.pem"
+          mv "$KEY2_TMP" "$TRUST_KEY2"
+          node scripts/verify-independent-proof.mjs "$PROOF2" "$TRUST_KEY2"
+
+          HASH1="$(node -p "require(process.argv[1]).output_hash" "$PROOF1")"
+          HASH2="$(node -p "require(process.argv[1]).output_hash" "$PROOF2")"
+          test -n "$HASH1"
+          test "$HASH1" = "$HASH2"
+
+          RESPONSE="$(awk '/📝 RESPOSTA(:| DO MODELO:)/ {capture=1; next} /^─/ {capture=0} capture {print}' "$RUNNER_TEMP/vuc-real-llm.txt" | sed '/^[[:space:]]*$/d' | sed 's/[[:space:]]*$//')"
+          test "$RESPONSE" = "X7Q"
+
+          openssl genpkey -algorithm Ed25519 -out "$RUNNER_TEMP/attacker-private.pem" >/dev/null 2>&1
+          openssl pkey -in "$RUNNER_TEMP/attacker-private.pem" -pubout -out "$RUNNER_TEMP/attacker-public.pem" >/dev/null 2>&1
+          cp "$TRUST_KEY" "$RUNNER_TEMP/trusted-key-backup.pem"
+          cp "$RUNNER_TEMP/attacker-public.pem" "$TRUST_KEY"
+          if node scripts/verify-independent-proof.mjs "$PROOF1" "$TRUST_KEY" >"$RUNNER_TEMP/attacker-verify.out" 2>&1; then
+            cat "$RUNNER_TEMP/attacker-verify.out"
+            echo "ATTACKER_TRUST_KEY_ACCEPTED"
+            exit 1
+          fi
+          mv "$RUNNER_TEMP/trusted-key-backup.pem" "$TRUST_KEY"
+          echo "ATTACKER_TRUST_KEY_REJECTED=true"
+          echo "REAL_RUNTIME=PASS_INDEPENDENTLY_VERIFIED"
+      - id: audit
+        if: ${{ always() }}
+        name: Dependency security audit
+        run: npm audit --audit-level=high
+
+      - id: lint
+        if: ${{ always() }}
+        name: Static/type/lint gate
+        run: npm run lint
+
+      - id: preflight
+        if: ${{ always() }}
+        name: Governance preflight
+        run: npm run preflight
+
+      - id: test
+        if: ${{ always() }}
+        name: Full functional and security suite
+        run: npm test
+
+      - id: cli_test
+        if: ${{ always() }}
+        name: CLI contract gate
+        run: npm run test:cli
+
+      - id: gos3
+        if: ${{ always() }}
+        name: Strict GOS3/header gate
+        run: npm run verify:gos3
+
+      - id: mock
+        if: ${{ always() }}
+        name: Mock/fallback gate
+        run: npm run test:mock
+
+      - id: package
+        if: ${{ always() }}
+        name: Package provenance and contents gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f ./*.tgz
+          npm pack --json > pack.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('pack.json','utf8'))[0];
+          const files = new Set((x.files || []).map(f => f.path));
+          const required = ['package.json','dist/vua.cjs','README.md'];
+          for (const f of required) if (!files.has(f)) throw new Error('missing packaged file: '+f);
+          for (const f of files) {
+            if (f.startsWith('.git/') || f.includes('node_modules/')) throw new Error('forbidden package content: '+f);
+            if (f.endsWith('.pyc') || f.includes('__pycache__/')) throw new Error('generated cache leaked into package: '+f);
+          }
+          console.log(JSON.stringify({package:x.filename, bytes:x.size, files:[...files].length},null,2));
+          NODE
+          npm pack --dry-run
+
+      - id: package_metadata
+        if: ${{ always() }}
+        name: Verify package metadata from packed artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          TGZ="$(node -p "require('./pack.json')[0].filename")"
+          TMP="$(mktemp -d)"
+          tar -xzf "$TGZ" -C "$TMP"
+          test -f "$TMP/package/package.json"
+          test -s "$TMP/package/dist/vua.cjs"
+          node -e "const p=require('$TMP/package/package.json'); if(p.name!=='@vucfoundation/vuc') process.exit(1); console.log(p.name+'@'+p.version)"
+          rm -rf "$TMP"
+
+      - name: Final fail-closed assertion (Command/Composite + fail-closed invariant)
+        if: ${{ always() }}
+        shell: bash
+        env:
+          OUTCOMES: |
+            checkout=${{ steps.checkout.outcome }}
+            setup_node=${{ steps.setup_node.outcome }}
+            repo_identity=${{ steps.repo_identity.outcome }}
+            release_contract=${{ steps.release_contract.outcome }}
+            npm_ci=${{ steps.npm_ci.outcome }}
+            bend=${{ steps.bend.outcome }}
+            boot=${{ steps.boot.outcome }}
+            build_cli=${{ steps.build_cli.outcome }}
+            cli_artifact=${{ steps.cli_artifact.outcome }}
+            real_llm_runtime=${{ steps.real_llm_runtime.outcome }}
+            audit=${{ steps.audit.outcome }}
+            lint=${{ steps.lint.outcome }}
+            preflight=${{ steps.preflight.outcome }}
+            test=${{ steps.test.outcome }}
+            cli_test=${{ steps.cli_test.outcome }}
+            gos3=${{ steps.gos3.outcome }}
+            mock=${{ steps.mock.outcome }}
+            package=${{ steps.package.outcome }}
+            package_metadata=${{ steps.package_metadata.outcome }}
+        run: |
+          set -euo pipefail
+          failures=0
+          while IFS='=' read -r name outcome; do
+            [ -n "$name" ] || continue
+            if [ "$outcome" != "success" ]; then
+              printf 'GATE_NOT_SUCCESS step=%s outcome=%s\n' "$name" "$outcome"
+              failures=1
+            fi
+          done <<< "$OUTCOMES"
+
+          if [ "$failures" -ne 0 ]; then
+            echo 'VUC_RELEASE_GATE=FAIL_CLOSED'
+            exit 1
+          fi
+
+          echo 'VUC_RELEASE_GATE=PASS'
+          echo 'VUC Release Gate PASS: merge is permitted only when every required step is SUCCESS.'
