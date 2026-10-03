@@ -4,9 +4,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
     branches: [ main, develop ]
-  pull_request_target:
-    types: [opened, synchronize, reopened, labeled]
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       auto_merge_winner:
@@ -21,7 +18,7 @@ on:
         default: 0.0
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
   statuses: write
 
@@ -85,15 +82,20 @@ jobs:
       - name: Run Patch Tournament Benchmark & Gain Comparator
         id: arena_eval
         run: |
-          echo "🏆 Running Multi-Agent Patch Tournament with Intent-Aware Gain Intelligence..."
-          npx tsx scripts/agent-patch-arena.ts > arena_output.txt 2>&1
-          cat arena_output.txt
-
+          set -euo pipefail
+          echo "🏆 Running measured base-vs-head benchmark (no simulated metrics)..."
+          git fetch origin "${{ github.base_ref || 'main' }}" --depth=100
+          python3 scripts/agent-patch-arena.py \
+            --base "origin/${{ github.base_ref || 'main' }}" \
+            --head HEAD \
+            --output arena_output.json
+          cat arena_output.json
+          test "$(node -p "require('./arena_output.json').verdict")" = "PASS_SUPERIOR"
       # 7. Evaluate Intent-Aware Decision Gate for Auto-Merge
       - name: Evaluate Merge Decision Gate
         id: merge_gate
         run: |
-          if grep -E -q "PASS_SUPERIOR|PASS_SECURITY|PASS_GOVERNANCE|PASS_CORRECTNESS" arena_output.txt; then
+          if [ "$(node -p "require(\'./arena_output.json\').verdict")" = "PASS_SUPERIOR" ]; then
             echo "superior_found=true" >> "$GITHUB_OUTPUT"
             echo "approved=true" >> "$GITHUB_OUTPUT"
             echo "✅ Patch achieved intent-approved verdict in Arena."
@@ -113,9 +115,9 @@ jobs:
             const fs = require('fs');
             let output = 'No arena output captured';
             if (fs.existsSync('arena_output.txt')) {
-              output = fs.readFileSync('arena_output.txt', 'utf8');
+              output = fs.readFileSync('arena_output.json', 'utf8');
             }
-            const body = `### 🏆 Vortex Multi-Agent Patch Arena Results (VUA-SPEC-v2)\n\n\`\`\`text\n${output}\n\`\`\`\n\n*Evaluated by deterministic cryptographic CI gates with Intent-Aware Baseline Gain Comparator.*`;
+            const body = `### 🏆 Vortex Patch Arena — Measured Base vs Head\n\n\`\`\`text\n${output}\n\`\`\`\n\n*Evaluated by deterministic cryptographic CI gates with Intent-Aware Baseline Gain Comparator.*`;
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -139,4 +141,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agent-arena-evidence
-          path: arena_output.txt
+          path: arena_output.json
