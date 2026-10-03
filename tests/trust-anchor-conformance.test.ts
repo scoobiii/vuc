@@ -49,7 +49,7 @@ const trustStore = path.join(tempDir, 'trust-store.json');
 
 try {
   const trusted = generateVortexIdentity('trusted', 'agent/trusted', 'collision-key');
-  const attacker = generateVortexIdentity('attacker', 'agent/attacker', 'collision-key');
+  assert.throws(() => generateVortexIdentity('attacker', 'agent/attacker', 'collision-key'), /KEY_ID_COLLISION/);
 
   fs.writeFileSync(
     trustStore,
@@ -59,9 +59,15 @@ try {
 
   KEY_REGISTRY.clear();
 
+  const attacker = generateVortexIdentity('attacker', 'agent/attacker', 'attacker-key');
+
   const trustedProof = makeProof(trusted, 'trusted-proof');
   const trustedVerification = verifyExecutionProof(trustedProof, { trustedPublicKey: trusted.public_key });
   assert.equal(trustedVerification.valid, true, trustedVerification.reasons.join('; '));
+
+  const noAnchorVerification = verifyExecutionProof(trustedProof);
+  assert.equal(noAnchorVerification.valid, false);
+  assert.match(noAnchorVerification.reasons.join('; '), /Unresolvable cryptographic identity/);
 
   const attackerProof = makeProof(attacker, 'attacker-proof');
   const attackerVerification = verifyExecutionProof(attackerProof, { trustedPublicKey: trusted.public_key });
@@ -77,6 +83,7 @@ try {
   console.log('S0 TRUST ANCHOR CONFORMANCE: PASS');
   console.log('trusted_key_from_external_store=PASS');
   console.log('same_key_id_collision_rejected=PASS');
+  console.log('no_external_trust_anchor_rejected=PASS');
   console.log('caller_embedded_key_rejected=PASS');
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true });
