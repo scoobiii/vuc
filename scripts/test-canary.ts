@@ -24,6 +24,8 @@ export async function runCanaryTests(): Promise<number> {
 
   // Reset canary state
   canary.sideEffectCount = 0;
+  // Unit gate trust anchor is injected by the verifier harness, never by proof input.
+  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
 
   console.log('\n🐤 [CANARY INVARIANT TESTS]');
 
