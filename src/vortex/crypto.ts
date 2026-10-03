@@ -4,6 +4,7 @@
  */
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { canonicalize } from './canonicalize.js';
 import type { CryptographicIdentity } from './types.js';
 
@@ -151,18 +152,36 @@ export function verifyProofSignature(
 }
 
 /**
- * Lookup public key via Key Discovery:
- * 1. Embedded
- * 2. Registry
- * 3. Well-known
+ * Resolve a public key from verifier-controlled trust anchors only.
+ *
+ * Caller-supplied/embedded public keys are intentionally NOT accepted: a
+ * proof verifier must not let the subject of the proof select its own key.
+ *
+ * VUC_TRUST_STORE may point to a JSON object mapping key_id -> PEM public key,
+ * or key_id -> { public_key: PEM }. The in-memory registry remains available
+ * for same-process signing/execution flows, but it is not an independent
+ * trust anchor and is absent across process boundaries.
  */
-export function resolvePublicKey(keyId: string, embeddedPublicKey?: string): string | null {
-  if (embeddedPublicKey && embeddedPublicKey.includes('PUBLIC KEY')) {
-    return embeddedPublicKey;
+export function resolvePublicKey(keyId: string): string | null {
+  if (!keyId) return null;
+
+  const trustStorePath = process.env.VUC_TRUST_STORE;
+  if (trustStorePath) {
+    try {
+      const raw = fs.readFileSync(trustStorePath, 'utf8');
+      const store = JSON.parse(raw) as Record<string, unknown>;
+      const entry = store[keyId];
+      const publicKey = typeof entry === 'string'
+        ? entry
+        : entry && typeof entry === 'object' && 'public_key' in entry
+          ? (entry as { public_key?: unknown }).public_key
+          : undefined;
+      if (typeof publicKey === 'string' && publicKey.includes('PUBLIC KEY')) return publicKey;
+    } catch {
+      // Fail closed: continue to the process-local registry only.
+    }
   }
+
   const found = KEY_REGISTRY.get(keyId);
-  if (found) {
-    return found.public_key;
-  }
-  return null;
+  return found?.public_key || null;
 }

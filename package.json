@@ -82,7 +82,7 @@
     "vuc:llms": "tsx scripts/vua-llm-resolve.ts",
     "vua:llms": "tsx scripts/vua-llm-resolve.ts",
     "mcp": "tsx bin/mcp-server.js",
-    "test:security": "tsx tests/oauth-security.test.ts && tsx tests/security-full-audit.test.ts",
+    "test:security": "tsx tests/oauth-security.test.ts && tsx tests/security-full-audit.test.ts && npm run test:trust-anchor",
     "test:k6": "tsx tests/k6/k6-runner.ts",
     "test:k6:industry": "tsx tests/k6/k6-runner.ts industry",
     "test:k6:smoke": "tsx tests/k6/k6-runner.ts smoke",
@@ -119,7 +119,8 @@
     "benchmark:environment": "tsx benchmarks/micro-llm/environment/collect.ts",
     "benchmark:livebench": "node bin/livebench.js",
     "livebench": "node bin/livebench.js",
-    "test:livebench-runtime": "tsx tests/livebench-runtime.test.ts"
+    "test:livebench-runtime": "tsx tests/livebench-runtime.test.ts",
+    "test:trust-anchor": "tsx tests/trust-anchor-conformance.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
