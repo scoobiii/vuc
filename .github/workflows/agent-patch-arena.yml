@@ -108,7 +108,7 @@ jobs:
 
       # 8. Post Tournament Leaderboard & Gain Delta to PR Comments
       - name: Comment Arena Leaderboard & Decision on Pull Request
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
