@@ -71,7 +71,7 @@ jobs:
           for i in $(seq 1 60); do curl -fsS http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 1; done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
           ollama pull "$VUC_OLLAMA_MODEL"
-          test "$(ollama show "$VUC_OLLAMA_MODEL" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s);process.stdout.write(x.digest||"")})')" = "$VUC_OLLAMA_DIGEST"
+          test "$(curl -fsS http://127.0.0.1:11434/api/tags | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s);const m=(x.models||[]).find(v=>v.name===process.env.VUC_OLLAMA_MODEL);process.stdout.write(m?.digest||"")})')" = "$VUC_OLLAMA_DIGEST"
       - name: Execute and independently verify real proof
         env:
           VUC_OLLAMA_MODEL: qwen2.5-coder:0.5b
