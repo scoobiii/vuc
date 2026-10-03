@@ -16,7 +16,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { loadGovernanceSystemInstruction } from './governance-instruction.js';
-import { executeVortexPipeline } from './gateway.js';
+import { executeVortexPipeline, CURRENT_IDENTITY } from './gateway.js';
 import { getOrCreateGOS3Session } from './gos3.js';
 import { verifyExecutionProof } from './verifier.js';
 import { invokeLlama } from './llama-adapter.js';
@@ -418,7 +418,7 @@ export async function executeGovernedLLM(
   // 4. Run Independent Verifier on the generated proof
   let verification: VerificationResult | undefined;
   if (pipelineResponse.execution_proof) {
-    verification = verifyExecutionProof(pipelineResponse.execution_proof);
+    verification = verifyExecutionProof(pipelineResponse.execution_proof, { trustedPublicKey: CURRENT_IDENTITY.public_key });
   }
 
   const durationMs = pipelineResponse.execution_proof?.duration_ms ?? 0;
