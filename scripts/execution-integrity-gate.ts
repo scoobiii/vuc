@@ -128,7 +128,6 @@ function runSuite(testId: string, command: string): SuiteResult {
   const proof = makeProof(testId, command, startedAt, completedAt, finishedMs - startedMs, stdout, stderr, result.status);
 
   const verification = verifyExecutionProof(proof, {
-    embeddedPublicKey: undefined,
     expectedInputHash: proof.input_hash,
     expectedOutputHash: proof.output_hash,
   });
