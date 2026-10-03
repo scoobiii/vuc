@@ -53,17 +53,34 @@ jobs:
           mkdir -p bin/native/bin
           bash scripts/install-bend.sh || true
 
-      - name: Normalize lockfile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Validate lockfile without rewriting it
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          if (lock.lockfileVersion !== 3) throw new Error('package-lock.json must use lockfileVersion 3');
+          if (lock.name !== '@vucfoundation/vuc' || lock.version !== '1.0.2') {
+            throw new Error('package-lock.json identity mismatch');
+          }
+          const requiredOptional = [
+            'node_modules/@rollup/rollup-linux-arm64-gnu',
+            'node_modules/@rollup/rollup-linux-x64-gnu',
+            'node_modules/lightningcss-linux-arm64-gnu',
+            'node_modules/lightningcss-linux-x64-gnu'
+          ];
+          for (const path of requiredOptional) {
+            if (!lock.packages?.[path]) throw new Error('lockfile missing required optional package: ' + path);
+          }
+          console.log('Lockfile static contract: PASS');
+          NODE
+          git diff --exit-code -- package-lock.json
 
       - name: Install Dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Install native Bend
         run: npm run install:bend
-
-      - name: Verify lockfile is reproducible
-        run: git diff --exit-code -- package-lock.json
 
       - name: Reject unresolved merge conflict markers
         run: |
@@ -123,6 +140,33 @@ jobs:
           node dist/vua.cjs status
           node dist/vua.cjs conformance
 
+      - name: Verify ARM64 package bin contract
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = require('./package.json');
+          if (!pkg.bin || typeof pkg.bin !== 'object') throw new Error('package.json bin contract missing');
+          for (const [name, target] of Object.entries(pkg.bin)) {
+            if (!fs.existsSync(target)) throw new Error('bin contract broken: ' + name + ' -> ' + target + ' does not exist');
+            console.log('bin contract: ' + name + ' -> ' + target + ': PASS');
+          }
+          NODE
+
+      - name: Verify ARM64 npm package contract
+        run: |
+          set -euo pipefail
+          npm pack --dry-run
+          npm pack --dry-run --json > /tmp/vuc-pack-arm64.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/vuc-pack-arm64.json', 'utf8'));
+          const files = new Set((data[0]?.files ?? []).map(f => f.path));
+          for (const required of ['dist/vua.cjs', 'dist/server.cjs', 'package.json']) {
+            if (!files.has(required)) throw new Error('npm package contract broken: missing ' + required);
+            console.log('npm package contract: ' + required + ': PASS');
+          }
+          NODE
+
       - name: Verify npm package contract
         run: |
           set -euo pipefail
@@ -149,3 +193,49 @@ jobs:
             .vortex-evidence.json
             reports/execution-evidence/**
           if-no-files-found: warn
+
+  release-contract-arm64:
+    name: VUC Release Contract (ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies (ARM64)
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify package identity
+        run: |
+          set -euo pipefail
+          node -e 'const p=require("./package.json"); if (p.name !== "@vucfoundation/vuc" || p.version !== "1.0.2") process.exit(1);'
+
+      - name: Build Production Assets (ARM64)
+        run: npm run build
+
+      - name: Build CLI Release Artifact (ARM64)
+        run: npm run build:cli
+
+      - name: Verify ARM64 release artifacts
+        run: |
+          set -euo pipefail
+          test -s dist/vua.cjs
+          test -s dist/server.cjs
+          file dist/vua.cjs dist/server.cjs || true
+          echo "ARM64 dist/vua.cjs: PASS ($(wc -c < dist/vua.cjs) bytes)"
+          echo "ARM64 dist/server.cjs: PASS ($(wc -c < dist/server.cjs) bytes)"
+
+      - name: Execute ARM64 packaged CLI
+        run: |
+          set -euo pipefail
+          node dist/vua.cjs --help >/tmp/vuc-help.txt
+          grep -q "VUC\\|VUA" /tmp/vuc-help.txt
+          node dist/vua.cjs status
+          node dist/vua.cjs conformance
