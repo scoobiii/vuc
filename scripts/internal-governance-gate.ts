@@ -56,10 +56,10 @@ assert(response.status === 'EXECUTION_SUCCESS', 'gateway status=' + response.sta
 assert(response.execution_proof, 'gateway returned no ExecutionProof');
 assert(response.execution_proof.executed === true, 'ExecutionProof.executed is not true');
 assert(response.execution_proof.signature !== 'mock-sig', 'synthetic mock signature detected');
-const verification = verifyExecutionProof(response.execution_proof);
+const verification = verifyExecutionProof(response.execution_proof, { trustedPublicKey: identity.public_key });
 assert(verification.valid === true, 'ExecutionProof verification failed: ' + verification.reasons.join('; '));
 assert(verification.checks.signature.passed === true, 'Ed25519 signature check did not pass');
-assert(verification.checks.identity.passed === true, 'Trusted identity check did not pass');
+assert(verification.checks.identity.passed === true, 'External trust-anchor identity check did not pass');
 console.log('[INTERNAL-GATE] key_id=' + identity.key_id);
 console.log('[INTERNAL-GATE] ed25519_signature_verified=true');
 
