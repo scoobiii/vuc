@@ -1,0 +1,112 @@
+name: Release VUC to npm
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  reconcile-and-publish:
+    name: Reconcile release tag and publish package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Setup Node 22.14
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Use npm required by npm Trusted Publishing
+        run: npm install --global npm@11.5.1
+
+      - name: Read release contract
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          NAME="$(node -p "require('./package.json').name")"
+          SHA="$(git rev-parse HEAD)"
+          TAG="v${VERSION}"
+
+          test "$NAME" = "@vucfoundation/vuc"
+          printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
+          printf 'name=%s\n' "$NAME" >> "$GITHUB_OUTPUT"
+          printf 'sha=%s\n' "$SHA" >> "$GITHUB_OUTPUT"
+          printf 'tag=%s\n' "$TAG" >> "$GITHUB_OUTPUT"
+
+          echo "Package: $NAME"
+          echo "Version: $VERSION"
+          echo "Main SHA: $SHA"
+          echo "Release tag: $TAG"
+
+      - name: Check npm registry
+        id: registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.release.outputs.version }}"
+          if npm view "@vucfoundation/vuc@$VERSION" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "npm already contains @vucfoundation/vuc@$VERSION; release is already complete."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "npm does not contain @vucfoundation/vuc@$VERSION; CI must reconcile and publish."
+          fi
+
+      - name: Reconcile release tag to main
+        if: steps.registry.outputs.published != 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin "refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null || true
+
+          if git rev-parse "$TAG^{commit}" >/dev/null 2>&1; then
+            CURRENT="$(git rev-parse "$TAG^{commit}")"
+            if [ "$CURRENT" != "$SHA" ]; then
+              echo "Wrong tag target detected: $TAG -> $CURRENT"
+              echo "Correct target: $SHA"
+              git push --force origin "$SHA:refs/tags/$TAG"
+            else
+              echo "$TAG already points to $SHA"
+            fi
+          else
+            echo "$TAG is missing; creating it at $SHA"
+            git push origin "$SHA:refs/tags/$TAG"
+          fi
+
+          git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$SHA"
+
+      - name: Install dependencies
+        if: steps.registry.outputs.published != 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Build CLI
+        if: steps.registry.outputs.published != 'true'
+        run: npm run build:cli
+
+      - name: Verify package
+        if: steps.registry.outputs.published != 'true'
+        run: npm pack --dry-run
+
+      - name: Publish to npm
+        if: steps.registry.outputs.published != 'true'
+        run: npm publish --access public
