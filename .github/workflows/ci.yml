@@ -149,3 +149,56 @@ jobs:
             .vortex-evidence.json
             reports/execution-evidence/**
           if-no-files-found: warn
+
+  livebench-2026:
+    name: VUC LiveBench 2026 — Full Suite
+    # This job is intentionally a first-class CI gate. For the mobile path,
+    # register the A23 as a self-hosted arm64 runner with label vuc-livebench.
+    runs-on: [self-hosted, linux, arm64, vuc-livebench]
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install VUC
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify LiveBench runtime contract
+        run: npm run test:livebench-runtime
+
+      - name: Verify full-suite prerequisites
+        run: |
+          set -euo pipefail
+          python3 --version
+          docker --version
+          test -n "${VUC_LIVEBENCH_API_BASE:-}${VUC_LIVEBENCH_MODEL_PATH:-}" || {
+            echo "ERROR: configure VUC_LIVEBENCH_API_BASE or VUC_LIVEBENCH_MODEL_PATH on the runner"
+            exit 1
+          }
+
+      - name: Run complete LiveBench 2026
+        env:
+          VUC_LIVEBENCH_RELEASE: "2026-06-25"
+          VUC_LIVEBENCH_MODE: "sequential"
+          VUC_LIVEBENCH_PARALLEL: "1"
+          VUC_LIVEBENCH_EVIDENCE: "${{ github.workspace }}/livebench-2026-evidence.json"
+        run: npm run benchmark:livebench -- --resume --retry-failures
+
+      - name: Upload LiveBench evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuc-livebench-2026-evidence
+          path: |
+            livebench-2026-evidence.json
+            **/all_groups.csv
+            **/all_tasks.csv
+            **/*.jsonl
+          if-no-files-found: warn
+\n
