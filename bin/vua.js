@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import process from 'node:process';
 import readline from 'node:readline';
+import { spawnSync } from 'node:child_process';
 let executeVortexPipeline, CURRENT_IDENTITY, verifyExecutionProof, vuaRegistry,
   runVUAAdaptersE2ESuite, executeGovernedLLM, canonicalizeRFC8785,
   generateVortexIdentity, signProofPayload, verifyProofSignature, sha256,
@@ -35,7 +36,6 @@ function printBanner() {
 const isHelpCommand = command === 'help' || command === '--help' || command === '-h';
 
 if (command === 'livebench') {
-  const { spawnSync } = await import('node:child_process');
   const runner = new URL('../bin/livebench.js', import.meta.url);
   const result = spawnSync(process.execPath, [runner.pathname, ...args.slice(1)], { stdio: 'inherit' });
   process.exit(result.status ?? 1);
