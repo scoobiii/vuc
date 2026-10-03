@@ -83,13 +83,14 @@ jobs:
 
       # 3. Falha se ainda houver conflito após varredura/tentativa
       - name: Fail if Unresolved Conflicts Remain
-        if: ${{ steps.marker_scan.outputs.has_conflicts == 'true' && github.event.inputs.strategy == 'audit' }}
+        if: ${{ always() }}
         run: |
           echo "::error file=git-sync::Conflito de sincronização Git detectado. Resolva manualmente ou via UI do AI Studio."
           exit 1
 
       # 4. Gate de Validação Obrigatória: Linter e Testes Canary
       - name: Validate Governance & Canary Invariants
+        if: ${{ always() }}
         run: |
           echo "🧪 Verificando integridade do código e conformidade dos testes de governança..."
           npm run lint
