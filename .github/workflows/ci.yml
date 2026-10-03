@@ -82,6 +82,9 @@ jobs:
       - name: Install native Bend
         run: npm run install:bend
 
+      - name: VUC Preflight — unified repository and release contract
+        run: bash scripts/vuc-preflight.sh
+
       - name: "AGENT security — reject unresolved merge markers"
         run: |
           set -euo pipefail
