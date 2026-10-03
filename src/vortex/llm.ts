@@ -30,6 +30,7 @@ export interface LLMConfig {
   baseUrl?: string;
   apiKey?: string;
   temperature?: number;
+  seed?: number;
   maxTokens?: number;
   systemInstruction?: string;
   timeoutMs?: number;
@@ -155,6 +156,7 @@ async function callOllama(
         stream: false,
         options: {
           temperature: config.temperature ?? 0.7,
+          seed: config.seed,
           num_predict: config.maxTokens ?? 2048,
         },
       }),
@@ -372,6 +374,7 @@ export async function executeGovernedLLM(
       prompt,
       systemInstruction: effectiveSystemInstruction,
       temperature: config.temperature,
+      seed: config.seed,
       maxTokens: config.maxTokens,
     },
   };
