@@ -374,7 +374,6 @@ export async function handleMCPMessage(message: {
       }
 
       const options = {
-        embeddedPublicKey: (args.public_key as string) || (args.embeddedPublicKey as string),
         expectedInputHash: (args.expected_input_hash as string) || (inputObj.expected_hash as string),
         expectedOutputHash: args.expected_output_hash as string,
       };
