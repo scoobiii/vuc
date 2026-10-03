@@ -57,15 +57,14 @@ try {
     { mode: 0o600 },
   );
 
-  process.env.VUC_TRUST_STORE = trustStore;
   KEY_REGISTRY.clear();
 
   const trustedProof = makeProof(trusted, 'trusted-proof');
-  const trustedVerification = verifyExecutionProof(trustedProof);
+  const trustedVerification = verifyExecutionProof(trustedProof, { trustedPublicKey: trusted.public_key });
   assert.equal(trustedVerification.valid, true, trustedVerification.reasons.join('; '));
 
   const attackerProof = makeProof(attacker, 'attacker-proof');
-  const attackerVerification = verifyExecutionProof(attackerProof);
+  const attackerVerification = verifyExecutionProof(attackerProof, { trustedPublicKey: trusted.public_key });
   assert.equal(attackerVerification.valid, false);
   assert.match(attackerVerification.reasons.join('; '), /SIGNATURE_INVALID|Unresolvable cryptographic identity/);
 
@@ -80,6 +79,5 @@ try {
   console.log('same_key_id_collision_rejected=PASS');
   console.log('caller_embedded_key_rejected=PASS');
 } finally {
-  delete process.env.VUC_TRUST_STORE;
   fs.rmSync(tempDir, { recursive: true, force: true });
 }
