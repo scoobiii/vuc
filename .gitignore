@@ -10,3 +10,6 @@ coverage/
 data/*.sqlite*
 .env*
 !.env.example
+
+# Generated native Bend runtime (installed by scripts/install-bend.sh)
+bin/native/bin/
