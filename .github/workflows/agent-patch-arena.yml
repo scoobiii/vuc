@@ -125,17 +125,7 @@ jobs:
               body: body
             });
 
-      # 9. Fast-forward Auto-Merge (Only if approved & auto_merge_winner is enabled)
-      - name: Fast-Forward Auto-Merge Approved Winner
-        if: ${{ steps.merge_gate.outputs.superior_found == 'true' && (inputs.auto_merge_winner == true || contains(github.event.pull_request.labels.*.name, 'automerge-superior')) }}
-        run: |
-          echo "🚀 Executing auto-merge for verified candidate..."
-          git config user.name "vortex-ci-robot[bot]"
-          git config user.email "ci-robot@vortex-foundation.org"
-          git checkout main
-          git merge --ff-only "${{ github.head_ref }}"
-          git push origin main
-
+      # 9. Auto-merge is prohibited; CI only produces a verdict.
       # 10. Archive Verifiable Tournament Evidence
       - name: Archive Arena Cryptographic Evidence
         uses: actions/upload-artifact@v4
