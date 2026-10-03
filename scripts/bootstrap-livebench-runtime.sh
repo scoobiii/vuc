@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 CACHE_ROOT="$HOME/.cache/vuc/livebench-runtime"
-if [ -n "$VUC_LIVEBENCH_CACHE" ]; then CACHE_ROOT="$VUC_LIVEBENCH_CACHE"; fi
+CACHE_OVERRIDE="$(printenv VUC_LIVEBENCH_CACHE || true)"
+if [ -n "$CACHE_OVERRIDE" ]; then CACHE_ROOT="$CACHE_OVERRIDE"; fi
 BIN_DIR="$CACHE_ROOT/bin"
-LLAMA_REF="$VUC_LLAMA_CPP_REF"; [ -n "$LLAMA_REF" ] || LLAMA_REF="b10488"
+LLAMA_REF="$(printenv VUC_LLAMA_CPP_REF || true)"; [ -n "$LLAMA_REF" ] || LLAMA_REF="b10488"
 LLAMA_DIR="$CACHE_ROOT/llama.cpp-$LLAMA_REF"
 mkdir -p "$BIN_DIR" "$CACHE_ROOT"
 log(){ printf '[VUC-LB-BOOTSTRAP] %s\n' "$*"; }
@@ -50,7 +51,7 @@ fi
 LLAMA="$(command -v llama-server || echo "$BIN_DIR/llama-server")"
 [ -x "$LLAMA" ] || die "llama-server unavailable"
 
-DEVICE="$VUC_LIVEBENCH_DEVICE"; [ -n "$DEVICE" ] || DEVICE="auto"
+DEVICE="$(printenv VUC_LIVEBENCH_DEVICE || true)"; [ -n "$DEVICE" ] || DEVICE="auto"
 "$LLAMA" --list-devices >/tmp/vuc-llama-devices.txt 2>&1 || true
 GPU="false"
 grep -Eiq 'vulkan|cuda|metal|opencl|sycl|gpu|adreno|qualcomm|rocm' /tmp/vuc-llama-devices.txt && GPU="true" || true
@@ -62,17 +63,17 @@ case "$DEVICE" in
 esac
 GPU_LAYERS=0; [ "$DEVICE" = gpu ] && GPU_LAYERS=999
 
-MODEL="$VUC_LIVEBENCH_MODEL_PATH"
+MODEL="$(printenv VUC_LIVEBENCH_MODEL_PATH || true)"
 [ -n "$MODEL" ] || MODEL="$CACHE_ROOT/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf"
 if [ ! -s "$MODEL" ]; then
   have curl || apt_install curl || die "curl unavailable"
-  URL="$VUC_LIVEBENCH_MODEL_URL"
+  URL="$(printenv VUC_LIVEBENCH_MODEL_URL || true)"
   [ -n "$URL" ] || URL="https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf?download=true"
   log "Downloading Qwen2.5-Coder-0.5B-Instruct Q4_K_M"
   curl -fL --retry 5 --retry-delay 2 "$URL" -o "$MODEL"
 fi
 SHA="$(sha256sum "$MODEL" | awk '{print $1}')"
-EXPECTED="$VUC_LIVEBENCH_MODEL_SHA256"
+EXPECTED="$(printenv VUC_LIVEBENCH_MODEL_SHA256 || true)"
 [ -n "$EXPECTED" ] || EXPECTED="1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32"
 [ "$SHA" = "$EXPECTED" ] || die "model SHA-256 mismatch: got $SHA expected $EXPECTED"
 
