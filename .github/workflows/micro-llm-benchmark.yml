@@ -73,6 +73,7 @@ jobs:
           ollama pull "$VUC_OLLAMA_MODEL"
           test "$(curl -fsS http://127.0.0.1:11434/api/tags | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s);const m=(x.models||[]).find(v=>v.name===process.env.VUC_OLLAMA_MODEL);process.stdout.write(m?.digest||"")})')" = "$VUC_OLLAMA_DIGEST"
       - name: Execute and independently verify real proof
+        if: ${{ always() }}
         env:
           VUC_OLLAMA_MODEL: qwen2.5-coder:0.5b
         run: |
