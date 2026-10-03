@@ -33,6 +33,7 @@
   "license": "MIT",
   "files": [
     "bin",
+    "scripts",
     "src/vortex",
     "dist",
     "README.md"
