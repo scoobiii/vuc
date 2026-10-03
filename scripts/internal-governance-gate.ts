@@ -17,6 +17,7 @@ const instruction = loadGovernanceSystemInstruction(root);
 // explicitly during independent verification, proving the signature is real.
 const identity = generateVortexIdentity('vuc-internal', 'agent/vuc-preflight', 'vuc-preflight-' + Date.now());
 setGatewayIdentity(identity);
+process.env.VUC_TRUSTED_PUBLIC_KEY = identity.public_key;
 
 function run(label: string, command: string, args: string[]) {
   console.log('\n[INTERNAL-GATE] ' + label);
