@@ -34,6 +34,13 @@ function printBanner() {
 
 const isHelpCommand = command === 'help' || command === '--help' || command === '-h';
 
+if (command === 'livebench') {
+  const { spawnSync } = await import('node:child_process');
+  const runner = new URL('../bin/livebench.js', import.meta.url);
+  const result = spawnSync(process.execPath, [runner.pathname, ...args.slice(1)], { stdio: 'inherit' });
+  process.exit(result.status ?? 1);
+}
+
 function printHelp() {
   printBanner();
   console.log(`
@@ -50,6 +57,7 @@ Comandos Principais:
   vua gcloud <probe|bench|limits> Executa auditoria e benchmark de Google Cloud Free Tier
   vua conformance               Roda bateria de conformidade nos 4 adaptadores (100% test suite)
   vua llm [opções]              Executa prompt LLM governado (Qwen Coder local, Ollama ou Gemini)
+  vua livebench [opções]        Executa LiveBench 2026-06-25 completo com runtime adaptativo CPU/GPU
   vua bluesky <post|thread|...> Publica posts/threads no Bluesky com prova Ed25519 (AT Protocol)
   vua mcp                       Inicia o servidor MCP local (JSON-RPC 2.0 via stdio) para Cursor, Claude, etc.
   vua verify <proof.json>       Valida criptograficamente um ExecutionProof v1
