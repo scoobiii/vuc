@@ -185,6 +185,15 @@ jobs:
           mv "$RUNNER_TEMP/trusted-key-backup.pem" "$TRUST_KEY"
           echo "ATTACKER_TRUST_KEY_REJECTED=true"
           echo "REAL_RUNTIME=PASS_INDEPENDENTLY_VERIFIED"
+      - id: trust_anchor
+        if: ${{ always() }}
+        name: Trust-anchor conformance (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset VUC_TRUSTED_PUBLIC_KEY
+          unset VUC_TRUST_STORE
+          npx tsx tests/trust-anchor-conformance.test.ts
       - id: audit
         if: ${{ always() }}
         name: Dependency security audit
@@ -271,6 +280,7 @@ jobs:
             build_cli=${{ steps.build_cli.outcome }}
             cli_artifact=${{ steps.cli_artifact.outcome }}
             real_llm_runtime=${{ steps.real_llm_runtime.outcome }}
+            trust_anchor=${{ steps.trust_anchor.outcome }}
             audit=${{ steps.audit.outcome }}
             lint=${{ steps.lint.outcome }}
             preflight=${{ steps.preflight.outcome }}
