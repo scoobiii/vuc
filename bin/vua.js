@@ -438,6 +438,8 @@ async function handleLLM() {
   const model = getArg('--model') || (provider === 'gemini' ? 'gemini-3.8-flash' : 'qwen2.5-coder:0.5b');
   const prompt = getArg('--prompt') || 'Escreva um código em TypeScript que calcula hash SHA-256';
   const baseUrl = getArg('--url');
+  const temperature = Number(getArg('--temperature') ?? 0.2);
+  const seed = Number(getArg('--seed') ?? 0);
 
   console.log(`🤖 Invocando LLM com Governança VUA:`);
   console.log(`   • Provedor: ${provider}`);
@@ -450,8 +452,23 @@ async function handleLLM() {
       provider,
       model,
       baseUrl,
-      temperature: 0.2,
+      temperature,
+      seed,
     });
+
+    const proofOut = getArg('--proof-out');
+    const publicKeyOut = getArg('--public-key-out');
+    if (proofOut) {
+      if (!result.execution_proof) throw new Error('ExecutionProof ausente; --proof-out exige prova real');
+      fs.writeFileSync(proofOut, JSON.stringify(result.execution_proof, null, 2) + '\\n', { mode: 0o600 });
+    }
+    if (publicKeyOut) {
+      const proofKeyId = result.execution_proof?.identity?.key_id;
+      if (!proofKeyId) throw new Error('key_id ausente; --public-key-out exige identidade criptográfica');
+      const identityKey = CURRENT_IDENTITY?.key_id === proofKeyId ? CURRENT_IDENTITY.public_key : null;
+      if (!identityKey) throw new Error('Não foi possível resolver a chave pública do signer para o proof');
+      fs.writeFileSync(publicKeyOut, identityKey, { mode: 0o600 });
+    }
 
     console.log(`\n📝 RESPOSTA DO MODELO:\n`);
     console.log(result.text);
