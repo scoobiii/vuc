@@ -33,6 +33,7 @@
   "license": "MIT",
   "files": [
     "bin",
+    "scripts",
     "src/vortex",
     "dist",
     "README.md"
@@ -115,7 +116,10 @@
     "gpu:termux": "tsx scripts/termux-gpu-matrix.ts",
     "test:bench-runtime-gad": "tsx tests/bench-runtime-gad.test.ts",
     "benchmark:models:validate": "tsx benchmarks/micro-llm/models/validate.ts",
-    "benchmark:environment": "tsx benchmarks/micro-llm/environment/collect.ts"
+    "benchmark:environment": "tsx benchmarks/micro-llm/environment/collect.ts",
+    "benchmark:livebench": "node bin/livebench.js",
+    "livebench": "node bin/livebench.js",
+    "test:livebench-runtime": "tsx tests/livebench-runtime.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
