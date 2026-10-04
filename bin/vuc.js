@@ -12,6 +12,7 @@
 
 import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
 import process from 'node:process';
 import readline from 'node:readline';
 import { executeVortexPipeline, CURRENT_IDENTITY } from '../src/vortex/gateway.js';
@@ -20,7 +21,7 @@ import { vuaRegistry } from '../src/vortex/adapters/registry.js';
 import { runVUAAdaptersE2ESuite } from '../src/vortex/conformance.js';
 import { executeGovernedLLM } from '../src/vortex/llm.js';
 import { canonicalizeRFC8785 } from '../src/vortex/canonicalize.js';
-import { generateVortexIdentity, signProofPayload, verifyProofSignature, sha256 } from '../src/vortex/crypto.js';
+import { generateVortexIdentity, KEY_REGISTRY, signProofPayload, verifyProofSignature, sha256 } from '../src/vortex/crypto.js';
 import { handleMCPMessage } from '../src/vortex/mcp-server.js';
 import { RepositoryBootstrapper } from '../src/repository/bootstrap/RepositoryBootstrapper.js';
 import { detectHardwareFingerprint, computeDynamicBaseline, bootstrapHardwareBaseline } from '../src/vortex/hardware-profiler.js';
@@ -30,6 +31,30 @@ import { scanRepositoryForMocks } from '../src/vortex/static-mock-scanner.js';
 
 const args = process.argv.slice(2);
 const command = args[0] || 'help';
+
+if (command === 'version' || command === '--version' || command === '-v') {
+  const entryDir = process.argv[1] ? path.dirname(path.resolve(process.argv[1])) : process.cwd();
+  const pkgCandidates = [
+    path.resolve(entryDir, '..', 'package.json'),
+    path.resolve(process.cwd(), 'package.json'),
+  ];
+  let versionStr = '@vucfoundation/vuc@1.0.2';
+  for (const candidate of pkgCandidates) {
+    if (fs.existsSync(candidate)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+        if (pkg.name && pkg.version) {
+          versionStr = `${pkg.name}@${pkg.version}`;
+          break;
+        }
+      } catch {
+        // Fallback to default version string
+      }
+    }
+  }
+  console.log(versionStr);
+  process.exit(0);
+}
 
 function printBanner() {
   console.log(`
@@ -92,6 +117,7 @@ async function handleStatus() {
   printBanner();
   const fingerprint = detectHardwareFingerprint();
   const baseline = computeDynamicBaseline(fingerprint);
+  const registeredAdapters = vuaRegistry.list();
 
   console.log(`Diagnósticos de Sistema & Hardware Profile:`);
   console.log(`  • Arquétipo Gadget  : 🎯 [${fingerprint.archetype}]`);
@@ -100,7 +126,7 @@ async function handleStatus() {
   console.log(`  • CPUs              : ${fingerprint.cpuCores} núcleos (${fingerprint.cpuModel})`);
   console.log(`  • Memória RAM       : ${fingerprint.freeMemoryMB} MB livre de ${fingerprint.totalMemoryMB} MB total`);
   console.log(`  • Gemini API Key    : ${process.env.GEMINI_API_KEY ? 'Configurada [OK]' : 'Ausente (usará modo offline/local)'}`);
-  console.log(`  • Adaptadores VUA   : 4 Ativos (github, linux, android, windows)`);
+  console.log(`  • Adaptadores VUA   : ${registeredAdapters.length} Ativos (${registeredAdapters.map((a) => a.id).join(', ')})`);
   console.log(`\nBaseline Dinâmica de Tolerância:`);
   console.log(`  • SLA Assinatura Ed25519: ${baseline.cryptoSignTargetMs} ms (Tolerância: ±${baseline.jitterTolerancePercent}%)`);
   console.log(`  • SLA Canônico RFC 8785 : ${baseline.canonicalizeTargetMs} ms`);
@@ -341,10 +367,26 @@ async function handleVerify() {
       proof = proof.execution_proof;
     }
 
+    const trustedKeyFlagIdx = args.indexOf('--trusted-key');
+    const trustedKeyFile =
+      (trustedKeyFlagIdx !== -1 ? args[trustedKeyFlagIdx + 1] : undefined) ||
+      process.env.VUC_TRUSTED_PUBLIC_KEY_FILE;
+    if (trustedKeyFile && proof?.identity?.key_id) {
+      const pinnedPem = fs.readFileSync(trustedKeyFile, 'utf8');
+      KEY_REGISTRY.set(proof.identity.key_id, {
+        key_id: proof.identity.key_id,
+        public_key: pinnedPem,
+        principal_id: proof.principal_id || 'cli-auditor',
+        agent_id: proof.agent_id || 'agent/cli-verifier',
+        algorithm: 'Ed25519',
+        created_at: new Date().toISOString(),
+      });
+    }
+
     const verification = verifyExecutionProof(proof);
 
     const isOk = verification.valid === true || verification.status === 'VERIFIED';
-    const keyId = verification.checks?.identity?.details?.key_id || proof.identity?.key_id || proof.identity?.public_key || 'well-known';
+    const keyId = verification.checks?.identity?.details?.key_id || proof.identity?.key_id || 'unknown';
     const version = proof.schema_version || proof.vortex_version || 'v1';
 
     console.log(`\n🔍 Auditoria Criptográfica Independente:`);
@@ -354,6 +396,7 @@ async function handleVerify() {
     console.log(`   • Proof Hash   : ${proof.proof_hash || 'N/A'}`);
     if (!isOk) {
       console.log(`   • Motivos      : ${JSON.stringify(verification.reasons)}`);
+      if (args.includes('--strict')) process.exit(1);
     } else {
       console.log(`   • Canonical JCS: ${verification.canonical_jcs ? Buffer.byteLength(verification.canonical_jcs) + ' bytes' : 'OK'}`);
     }

@@ -215,8 +215,8 @@ async function handleRpc(req) {
                 text: result.text,
                 duration_ms: result.duration_ms,
                 usage: result.usage,
-                execution_proof_id: result.execution_proof?.proof_id,
-                proof_verified: result.verification?.verified ?? true,
+                execution_proof_id: result.execution_proof?.execution_id,
+                proof_verified: result.verification?.valid === true,
               },
               null,
               2
@@ -232,7 +232,7 @@ async function handleRpc(req) {
       const computedHash = sha256(canonicalJson);
       let proofVerification = null;
 
-      if (args.payload?.proof_id && args.payload?.signature) {
+      if ((args.payload?.proof_id || args.payload?.execution_id) && args.payload?.signature) {
         proofVerification = verifyExecutionProof(args.payload);
       }
 
@@ -244,7 +244,7 @@ async function handleRpc(req) {
             type: 'text',
             text: JSON.stringify(
               {
-                valid: match && (proofVerification ? proofVerification.verified : true),
+                valid: match && (proofVerification ? proofVerification.valid === true : true),
                 canonical_sha256: computedHash,
                 hash_matched: match,
                 proof_verification: proofVerification,
