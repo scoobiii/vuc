@@ -59,6 +59,7 @@ import { RepositoryBootstrapper } from './src/repository/bootstrap/RepositoryBoo
 import { mountOAuth, requireBearer } from './src/vortex/oauth.js';
 import { bootstrapHardwareBaseline, detectHardwareFingerprint, computeDynamicBaseline } from './src/vortex/hardware-profiler.js';
 import { vucArbiter } from './src/vortex/vuc-runtime-arbiter.js';
+import { inspectArenaTarget } from './src/vortex/arena-github.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const configuredPublicBase = (process.env.PUBLIC_BASE_URL || process.env.APP_URL || '').replace(/\/$/, '');
@@ -2668,6 +2669,30 @@ async function startServer() {
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  // ============================================================================
+  // VUC Universal Arena — real GitHub observation, fail-closed
+  // ============================================================================
+  app.post('/api/vortex/arena/invoke', async (req, res) => {
+    try {
+      const repository = String(req.body?.repository || '').trim();
+      const prNumber = req.body?.pr_number === undefined || req.body?.pr_number === ''
+        ? undefined
+        : Number(req.body.pr_number);
+      if (!repository) return res.status(400).json({ status: 'BLOCKED', error: 'repository is required as owner/repo' });
+      if (prNumber !== undefined && (!Number.isInteger(prNumber) || prNumber < 1)) {
+        return res.status(400).json({ status: 'BLOCKED', error: 'pr_number must be a positive integer' });
+      }
+      const result = await inspectArenaTarget(repository, prNumber);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return res.status(503).json({
+        status: 'BLOCKED',
+        error: err?.message || String(err),
+        provenance: { placeholder_state: false, unavailable: true },
+      });
     }
   });
 
