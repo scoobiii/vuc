@@ -119,7 +119,8 @@
     "benchmark:environment": "tsx benchmarks/micro-llm/environment/collect.ts",
     "benchmark:livebench": "node bin/livebench.js",
     "livebench": "node bin/livebench.js",
-    "test:livebench-runtime": "tsx tests/livebench-runtime.test.ts"
+    "test:livebench-runtime": "tsx tests/livebench-runtime.test.ts",
+    "prepack": "npm run build:cli"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
