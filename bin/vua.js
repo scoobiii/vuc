@@ -460,7 +460,7 @@ async function handleLLM() {
     const publicKeyOut = getArg('--public-key-out');
     if (proofOut) {
       if (!result.execution_proof) throw new Error('ExecutionProof ausente; --proof-out exige prova real');
-      fs.writeFileSync(proofOut, JSON.stringify(result.execution_proof, null, 2) + '\\n', { mode: 0o600 });
+      fs.writeFileSync(proofOut, JSON.stringify(result.execution_proof, null, 2) + '\n', { mode: 0o600 });
     }
     if (publicKeyOut) {
       const proofKeyId = result.execution_proof?.identity?.key_id;
