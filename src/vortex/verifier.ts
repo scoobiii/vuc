@@ -15,7 +15,7 @@
  */
 
 import { canonicalize } from './canonicalize.js';
-import { sha256, verifyProofSignature } from './crypto.js';
+import { resolvePublicKey, sha256, verifyProofSignature } from './crypto.js';
 import { validateGOS3Session } from './gos3.js';
 import type { ExecutionProof, VerificationResult } from './types.js';
 
@@ -68,7 +68,7 @@ export function verifyExecutionProof(
 
   // 2. Identity Discovery
   const keyId = proof.identity?.key_id;
-  const pubKey = options?.trustedPublicKey || process.env.VUC_TRUSTED_PUBLIC_KEY || null;
+  const pubKey = options?.trustedPublicKey || resolvePublicKey(keyId || '') || null;
   if (!keyId || !pubKey) {
     checks.identity = { passed: false, message: `Could not resolve public key for key_id '${keyId}'` };
     reasons.push(`Unresolvable cryptographic identity key_id: ${keyId}`);
