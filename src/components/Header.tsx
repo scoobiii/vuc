@@ -20,6 +20,7 @@ import {
   Flame,
   Globe,
   HardDrive,
+  GitPullRequest,
 } from 'lucide-react';
 import { auth, logoutUser, type User } from '../firebase/config.js';
 
@@ -51,6 +52,37 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [copiedKey, setCopiedKey] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(auth.currentUser);
+  const [creatingPr, setCreatingPr] = useState(false);
+  const [createdPrInfo, setCreatedPrInfo] = useState<{ pr_number: number; html_url: string } | null>(null);
+
+  const handleCreateGovernedPr = async () => {
+    if (creatingPr) return;
+    setCreatingPr(true);
+    try {
+      const res = await fetch('/api/github/workspace-pr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          owner: 'scoobiii',
+          repo: 'vuc',
+          base: 'main',
+          head: 'feat/vuc-cli-s0-audit-suite',
+          approval_binding: `ui-header-pr-approval:${new Date().toISOString()}`,
+        }),
+      });
+      const data = await res.json();
+      if (data?.success && data?.remote_response?.pr_number) {
+        setCreatedPrInfo({
+          pr_number: data.remote_response.pr_number,
+          html_url: data.remote_response.html_url,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to create governed PR:', err);
+    } finally {
+      setCreatingPr(false);
+    }
+  };
 
   React.useEffect(() => {
     const unsub = auth.onAuthStateChanged((u) => setFirebaseUser(u));
@@ -81,6 +113,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navItems = [
     { id: 'vuc-gitpage', label: '⚡ VUC GitPage Dinâmica (Realtime)', icon: Globe },
+    { id: 'vuc-cli-protocol', label: 'CLI Verification Protocol', icon: Terminal },
     { id: 'vua-adapters', label: 'Adaptadores VUC', icon: Layers },
     { id: 'k6-industry', label: 'K6 por Indústria (100%)', icon: Flame },
     { id: 'drex-integration', label: 'Integração DREX', icon: Landmark },
@@ -188,6 +221,31 @@ export const Header: React.FC<HeaderProps> = ({
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
+
+          <button
+            id="header-create-governed-pr-btn"
+            type="button"
+            onClick={handleCreateGovernedPr}
+            disabled={creatingPr}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-950/60 hover:bg-violet-900/60 border border-violet-500/40 text-violet-300 hover:text-white text-xs font-mono transition disabled:opacity-50"
+            title="Criar Branch + Pull Request Governado em scoobiii/vuc (Substitui Push direto na main protegida pelo Ruleset #23817594)"
+          >
+            <GitPullRequest className={`w-3.5 h-3.5 text-violet-400 ${creatingPr ? 'animate-pulse' : ''}`} />
+            <span>{creatingPr ? 'Abrindo PR...' : createdPrInfo ? `PR #${createdPrInfo.pr_number} Ativo` : 'Abrir PR (scoobiii/vuc)'}</span>
+          </button>
+
+          {createdPrInfo && (
+            <a
+              href={createdPrInfo.html_url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 text-xs font-mono hover:bg-emerald-900/50 transition"
+              title="Abrir Pull Request verificado no GitHub"
+            >
+              <span>Ver PR #{createdPrInfo.pr_number}</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
 
           <a
             id="header-swagger-docs-btn"

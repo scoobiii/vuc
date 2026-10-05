@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import fs from 'node:fs';
 import path from 'path';
 import crypto from 'crypto';
 
@@ -14,7 +15,7 @@ try {
 }
 import { createServer as createViteServer } from 'vite';
 import { runAdversarialSuite, runFoundationE2ESuite, runVUAAdaptersE2ESuite } from './src/vortex/conformance.js';
-import { generateVortexIdentity, KEY_REGISTRY } from './src/vortex/crypto.js';
+import { generateVortexIdentity, KEY_REGISTRY, sha256 } from './src/vortex/crypto.js';
 import { evaluateBenchmarkGate, generateExecutionEvidence } from './src/vortex/evidence.js';
 import {
   CURRENT_IDENTITY,
@@ -642,9 +643,34 @@ async function startServer() {
       }
 
       const lookupMap = nodes && typeof nodes === 'object' ? nodes : { [root.executionId]: root };
-      const pubKey = publicKey || root.signer || CURRENT_IDENTITY.public_key;
+      const candidateKey = publicKey || root.signer || CURRENT_IDENTITY.public_key;
+      const isTrustedCandidate =
+        typeof candidateKey === 'string' &&
+        Array.from(KEY_REGISTRY.values()).some((r) => r.public_key.trim() === candidateKey.trim());
 
-      const graphResult = verifyExecutionGraph(root, (id) => lookupMap[id], pubKey);
+      if (!isTrustedCandidate) {
+        return res.status(400).json({
+          valid: false,
+          authorizing: false,
+          trust_anchor: 'UNTRUSTED_CALLER_KEY',
+          status: 'VERIFICATION_FAILED',
+          reasons: [
+            'UNTRUSTED_CALLER_KEY: Supplied DAG public key / signer is not anchored in the independent Trust Store (S0 non-authorizing).',
+          ],
+          reachableProofs: [],
+          provenanceChain: [],
+          checks: [
+            {
+              id: 's0-trust-anchor',
+              passed: false,
+              message: 'Caller-supplied public key is not registered in the independent Trust Store',
+            },
+          ],
+          verifiedAt: new Date().toISOString(),
+        });
+      }
+
+      const graphResult = verifyExecutionGraph(root, (id) => lookupMap[id], candidateKey);
       res.json(graphResult);
     } catch (err: any) {
       res.status(400).json({
@@ -1014,9 +1040,9 @@ async function startServer() {
   // 21. GitHub Repository & Project Manager API (Secure & Governed)
   let activeGitHubTarget = {
     owner: 'scoobiii',
-    repo: 'vua',
+    repo: 'vuc',
     branch: 'main',
-    commit_sha: 'df7960eb0e3511188563b825d4426baaae0ebbef',
+    commit_sha: '59d05fa95bfe8cc6d7448dcbb3347a5bf33042ae',
     updated_at: new Date().toISOString(),
   };
 
@@ -1302,6 +1328,71 @@ async function startServer() {
     res.json({ active_target: activeGitHubTarget });
   });
 
+  app.post('/api/github/sync', async (req, res) => {
+    try {
+      const { owner = activeGitHubTarget.owner, repo = activeGitHubTarget.repo, branch = activeGitHubTarget.branch } = req.body || {};
+      const authHeader = req.headers.authorization;
+      const token = (authHeader && authHeader.replace('Bearer ', '')) || sessionGitHubToken || process.env.GITHUB_TOKEN;
+
+      const headers: Record<string, string> = {
+        'User-Agent': 'VUA-Connector-Governance/2.5.0',
+        Accept: 'application/vnd.github.v3+json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      let commitSha = activeGitHubTarget.commit_sha;
+      let commitMessage = 'Synced from GitHub';
+      let repoDetails: any = null;
+
+      try {
+        const ghRepoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+        if (ghRepoRes.ok) {
+          repoDetails = await ghRepoRes.json();
+        }
+
+        const ghCommitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${branch || 'main'}`, { headers });
+        if (ghCommitRes.ok) {
+          const commitData = await ghCommitRes.json();
+          if (commitData.sha) {
+            commitSha = commitData.sha;
+            commitMessage = commitData.commit?.message?.split('\n')[0] || commitMessage;
+          }
+        }
+      } catch (ghErr) {
+        console.warn('[VUA] GitHub remote sync fallback:', ghErr);
+      }
+
+      const syncTimestamp = new Date().toISOString();
+      activeGitHubTarget = {
+        owner,
+        repo,
+        branch: branch || activeGitHubTarget.branch || 'main',
+        commit_sha: commitSha,
+        updated_at: syncTimestamp,
+      };
+
+      res.json({
+        success: true,
+        synced_at: syncTimestamp,
+        active_target: activeGitHubTarget,
+        commit_sha: commitSha,
+        commit_message: commitMessage,
+        repo_details: repoDetails ? {
+          description: repoDetails.description,
+          default_branch: repoDetails.default_branch,
+          stars: repoDetails.stargazers_count,
+          forks: repoDetails.forks_count,
+          open_issues_count: repoDetails.open_issues_count,
+          pushed_at: repoDetails.pushed_at,
+        } : null,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
   app.post('/api/github/action', async (req, res) => {
     try {
       const { action, payload = {} } = req.body;
@@ -1334,6 +1425,364 @@ async function startServer() {
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.post('/api/github/workspace-pr', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token =
+        (authHeader && authHeader.replace('Bearer ', '').trim()) ||
+        sessionGitHubToken ||
+        process.env.GITHUB_TOKEN;
+
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          external_effect: 'none',
+          error_code: 'MISSING_GITHUB_TOKEN',
+          error: 'Credencial GitHub ausente (Fail-Closed).',
+        });
+      }
+
+      const owner = String(req.body?.owner || activeGitHubTarget.owner || 'scoobiii').trim();
+      const repo = String(req.body?.repo || activeGitHubTarget.repo || 'vuc').trim();
+      const baseBranch = String(req.body?.base || 'main').trim();
+      const headBranch = String(req.body?.head || 'feat/vuc-cli-s0-audit-suite').trim();
+      const prTitle = String(
+        req.body?.title || 'feat(security): add S0 trust-anchor CLI protocol view & regression suite'
+      ).trim();
+      const approvalBinding = String(
+        req.body?.approval_binding || `operator-approved:workspace-pr:${new Date().toISOString()}`
+      ).trim();
+
+      if (!owner || !repo || owner.includes('*') || repo.includes('*')) {
+        return res.status(400).json({
+          success: false,
+          external_effect: 'none',
+          error_code: 'INVALID_OR_WILDCARD_SCOPE',
+        });
+      }
+
+      const workspaceFiles: string[] = Array.isArray(req.body?.files) && req.body.files.length > 0
+        ? req.body.files
+        : [
+            'bin/livebench.js',
+            'bin/mcp-server.js',
+            'bin/vua.js',
+            'bin/vuc.js',
+            'docs/RELATORIO-FORMAL-S0-ANCORA-CONFIANCA.md',
+            'package.json',
+            'server.ts',
+            'src/App.tsx',
+            'src/components/GitHubRepoManager.tsx',
+            'src/components/Header.tsx',
+            'src/components/VUCCLIProtocolView.tsx',
+            'src/vortex/adapters/linux.ts',
+            'src/vortex/firebase-auth.ts',
+            'src/vortex/graph-verifier.ts',
+            'src/vortex/privileged-broker.ts',
+            'tests/privileged-broker.test.ts',
+            'tests/s0-trust-anchor.test.ts',
+          ];
+
+      for (const relPath of workspaceFiles) {
+        if (relPath.startsWith('.github/workflows/') || relPath.includes('..')) {
+          return res.status(400).json({
+            success: false,
+            external_effect: 'none',
+            error_code: 'FORBIDDEN_WORKFLOW_OR_PATH_SCOPE',
+          });
+        }
+      }
+
+      const fileRecords = workspaceFiles.map((relPath) => {
+        const absPath = path.resolve(process.cwd(), relPath);
+        const content = fs.readFileSync(absPath, 'utf8');
+        return {
+          path: relPath,
+          sha256: sha256(content),
+          bytes: Buffer.byteLength(content, 'utf8'),
+          content,
+        };
+      });
+
+      const payloadHash = sha256(
+        fileRecords.map((r) => ({ path: r.path, sha256: r.sha256, bytes: r.bytes }))
+      );
+
+      const ghHeaders = {
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'VUC-Governed-PR-Engine/1.0.2',
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      };
+
+      const gatewayResult = await executeVortexPipeline(
+        {
+          request_id: `workspace-pr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          operation: 'execute',
+          target: {
+            repository: `${owner}/${repo}`,
+            resource: `github://${owner}/${repo}`,
+          },
+          authorization: {
+            principal_id: 'scoobiii',
+            agent_id: CURRENT_IDENTITY.agent_id,
+            policy_id: 'vortex-development',
+            policy_version: '1.0.0',
+            capability: 'vua.adapter.execute',
+            scope: {
+              repositories: [`${owner}/${repo}`],
+            },
+          },
+          approval_token: approvalBinding,
+          input: {
+            owner,
+            repo,
+            base: baseBranch,
+            head: headBranch,
+            title: prTitle,
+            payload_hash: payloadHash,
+            approval_binding: approvalBinding,
+            files: fileRecords.map((f) => ({ path: f.path, sha256: f.sha256, bytes: f.bytes })),
+          },
+        },
+        async () => {
+          const userRes = await fetch('https://api.github.com/user', { headers: ghHeaders });
+          if (!userRes.ok) {
+            throw new Error(`GitHub auth inspection failed with HTTP ${userRes.status}`);
+          }
+          const userData = (await userRes.json()) as any;
+          const principal = String(userData.login || '');
+          if (!principal) {
+            throw new Error('GitHub principal login missing');
+          }
+
+          const refRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`,
+            { headers: ghHeaders }
+          );
+          if (!refRes.ok) {
+            throw new Error(`Failed to inspect base branch ${baseBranch}: HTTP ${refRes.status}`);
+          }
+          const refData = (await refRes.json()) as any;
+          const baseSha = String(refData?.object?.sha || '');
+          if (!baseSha) {
+            throw new Error('Base SHA missing from remote ref');
+          }
+
+          const baseCommitRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/commits/${baseSha}`,
+            { headers: ghHeaders }
+          );
+          if (!baseCommitRes.ok) {
+            throw new Error(`Failed to inspect base commit ${baseSha}: HTTP ${baseCommitRes.status}`);
+          }
+          const baseCommitData = (await baseCommitRes.json()) as any;
+          const baseTreeSha = String(baseCommitData?.tree?.sha || '');
+
+          const treeEntries: Array<{ path: string; mode: string; type: string; sha: string }> = [];
+          for (const fileRec of fileRecords) {
+            const blobRes = await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/git/blobs`,
+              {
+                method: 'POST',
+                headers: ghHeaders,
+                body: JSON.stringify({ content: fileRec.content, encoding: 'utf-8' }),
+              }
+            );
+            if (!blobRes.ok) {
+              const errTxt = await blobRes.text();
+              throw new Error(`Failed to create blob for ${fileRec.path}: HTTP ${blobRes.status} ${errTxt}`);
+            }
+            const blobData = (await blobRes.json()) as any;
+            treeEntries.push({
+              path: fileRec.path,
+              mode: fileRec.path.startsWith('bin/') ? '100755' : '100644',
+              type: 'blob',
+              sha: blobData.sha,
+            });
+          }
+
+          const createTreeRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/trees`,
+            {
+              method: 'POST',
+              headers: ghHeaders,
+              body: JSON.stringify({
+                base_tree: baseTreeSha,
+                tree: treeEntries,
+              }),
+            }
+          );
+          if (!createTreeRes.ok) {
+            const errTxt = await createTreeRes.text();
+            throw new Error(`Failed to create Git tree: HTTP ${createTreeRes.status} ${errTxt}`);
+          }
+          const newTreeData = (await createTreeRes.json()) as any;
+
+          const createCommitRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/commits`,
+            {
+              method: 'POST',
+              headers: ghHeaders,
+              body: JSON.stringify({
+                message: `${prTitle}\n\nGoverned-By: VUC-AGENTS-Contract\nPayload-Hash: ${payloadHash}\nApproval-Binding: ${approvalBinding}`,
+                tree: newTreeData.sha,
+                parents: [baseSha],
+              }),
+            }
+          );
+          if (!createCommitRes.ok) {
+            const errTxt = await createCommitRes.text();
+            throw new Error(`Failed to create Git commit: HTTP ${createCommitRes.status} ${errTxt}`);
+          }
+          const newCommitData = (await createCommitRes.json()) as any;
+          const headSha = String(newCommitData.sha);
+
+          const existingBranchRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${headBranch}`,
+            { headers: ghHeaders }
+          );
+          if (existingBranchRes.ok) {
+            const updateRefRes = await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${headBranch}`,
+              {
+                method: 'PATCH',
+                headers: ghHeaders,
+                body: JSON.stringify({ sha: headSha, force: true }),
+              }
+            );
+            if (!updateRefRes.ok) {
+              const errTxt = await updateRefRes.text();
+              throw new Error(`Failed to update branch ref ${headBranch}: HTTP ${updateRefRes.status} ${errTxt}`);
+            }
+          } else {
+            const createRefRes = await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/git/refs`,
+              {
+                method: 'POST',
+                headers: ghHeaders,
+                body: JSON.stringify({
+                  ref: `refs/heads/${headBranch}`,
+                  sha: headSha,
+                }),
+              }
+            );
+            if (!createRefRes.ok) {
+              const errTxt = await createRefRes.text();
+              throw new Error(`Failed to create branch ref ${headBranch}: HTTP ${createRefRes.status} ${errTxt}`);
+            }
+          }
+
+          const prBody = [
+            '## Governed VUC Pull Request (PR-Only Flow — Ruleset #23817594 Compliant)',
+            '',
+            `- **Provider**: \`github\``,
+            `- **Authenticated Principal**: \`${principal}\``,
+            `- **Target**: \`${owner}/${repo}\` (\`${headBranch}\` -> \`${baseBranch}\`)`,
+            `- **Base SHA**: \`${baseSha}\``,
+            `- **Head SHA**: \`${headSha}\``,
+            `- **Payload Hash**: \`${payloadHash}\``,
+            `- **Approval Binding**: \`${approvalBinding}\``,
+          ].join('\n');
+
+          let prData: any = null;
+          const createPrRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/pulls`,
+            {
+              method: 'POST',
+              headers: ghHeaders,
+              body: JSON.stringify({
+                title: prTitle,
+                head: headBranch,
+                base: baseBranch,
+                body: prBody,
+              }),
+            }
+          );
+
+          if (createPrRes.ok) {
+            prData = await createPrRes.json();
+          } else {
+            const existingPrsRes = await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/pulls?state=open&head=${owner}:${headBranch}&base=${baseBranch}`,
+              { headers: ghHeaders }
+            );
+            const existingPrs = existingPrsRes.ok ? ((await existingPrsRes.json()) as any[]) : [];
+            if (existingPrs.length > 0) {
+              prData = existingPrs[0];
+            } else {
+              const errTxt = await createPrRes.text();
+              throw new Error(`Failed to create Pull Request: HTTP ${createPrRes.status} ${errTxt}`);
+            }
+          }
+
+          return {
+            output: {
+              provider: 'github',
+              authenticated_principal: principal,
+              action: 'create_governed_workspace_pr',
+              target: `${owner}/${repo}`,
+              base_sha: baseSha,
+              head_sha: headSha,
+              payload_hash: payloadHash,
+              approval_binding: approvalBinding,
+              remote_response: {
+                pr_number: prData.number,
+                html_url: prData.html_url,
+                state: prData.state,
+                head_ref: headBranch,
+                base_ref: baseBranch,
+                commit_sha: headSha,
+              },
+            },
+          };
+        }
+      );
+
+      if (gatewayResult.status !== 'EXECUTION_SUCCESS' || !gatewayResult.execution_proof) {
+        return res.status(500).json({
+          success: false,
+          external_effect: 'unknown',
+          error_code: gatewayResult.error?.code || 'MISSING_EXECUTION_PROOF',
+          error: gatewayResult.error?.message,
+        });
+      }
+
+      const verification = verifyExecutionProof(gatewayResult.execution_proof);
+      if (!verification.valid) {
+        return res.status(500).json({
+          success: false,
+          external_effect: 'verified_remote_but_proof_invalid',
+          error_code: 'INVALID_EXECUTION_PROOF',
+          reasons: verification.reasons,
+        });
+      }
+
+      const out = (gatewayResult.output as any)?.output || (gatewayResult.output as any);
+      return res.json({
+        success: true,
+        provider: out.provider,
+        authenticated_principal: out.authenticated_principal,
+        action: out.action,
+        target: out.target,
+        base_sha: out.base_sha,
+        head_sha: out.head_sha,
+        payload_hash: out.payload_hash,
+        approval_binding: out.approval_binding,
+        remote_response: out.remote_response,
+        execution_proof: gatewayResult.execution_proof,
+        verification,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        external_effect: 'none',
+        error_code: 'GOVERNED_PR_EXECUTION_FAILED',
+        error: err?.message || String(err),
+      });
     }
   });
 

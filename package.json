@@ -120,7 +120,9 @@
     "benchmark:livebench": "node bin/livebench.js",
     "livebench": "node bin/livebench.js",
     "test:livebench-runtime": "tsx tests/livebench-runtime.test.ts",
-    "test:trust-anchor": "tsx tests/trust-anchor-conformance.test.ts"
+    "test:trust-anchor": "tsx tests/trust-anchor-conformance.test.ts && tsx tests/s0-trust-anchor.test.ts && tsx tests/privileged-broker.test.ts",
+    "test:s0": "tsx tests/s0-trust-anchor.test.ts",
+    "test:broker": "tsx tests/privileged-broker.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
