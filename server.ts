@@ -1472,6 +1472,7 @@ async function startServer() {
             'bin/vua.js',
             'bin/vuc.js',
             'docs/RELATORIO-FORMAL-S0-ANCORA-CONFIANCA.md',
+            'package.json',
             'server.ts',
             'src/App.tsx',
             'src/components/GitHubRepoManager.tsx',
@@ -1528,12 +1529,14 @@ async function startServer() {
           authorization: {
             principal_id: 'scoobiii',
             agent_id: CURRENT_IDENTITY.agent_id,
+            policy_id: 'vortex-development',
+            policy_version: '1.0.0',
             capability: 'vua.adapter.execute',
             scope: {
               repositories: [`${owner}/${repo}`],
             },
-            approval_token: approvalBinding,
           },
+          approval_token: approvalBinding,
           input: {
             owner,
             repo,
