@@ -21,6 +21,7 @@ import {
   Globe,
   HardDrive,
   GitPullRequest,
+  Castle,
 } from 'lucide-react';
 import { auth, logoutUser, type User } from '../firebase/config.js';
 
@@ -112,6 +113,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const navItems = [
+    { id: 'universal-arena', label: 'Universal Arena', icon: Castle },
     { id: 'vuc-gitpage', label: '⚡ VUC GitPage Dinâmica (Realtime)', icon: Globe },
     { id: 'vuc-cli-protocol', label: 'CLI Verification Protocol', icon: Terminal },
     { id: 'vua-adapters', label: 'Adaptadores VUC', icon: Layers },
