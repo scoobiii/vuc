@@ -49,9 +49,9 @@ jobs:
             catch { return null; }
           };
           const mem = run("free -b | awk '/Mem:/{print $2 \" \" $7}'") || '';
-          const [memoryTotalBytes, memoryAvailableBytes] = mem.split(/\\s+/).map(v => Number(v) || null);
+          const [memoryTotalBytes, memoryAvailableBytes] = mem.split(/\s+/).map(v => Number(v) || null);
           const disk = run("df -B1 / | awk 'NR==2 {print $2 \" \" $4}'") || '';
-          const [diskTotalBytes, diskAvailableBytes] = disk.split(/\\s+/).map(v => Number(v) || null);
+          const [diskTotalBytes, diskAvailableBytes] = disk.split(/\s+/).map(v => Number(v) || null);
           const data = {
             schema: 'vuc.ci-runner-telemetry.v1',
             capturedAt: new Date().toISOString(),
