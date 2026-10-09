@@ -555,6 +555,9 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
       adapterId: 'github',
       action: 'inspect_repo',
       target: { owner: 'scoobiii', repo: 'vuc', branch: 'main' },
+      // This conformance suite must be deterministic and offline-safe. Live GitHub
+      // API availability/rate limits are covered by separate credentialed smoke tests.
+      payload: { offline_fixture: true },
     });
     results.push({
       adapter: 'github',
