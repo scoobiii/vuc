@@ -1,0 +1,59 @@
+name: Publish VUC GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ["VUC CI — Governed Sandbox Runtime & Integrity"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: vuc-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event != 'pull_request')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download telemetry from the CI run that triggered this publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p site/data
+          if [ -n "${RUN_ID:-}" ] && gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name vuc-runner-telemetry --dir /tmp/vuc-runner-telemetry; then
+            test -s /tmp/vuc-runner-telemetry/runner-telemetry.json
+            cp /tmp/vuc-runner-telemetry/runner-telemetry.json site/data/runner.json
+          else
+            printf '{"schema":"vuc.ci-runner-telemetry.v1","available":false,"note":"No telemetry artifact was available for the triggering run."}\n' > site/data/runner.json
+          fi
+          echo "Published runner telemetry source:"
+          cat site/data/runner.json
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
