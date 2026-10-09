@@ -35,6 +35,32 @@ export interface LLMConfig {
   timeoutMs?: number;
 }
 
+export type LLMClaimVerificationStatus = 'UNVERIFIED' | 'VERIFIED_VALID';
+
+export interface LLMClaimVerification {
+  status: LLMClaimVerificationStatus;
+  cryptographic_proof_valid: boolean;
+  factual_correctness_verified: boolean;
+  reason: string;
+}
+
+/**
+ * Separates cryptographic proof-of-generation from factual correctness.
+ * An Ed25519-valid ExecutionProof authenticates the signed generation only;
+ * it never supplies evidence that the model's claim is true.
+ */
+export function classifyLLMClaimVerification(verification?: Pick<VerificationResult, 'valid' | 'status'>): LLMClaimVerification {
+  const cryptographicProofValid = verification?.valid === true && verification.status === 'VERIFIED';
+  return {
+    status: 'UNVERIFIED',
+    cryptographic_proof_valid: cryptographicProofValid,
+    factual_correctness_verified: false,
+    reason: cryptographicProofValid
+      ? 'ExecutionProof válido prova integridade/autenticidade da geração, não a veracidade factual da claim; correctness gate independente e evidence binding são obrigatórios.'
+      : 'Sem ExecutionProof criptograficamente válido, a claim não pode ser tratada como verificada.',
+  };
+}
+
 export interface LLMInvocationResult {
   text: string;
   provider: LLMProviderType;
@@ -47,6 +73,7 @@ export interface LLMInvocationResult {
   duration_ms: number;
   execution_proof?: ExecutionProof;
   verification?: VerificationResult;
+  claim_verification: LLMClaimVerification;
 }
 
 let cachedGeminiClient: GoogleGenAI | null = null;
@@ -428,5 +455,6 @@ export async function executeGovernedLLM(
     duration_ms: durationMs,
     execution_proof: pipelineResponse.execution_proof,
     verification,
+    claim_verification: classifyLLMClaimVerification(verification),
   };
 }
