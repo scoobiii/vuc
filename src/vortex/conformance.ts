@@ -576,6 +576,7 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
       adapterId: 'github',
       action: 'inspect_repo',
       target: { owner: 'vortex-foundation', repo: 'non-existent-repository-test-fail-closed' },
+      payload: { offline_fixture: 'not_found' },
     });
     const failedClosed = res.success === false && (res.data as any)?.error?.code === 'GITHUB_NOT_FOUND';
     results.push({
