@@ -64,7 +64,7 @@ This is an illustrative protocol shape, not a guaranteed valid request for every
 
 ## HTTP, SSE and remote hosts
 
-Do not assume that the stdio server also exposes HTTP, legacy SSE, or Streamable HTTP. The repository contains HTTP application code and an OAuth/tenant security specification, but each remote deployment must identify its actual route, transport, authentication middleware, and tests. See [Deployment](./DEPLOYMENT.md) when available and [OAuth 2.1 tenant security gate](./OAUTH21-TENANT-SECURITY-GATE.md).
+Do not assume that the stdio server also exposes HTTP, legacy SSE, or Streamable HTTP. The repository contains HTTP application code and an OAuth/tenant security specification, but each remote deployment must identify its actual route, transport, authentication middleware, and tests. See [OAuth 2.1 tenant security gate](./OAUTH21-TENANT-SECURITY-GATE.md).
 
 ## OAuth, PKCE, scopes and tenant binding
 
