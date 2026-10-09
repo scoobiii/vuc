@@ -41,6 +41,54 @@ jobs:
           echo "--- node ---"
           node -v 2>/dev/null || true
           which node || true
+          node <<'NODE'
+          const fs = require('node:fs');
+          const cp = require('node:child_process');
+          const run = (cmd) => {
+            try { return cp.execSync(cmd, {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim(); }
+            catch { return null; }
+          };
+          const mem = run("free -b | awk '/Mem:/{print $2 \" \" $7}'") || '';
+          const [memoryTotalBytes, memoryAvailableBytes] = mem.split(/\\s+/).map(v => Number(v) || null);
+          const disk = run("df -B1 / | awk 'NR==2 {print $2 \" \" $4}'") || '';
+          const [diskTotalBytes, diskAvailableBytes] = disk.split(/\\s+/).map(v => Number(v) || null);
+          const data = {
+            schema: 'vuc.ci-runner-telemetry.v1',
+            capturedAt: new Date().toISOString(),
+            workflow: process.env.GITHUB_WORKFLOW || null,
+            runId: process.env.GITHUB_RUN_ID || null,
+            runNumber: process.env.GITHUB_RUN_NUMBER || null,
+            commit: process.env.GITHUB_SHA || null,
+            ref: process.env.GITHUB_REF || null,
+            event: process.env.GITHUB_EVENT_NAME || null,
+            runner: {
+              os: process.env.RUNNER_OS || null,
+              arch: process.env.RUNNER_ARCH || null,
+              name: process.env.RUNNER_NAME || null,
+              imageOS: process.env.ImageOS || null,
+              kernel: run('uname -r'),
+              machine: run('uname -m'),
+              cpuCount: Number(run('nproc')) || null,
+              cpuModel: run("lscpu | awk -F: '/Model name/{gsub(/^[ \\t]+/, \"\", $2); print $2; exit}'"),
+              memoryTotalBytes,
+              memoryAvailableBytes,
+              diskTotalBytes,
+              diskAvailableBytes,
+              node: run('node -v')
+            },
+            note: 'Measurements from the GitHub Actions job that produced this record; runner allocation can change between runs.'
+          };
+          fs.writeFileSync('runner-telemetry.json', JSON.stringify(data, null, 2) + '\\n');
+          console.log('runner telemetry written: runner-telemetry.json');
+          NODE
+
+      - name: Upload runner telemetry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuc-runner-telemetry
+          path: runner-telemetry.json
+          if-no-files-found: warn
 
       - name: Setup Node 22 LTS
         uses: actions/setup-node@v4
