@@ -12,8 +12,8 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { canonicalize } from '../src/vortex/canonicalize.js';
-import { sha256, verifyProofSignature } from '../src/vortex/crypto.js';
+import { canonicalize } from '../src/vortex/canonicalize.ts';
+import { sha256, verifyProofSignature } from '../src/vortex/crypto.ts';
 
 function fail(message) {
   console.error('INDEPENDENT_VERIFY=REJECT');
