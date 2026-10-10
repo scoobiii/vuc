@@ -152,7 +152,7 @@ jobs:
           KEY_ID="$(node -p "require(process.argv[1]).identity.key_id" "$PROOF1")"
           TRUST_KEY="$RUNNER_TEMP/$KEY_ID.pem"
           mv "$KEY1_TMP" "$TRUST_KEY"
-          node scripts/verify-independent-proof.mjs "$PROOF1" "$TRUST_KEY"
+          node --import tsx scripts/verify-independent-proof.mjs "$PROOF1" "$TRUST_KEY"
 
           PROOF2="$RUNNER_TEMP/vuc-real-llm-replay.json"
           KEY2_TMP="$RUNNER_TEMP/vuc-real-llm-replay-public.pem"
@@ -163,7 +163,7 @@ jobs:
           mkdir -p "$REPLAY_TRUST_DIR"
           TRUST_KEY2="$REPLAY_TRUST_DIR/$KEY_ID2.pem"
           mv "$KEY2_TMP" "$TRUST_KEY2"
-          node scripts/verify-independent-proof.mjs "$PROOF2" "$TRUST_KEY2"
+          node --import tsx scripts/verify-independent-proof.mjs "$PROOF2" "$TRUST_KEY2"
 
           HASH1="$(node -p "require(process.argv[1]).output_hash" "$PROOF1")"
           HASH2="$(node -p "require(process.argv[1]).output_hash" "$PROOF2")"
@@ -177,7 +177,7 @@ jobs:
           openssl pkey -in "$RUNNER_TEMP/attacker-private.pem" -pubout -out "$RUNNER_TEMP/attacker-public.pem" >/dev/null 2>&1
           cp "$TRUST_KEY" "$RUNNER_TEMP/trusted-key-backup.pem"
           cp "$RUNNER_TEMP/attacker-public.pem" "$TRUST_KEY"
-          if node scripts/verify-independent-proof.mjs "$PROOF1" "$TRUST_KEY" >"$RUNNER_TEMP/attacker-verify.out" 2>&1; then
+          if node --import tsx scripts/verify-independent-proof.mjs "$PROOF1" "$TRUST_KEY" >"$RUNNER_TEMP/attacker-verify.out" 2>&1; then
             cat "$RUNNER_TEMP/attacker-verify.out"
             echo "ATTACKER_TRUST_KEY_ACCEPTED"
             exit 1
