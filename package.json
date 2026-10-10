@@ -152,7 +152,9 @@
   },
   "overrides": {
     "@grpc/grpc-js": "1.14.5",
-    "qs": "6.16.0"
+    "qs": "6.16.0",
+    "proxy-addr": "2.0.8",
+    "source-map-js": "1.2.2"
   },
   "engines": {
     "node": ">=22.0.0",
