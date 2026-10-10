@@ -97,6 +97,7 @@
     "build:cli": "esbuild bin/vua.js --bundle --platform=node --format=cjs --packages=external --outfile=dist/vua.cjs && chmod +x dist/vua.cjs",
     "test:drex-backend": "tsx tests/drex-backend-independence.test.ts",
     "prepublishOnly": "npm run build:cli",
+    "prepack": "npm run build:cli",
     "test:cli": "tsx tests/cli-contract.test.ts",
     "test:internal-gate": "tsx scripts/internal-governance-gate.ts",
     "preflight": "npm run test:internal-gate",
@@ -122,8 +123,7 @@
     "test:livebench-runtime": "tsx tests/livebench-runtime.test.ts",
     "test:trust-anchor": "tsx tests/trust-anchor-conformance.test.ts && tsx tests/s0-trust-anchor.test.ts && tsx tests/privileged-broker.test.ts",
     "test:s0": "tsx tests/s0-trust-anchor.test.ts && tsx tests/s0-llm-correctness.test.ts",
-    "test:broker": "tsx tests/privileged-broker.test.ts",
-    "prepack": "npm run build:cli"
+    "test:broker": "tsx tests/privileged-broker.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
@@ -150,12 +150,12 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   },
-  "engines": {
-    "node": ">=22.0.0",
-    "npm": ">=10"
-  },
   "overrides": {
     "@grpc/grpc-js": "1.14.5",
     "qs": "6.16.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10"
   }
 }
