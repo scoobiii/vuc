@@ -97,6 +97,7 @@
     "build:cli": "esbuild bin/vua.js --bundle --platform=node --format=cjs --packages=external --outfile=dist/vua.cjs && chmod +x dist/vua.cjs",
     "test:drex-backend": "tsx tests/drex-backend-independence.test.ts",
     "prepublishOnly": "npm run build:cli",
+    "prepack": "npm run build:cli",
     "test:cli": "tsx tests/cli-contract.test.ts",
     "test:internal-gate": "tsx scripts/internal-governance-gate.ts",
     "preflight": "npm run test:internal-gate",
@@ -148,6 +149,12 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.5",
+    "qs": "6.16.0",
+    "proxy-addr": "2.0.8",
+    "source-map-js": "1.2.2"
   },
   "engines": {
     "node": ">=22.0.0",

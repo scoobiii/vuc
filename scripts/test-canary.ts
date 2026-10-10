@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 /**
  * Canary Adapter Verification Tests
  * 
@@ -8,6 +11,7 @@
 
 import { vuaRegistry, CanaryAdapter } from '../src/vortex/adapters/registry.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
+import { CURRENT_IDENTITY } from '../src/vortex/gateway.js';
 import { signProofPayload } from '../src/vortex/crypto.js';
 
 function assert(condition: boolean, message: string) {
@@ -23,6 +27,11 @@ export async function runCanaryTests(): Promise<number> {
 
   // Reset canary state
   canary.sideEffectCount = 0;
+  // Unit gate trust anchor is injected by the verifier harness, never by proof input.
+  const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-canary-trust-'));
+  const trustStore = path.join(trustDir, 'trust-store.json');
+  fs.writeFileSync(trustStore, JSON.stringify({ [CURRENT_IDENTITY.key_id]: CURRENT_IDENTITY.public_key }), { mode: 0o600 });
+  process.env.VUC_TRUST_STORE = trustStore;
 
   console.log('\n🐤 [CANARY INVARIANT TESTS]');
 
@@ -84,7 +93,7 @@ export async function runCanaryTests(): Promise<number> {
     payload: { task: 'safe_write' },
   });
 
-  assert(validRes.success === true, 'Authorized execution must return success: true');
+  assert(validRes.success === true, `Authorized execution must return success: true; status=${JSON.stringify(validRes)} `);
   assert(validRes.execution_kind === 'capability', 'Execution kind must be capability');
   assert(validRes.capability_executed === true, 'Capability executed must be true');
   assert(canary.sideEffectCount === 1, 'Side effect count must now increment to 1');
@@ -100,7 +109,7 @@ export async function runCanaryTests(): Promise<number> {
       ...validRes.execution_proof,
       output_hash: 'sha256:0000000000000000000000000000000000000000000000000000000000000000', // Tampered hash!
     };
-    const tamperedVerification = verifyExecutionProof(tamperedProof as any);
+    const tamperedVerification = verifyExecutionProof(tamperedProof as any, { trustedPublicKey: CURRENT_IDENTITY.public_key });
     assert(tamperedVerification.valid === false, 'Tampered proof must fail verification');
     assert(
       tamperedVerification.checks.signature.passed === false,

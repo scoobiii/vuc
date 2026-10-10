@@ -24,6 +24,8 @@ export function verifyExecutionProof(
   options?: {
     expectedInputHash?: string;
     expectedOutputHash?: string;
+    /** Public key loaded by the verifier from an external trust store. */
+    trustedPublicKey?: string;
     /** Optional external trust anchor for the tenant security boundary. */
     expectedTenantId?: string;
   }
@@ -66,7 +68,7 @@ export function verifyExecutionProof(
 
   // 2. Identity Discovery
   const keyId = proof.identity?.key_id;
-  const pubKey = resolvePublicKey(keyId);
+  const pubKey = options?.trustedPublicKey || resolvePublicKey(keyId || '') || null;
   if (!keyId || !pubKey) {
     checks.identity = { passed: false, message: `Could not resolve public key for key_id '${keyId}'` };
     reasons.push(`Unresolvable cryptographic identity key_id: ${keyId}`);

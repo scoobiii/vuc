@@ -10,10 +10,26 @@
  * in this test path.
  */
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { handleMCPMessage } from '../src/vortex/mcp-server.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
+import { CURRENT_IDENTITY } from '../src/vortex/gateway.js';
 
 const requestId = `mcp-real-proof-${Date.now()}`;
+
+// Test-only trust anchor: the verifier reads an explicit external trust store.
+// This is deliberately not the in-memory KEY_REGISTRY and never accepts a
+// caller-embedded public key as authority.
+const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-mcp-trust-'));
+const trustStore = path.join(trustDir, 'trust-store.json');
+fs.writeFileSync(trustStore, JSON.stringify({
+  [CURRENT_IDENTITY.key_id]: { public_key: CURRENT_IDENTITY.public_key },
+}, null, 2), { mode: 0o600 });
+process.env.VUC_TRUST_STORE = trustStore;
+// Test-owned trust anchor for the registry verifier; PR #69 separately tests trust-store resolution.
+process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
 
 const response = await handleMCPMessage({
   jsonrpc: '2.0',
@@ -77,3 +93,5 @@ console.log(`key_id=${proof.identity.key_id}`);
 console.log('ed25519_signature_verified=true');
 console.log('proof_hash_verified=true');
 console.log('external_effect=local_only');
+
+fs.rmSync(trustDir, { recursive: true, force: true });

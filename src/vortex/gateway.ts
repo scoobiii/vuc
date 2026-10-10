@@ -531,7 +531,7 @@ async function invokeGovernedConnector(
     case 'verify': {
       const proofToVerify = (input?.proof || input?.execution_proof || (target as any)?.proof || (input?.status ? input : undefined)) as ExecutionProof | undefined;
       if (proofToVerify && typeof proofToVerify === 'object' && proofToVerify.signature) {
-        const verification = verifyExecutionProof(proofToVerify);
+        const verification = verifyExecutionProof(proofToVerify, { trustedPublicKey: CURRENT_IDENTITY.public_key });
         return {
           verified: verification.valid,
           verification_scope: verification.valid ? (input?.scope || 'full') : 'rejected',

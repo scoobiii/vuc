@@ -23,7 +23,7 @@ function requireGitHubToken(): string {
     );
   }
 
-  if (!/^github_pat_|^ghp_/.test(token)) {
+  if (!/^github_pat_|^ghp_|^ghs_/.test(token)) {
     throw new Error('CREDENTIAL_INVALID: unsupported GitHub token format');
   }
 
@@ -352,6 +352,25 @@ export class VUAGitHubAdapter implements IVUAAdapter {
       };
       if (token) {
         headers['Authorization'] = `Bearer ${token.trim()}`;
+      }
+
+      // Explicit offline not-found fixture exercises fail-closed behavior without network access.
+      if (payload.offline_fixture === 'not_found') {
+        auditLog.push('[GITHUB-VUA] Using explicit offline not-found fixture; no remote request performed.');
+        return {
+          data: {
+            success: false,
+            authenticated: false,
+            external_effect: 'none',
+            execution_kind: 'capability',
+            provider: 'github',
+            error: {
+              code: 'GITHUB_NOT_FOUND',
+              message: `Offline fixture: repository '${owner}/${repo}' is treated as unavailable`,
+            },
+          },
+          auditLog,
+        };
       }
 
       // Offline test fixture support only when explicitly requested
