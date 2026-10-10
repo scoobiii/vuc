@@ -35,6 +35,9 @@ fs.writeFileSync(trustStore, JSON.stringify({
   [CURRENT_IDENTITY.key_id]: { public_key: CURRENT_IDENTITY.public_key },
 }, null, 2), { mode: 0o600 });
 process.env.VUC_TRUST_STORE = trustStore;
+// The current in-process verifier accepts a verifier-owned public-key setting.
+// PR #69 separately validates external trust-store lookup in the independent verifier.
+process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
 
 let passedTests = 0;
 let totalTests = 0;
