@@ -1,6 +1,8 @@
 name: Agent Patch Arena — Benchmark Gate
 
 on:
+  push:
+    branches: [fix/disable-pull-request-target-arena]
   pull_request:
     types: [opened, synchronize, reopened, labeled]
     branches: [ main, develop ]
