@@ -235,6 +235,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Python tools may create bytecode during earlier gates; never ship generated caches.
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+          find . -type f -name '*.py[co]' -delete
           rm -f ./*.tgz
           npm pack --json > pack.json
           node - <<'NODE'
