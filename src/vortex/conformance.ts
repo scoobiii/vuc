@@ -12,17 +12,21 @@
  */
 
 import { sha256 } from './crypto.js';
-import { executeVortexPipeline, resetAntiReplayCache } from './gateway.js';
+import { executeVortexPipeline, resetAntiReplayCache, CURRENT_IDENTITY } from './gateway.js';
 import { createGOS3Session } from './gos3.js';
 import { handleMCPMessage } from './mcp-server.js';
 import type { AdversarialResult, ExecutionProof, FoundationE2EResult } from './types.js';
 import { verifyExecutionProof } from './verifier.js';
+
+// Test harness trust anchor. Production independent verification is performed by
+// scripts/verify-independent-proof.mjs in a separate process.
 
 /**
  * Execute the 5 Adversarial Conformance Tests
  */
 export async function runAdversarialSuite(): Promise<AdversarialResult[]> {
   const results: AdversarialResult[] = [];
+  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
 
   // 1. FORGE TEST
   {
@@ -193,6 +197,7 @@ export async function runAdversarialSuite(): Promise<AdversarialResult[]> {
  */
 export async function runFoundationE2ESuite(): Promise<FoundationE2EResult[]> {
   const suite: FoundationE2EResult[] = [];
+  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
 
   // E2E-001: MCP -> Gateway -> filesystem real write & proof
   {
@@ -538,6 +543,8 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
   proof_verified: boolean;
   output: Record<string, unknown>;
 }[]> {
+  // Conformance harness supplies the independent trust anchor; proof input cannot select it.
+  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
   const { vuaRegistry } = await import('./adapters/registry.js');
   const results: any[] = [];
 
@@ -548,6 +555,20 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
       adapterId: 'github',
       action: 'inspect_repo',
       target: { owner: 'scoobiii', repo: 'vuc', branch: 'main' },
+      // This conformance suite must be deterministic and offline-safe. Live GitHub
+      // API availability/rate limits are covered by separate credentialed smoke tests.
+      authorization: {
+        principal_id: 'conformance-test',
+        agent_id: 'agent/conformance',
+        policy_id: 'vuc-conformance',
+        policy_version: '1.0.0',
+        capability: 'repository.read',
+        scope: {
+          repositories: ['scoobiii/vuc'],
+          resources: ['vua://github/inspect_repo'],
+        },
+      },
+      payload: { offline_fixture: true },
     });
     results.push({
       adapter: 'github',
@@ -566,6 +587,18 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
       adapterId: 'github',
       action: 'inspect_repo',
       target: { owner: 'vortex-foundation', repo: 'non-existent-repository-test-fail-closed' },
+      authorization: {
+        principal_id: 'conformance-test',
+        agent_id: 'agent/conformance',
+        policy_id: 'vuc-conformance',
+        policy_version: '1.0.0',
+        capability: 'repository.read',
+        scope: {
+          repositories: ['vortex-foundation/non-existent-repository-test-fail-closed'],
+          resources: ['vua://github/inspect_repo'],
+        },
+      },
+      payload: { offline_fixture: 'not_found' },
     });
     const failedClosed = res.success === false && (res.data as any)?.error?.code === 'GITHUB_NOT_FOUND';
     results.push({
