@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 /**
  * Vortex Foundation Conformance Engine
  * 
@@ -26,7 +29,10 @@ import { verifyExecutionProof } from './verifier.js';
  */
 export async function runAdversarialSuite(): Promise<AdversarialResult[]> {
   const results: AdversarialResult[] = [];
-  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
+  const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-conformance-trust-'));
+  const trustStore = path.join(trustDir, 'trust-store.json');
+  fs.writeFileSync(trustStore, JSON.stringify({ [CURRENT_IDENTITY.key_id]: CURRENT_IDENTITY.public_key }), { mode: 0o600 });
+  process.env.VUC_TRUST_STORE = trustStore;
 
   // 1. FORGE TEST
   {
