@@ -65,6 +65,7 @@ def benchmark_once(path: Path) -> dict[str, float]:
 def prepare(path: Path) -> list[str]:
     commands = [
         ["npm", "ci", "--ignore-scripts"],
+        ["npm", "run", "install:bend"],
         ["npm", "run", "lint"],
         ["npm", "run", "verify:gos3"],
         ["npm", "run", "build"],
