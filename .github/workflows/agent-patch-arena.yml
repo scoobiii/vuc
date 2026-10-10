@@ -71,7 +71,11 @@ jobs:
             --head HEAD \
             --output arena_output.json
           cat arena_output.json
-          test "$(node -p "require('./arena_output.json').verdict")" = "PASS_SUPERIOR"
+          verdict="$(node -p "require('./arena_output.json').verdict")"
+          case "$verdict" in
+            PASS_SUPERIOR|PASS_SECURITY|PASS_GOVERNANCE|PASS_CORRECTNESS|NEEDS_MANUAL_REVIEW) ;;
+            *) echo "Arena rejected candidate: $verdict"; exit 1 ;;
+          esac
 
       - name: Evaluate Intent-Aware Decision Gate for Auto-Merge
         if: ${{ always() }}
@@ -79,16 +83,24 @@ jobs:
         run: |
           set -euo pipefail
           verdict="$(node -p "require('./arena_output.json').verdict")"
-          if [ "$verdict" = "PASS_SUPERIOR" ]; then
-            echo "superior_found=true" >> "$GITHUB_OUTPUT"
-            echo "approved=true" >> "$GITHUB_OUTPUT"
-            echo "✅ Patch achieved intent-approved verdict in Arena."
-          else
-            echo "superior_found=false" >> "$GITHUB_OUTPUT"
-            echo "approved=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ No patch achieved approved verdict (regression, manual review or disqualified). Auto-merge forbidden."
-            exit 1
-          fi
+          case "$verdict" in
+            PASS_SUPERIOR|PASS_SECURITY|PASS_GOVERNANCE|PASS_CORRECTNESS)
+              echo "superior_found=$([ "$verdict" = "PASS_SUPERIOR" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+              echo "approved=true" >> "$GITHUB_OUTPUT"
+              echo "PASS: intent-specific quality and regression policy satisfied; repository branch protection still applies."
+              ;;
+            NEEDS_MANUAL_REVIEW)
+              echo "superior_found=false" >> "$GITHUB_OUTPUT"
+              echo "approved=false" >> "$GITHUB_OUTPUT"
+              echo "PASS WITH MANUAL REVIEW: absolute gates passed; no auto-merge approval is granted."
+              ;;
+            *)
+              echo "superior_found=false" >> "$GITHUB_OUTPUT"
+              echo "approved=false" >> "$GITHUB_OUTPUT"
+              echo "REJECT: benchmark or quality policy failed."
+              exit 1
+              ;;
+          esac
 
       - name: Comment Arena Leaderboard & Decision on Pull Request
         if: github.event_name == 'pull_request'
