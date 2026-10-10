@@ -149,12 +149,17 @@ def main() -> int:
                 "intent": intent,
                 "changed_files": changed_files,
                 "policy": {"min_throughput_gain": MIN_THROUGHPUT_GAIN, "max_latency_regression": MAX_LATENCY_REGRESSION, "max_memory_regression": MAX_MEMORY_REGRESSION, "max_cv": MAX_CV, "repeats": REPEATS, "iterations": ITERATIONS, "non_performance_min_throughput_gain": -0.02},
-                "quality": {"base_failures": base_failures, "head_failures": head_failures, "passed": not base_failures and not head_failures},
+                "quality": {"base_failures": base_failures, "head_failures": head_failures, "passed": not head_failures},
             }
 
-            if base_failures or head_failures:
+            if head_failures:
                 result["verdict"] = "REJECT"
-                result["reason"] = "absolute quality gate failure"
+                result["reason"] = "candidate absolute quality gate failure"
+            elif base_failures:
+                # The candidate may fix a failing baseline. Do not claim a
+                # performance delta against a broken baseline; require review.
+                result["verdict"] = "NEEDS_MANUAL_REVIEW"
+                result["reason"] = "candidate quality gates passed; baseline quality failed, so performance comparison is inconclusive"
             else:
                 base_metrics, base_samples = benchmark(base)
                 head_metrics, head_samples = benchmark(head)
