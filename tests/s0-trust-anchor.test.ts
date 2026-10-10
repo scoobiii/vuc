@@ -196,20 +196,23 @@ const legitProof = legitResponse.execution_proof;
 
 // 6. Positive Independent Trust Store Verification (VUC_TRUST_STORE & KEY_REGISTRY)
 {
-  const legitVerif = verifyExecutionProof(legitProof);
-  assert.equal(legitVerif.valid, true, 'Legitimate proof anchored in Trust Store must pass');
-
-  const externalPartner = generateUnanchoredAttackerKeyPair();
-  const partnerKeyId = `partner-pinned-key-${Date.now()}`;
-  const partnerProof = forgeMathematicallyValidProof(legitProof, externalPartner.privateKeyPem, partnerKeyId);
-
-  assert.equal(verifyExecutionProof(partnerProof).valid, false);
-
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-s0-trust-'));
   const storePath = path.join(tmpDir, 'trust-store.json');
   try {
-    fs.writeFileSync(storePath, JSON.stringify({ [partnerKeyId]: externalPartner.publicKeyPem }), { mode: 0o600 });
+    fs.writeFileSync(storePath, JSON.stringify({
+      [legitProof.identity.key_id]: CURRENT_IDENTITY.public_key,
+    }), { mode: 0o600 });
     process.env.VUC_TRUST_STORE = storePath;
+
+    const legitVerif = verifyExecutionProof(legitProof);
+    assert.equal(legitVerif.valid, true, 'Legitimate proof pinned in the external trust store must pass');
+
+    const externalPartner = generateUnanchoredAttackerKeyPair();
+    const partnerKeyId = `partner-pinned-key-${Date.now()}`;
+    const partnerProof = forgeMathematicallyValidProof(legitProof, externalPartner.privateKeyPem, partnerKeyId);
+    assert.equal(verifyExecutionProof(partnerProof).valid, false, 'Unpinned partner proof must fail closed');
+
+    fs.writeFileSync(storePath, JSON.stringify({ [partnerKeyId]: externalPartner.publicKeyPem }), { mode: 0o600 });
     const afterPinning = verifyExecutionProof(partnerProof);
     assert.equal(afterPinning.valid, true, 'Proof must verify after operator pins public key in VUC_TRUST_STORE');
   } finally {
@@ -219,7 +222,6 @@ const legitProof = legitResponse.execution_proof;
 
   console.log('  ✅ [PASS] 6. Trust Store independente (VUC_TRUST_STORE) valida chaves legitimamente ancoradas');
 }
-
 console.log('═══════════════════════════════════════════════════════════════════════════════════════');
 console.log('STATUS: ✅ ENCERRAMENTO DO ACHADO S0 CONFIRMADO (6/6 TESTES DE ACEITAÇÃO APROVADOS)');
 console.log('═══════════════════════════════════════════════════════════════════════════════════════');
