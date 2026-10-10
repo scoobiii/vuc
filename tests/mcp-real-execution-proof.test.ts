@@ -28,6 +28,8 @@ fs.writeFileSync(trustStore, JSON.stringify({
   [CURRENT_IDENTITY.key_id]: { public_key: CURRENT_IDENTITY.public_key },
 }, null, 2), { mode: 0o600 });
 process.env.VUC_TRUST_STORE = trustStore;
+// Test-owned trust anchor for the registry verifier; PR #69 separately tests trust-store resolution.
+process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
 
 const response = await handleMCPMessage({
   jsonrpc: '2.0',
