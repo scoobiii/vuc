@@ -555,6 +555,20 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
       adapterId: 'github',
       action: 'inspect_repo',
       target: { owner: 'scoobiii', repo: 'vuc', branch: 'main' },
+      // This conformance suite must be deterministic and offline-safe. Live GitHub
+      // API availability/rate limits are covered by separate credentialed smoke tests.
+      authorization: {
+        principal_id: 'conformance-test',
+        agent_id: 'agent/conformance',
+        policy_id: 'vuc-conformance',
+        policy_version: '1.0.0',
+        capability: 'repository.read',
+        scope: {
+          repositories: ['scoobiii/vuc'],
+          resources: ['vua://github/inspect_repo'],
+        },
+      },
+      payload: { offline_fixture: true },
     });
     results.push({
       adapter: 'github',
@@ -573,6 +587,18 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
       adapterId: 'github',
       action: 'inspect_repo',
       target: { owner: 'vortex-foundation', repo: 'non-existent-repository-test-fail-closed' },
+      authorization: {
+        principal_id: 'conformance-test',
+        agent_id: 'agent/conformance',
+        policy_id: 'vuc-conformance',
+        policy_version: '1.0.0',
+        capability: 'repository.read',
+        scope: {
+          repositories: ['vortex-foundation/non-existent-repository-test-fail-closed'],
+          resources: ['vua://github/inspect_repo'],
+        },
+      },
+      payload: { offline_fixture: 'not_found' },
     });
     const failedClosed = res.success === false && (res.data as any)?.error?.code === 'GITHUB_NOT_FOUND';
     results.push({
