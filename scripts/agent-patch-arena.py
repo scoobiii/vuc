@@ -101,14 +101,17 @@ def classify_intent(files: list[str]) -> str:
         return "mixed"
     if categories == {"documentation"}:
         return "governance"
-    if categories == {"security"}:
+    # Performance mixed with another intent is never auto-qualified.
+    if "performance" in categories:
+        return "performance" if categories == {"performance"} else "mixed"
+    # Security/governance/correctness changes can be evaluated under a bounded
+    # no-regression policy; repository branch protection still requires review.
+    if "security" in categories:
         return "security"
-    if categories == {"governance"}:
+    if "governance" in categories:
         return "governance"
-    if categories == {"correctness"}:
+    if "correctness" in categories:
         return "correctness"
-    if categories == {"performance"}:
-        return "performance"
     return "mixed"
 
 
