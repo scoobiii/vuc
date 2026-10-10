@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 /**
  * Canary Adapter Verification Tests
  * 
@@ -25,7 +28,10 @@ export async function runCanaryTests(): Promise<number> {
   // Reset canary state
   canary.sideEffectCount = 0;
   // Unit gate trust anchor is injected by the verifier harness, never by proof input.
-  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
+  const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-canary-trust-'));
+  const trustStore = path.join(trustDir, 'trust-store.json');
+  fs.writeFileSync(trustStore, JSON.stringify({ [CURRENT_IDENTITY.key_id]: CURRENT_IDENTITY.public_key }), { mode: 0o600 });
+  process.env.VUC_TRUST_STORE = trustStore;
 
   console.log('\n🐤 [CANARY INVARIANT TESTS]');
 
