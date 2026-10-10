@@ -562,7 +562,7 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
         agent_id: 'agent/conformance',
         policy_id: 'vuc-conformance',
         policy_version: '1.0.0',
-        capability: 'vua.github.execute',
+        capability: 'repository.read',
         scope: {
           repositories: ['scoobiii/vuc'],
           resources: ['vua://github/inspect_repo'],
@@ -592,7 +592,7 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
         agent_id: 'agent/conformance',
         policy_id: 'vuc-conformance',
         policy_version: '1.0.0',
-        capability: 'vua.github.execute',
+        capability: 'repository.read',
         scope: {
           repositories: ['vortex-foundation/non-existent-repository-test-fail-closed'],
           resources: ['vua://github/inspect_repo'],
