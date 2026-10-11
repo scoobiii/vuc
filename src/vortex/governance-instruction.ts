@@ -14,13 +14,15 @@ export function loadGovernanceSystemInstruction(root?: string): string {
 
   let effectiveRoot = root;
   if (!effectiveRoot) {
-    const entry = process.argv[1] ? path.resolve(process.argv[1]) : '';
-    const entryParent = entry ? path.dirname(entry) : '';
-    const possiblePackageRoot = entryParent ? path.dirname(entryParent) : '';
-    const packageJson = possiblePackageRoot
-      ? path.join(possiblePackageRoot, 'package.json')
-      : '';
     try {
+      // npm global commands may be symlinks (for example /usr/bin/vuc).
+      // Resolve the real entrypoint before deriving the installed package root.
+      const entry = process.argv[1] ? fs.realpathSync(path.resolve(process.argv[1])) : '';
+      const entryParent = entry ? path.dirname(entry) : '';
+      const possiblePackageRoot = entryParent ? path.dirname(entryParent) : '';
+      const packageJson = possiblePackageRoot
+        ? path.join(possiblePackageRoot, 'package.json')
+        : '';
       const pkg = packageJson ? JSON.parse(fs.readFileSync(packageJson, 'utf8')) : null;
       effectiveRoot = pkg?.name === '@vucfoundation/vuc'
         ? possiblePackageRoot
