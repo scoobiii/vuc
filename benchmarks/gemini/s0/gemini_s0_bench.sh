@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.1"
 BENCHMARK_VERSION="VUC-S0-1.0"
 MODEL="${GEMINI_MODEL:-gemini-3.8-flash}"
 API_BASE="https://generativelanguage.googleapis.com/v1beta/models"
@@ -42,7 +42,15 @@ print(json.dumps({"contents":[{"parts":[{"text":sys.argv[1]}]}]},ensure_ascii=Fa
 PY
 )"
   start_ns="$(date +%s%N)"
-  response="$(curl -sS --connect-timeout 15 --max-time 120     -H 'Content-Type: application/json'     -X POST "${API_BASE}/${MODEL}:generateContent?key=${GEMINI_API_KEY}"     -d "$payload")"
+  # Read the API key from curl's stdin config, not its argv or request URL.
+  # This keeps the key out of process listings and URL/access logs.
+  response="$(curl --config - -sS --connect-timeout 15 --max-time 120 \
+    -H 'Content-Type: application/json' \
+    -X POST "${API_BASE}/${MODEL}:generateContent" \
+    -d "$payload" <<EOF
+header = "x-goog-api-key: ${GEMINI_API_KEY}"
+EOF
+)"
   curl_status=$?
   latency_ms=$(( ($(date +%s%N)-start_ns)/1000000 ))
 
@@ -82,8 +90,7 @@ PY
   echo "S0-$n: ${latency_ms} ms"
 done
 
-printf '],"summary":{"count":%d}}
-' "${#PROMPTS[@]}" >> "$TMP"
+printf '],"summary":{"count":%d}}\n' "${#PROMPTS[@]}" >> "$TMP"
 python3 - "$TMP" "$OUT" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1],encoding="utf-8"))
