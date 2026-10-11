@@ -9,6 +9,7 @@
  * No synthetic proof, mock signature, or direct adapter invocation is allowed
  * in this test path.
  */
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import { handleMCPMessage } from '../src/vortex/mcp-server.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';

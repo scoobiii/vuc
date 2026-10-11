@@ -11,6 +11,7 @@ export type VortexOperation =
   | 'inspect'
   | 'propose'
   | 'verify'
+  | 'read'
   | 'execute'
   | 'branch.write'
   | 'publish';

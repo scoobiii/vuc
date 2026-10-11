@@ -25,6 +25,7 @@ export class VUALinuxAdapter implements IVUAAdapter {
       {
         action: 'inspect_system',
         description: 'Query kernel release, distribution info, memory limits, cgroups v2 state, and load averages.',
+        risk: 'read',
         defaultParams: {},
       },
       {
@@ -35,11 +36,13 @@ export class VUALinuxAdapter implements IVUAAdapter {
       {
         action: 'audit_permissions',
         description: 'Audit POSIX octal file permissions, SUID/SGID bits, ownership, and immutability flags.',
+        risk: 'read',
         defaultParams: { path: '/tmp/vua-sandbox/secure.conf' },
       },
       {
         action: 'sandbox_jail_check',
         description: 'Validate sandbox containment against directory traversal (../), null-byte injections, and symlink escapes.',
+        risk: 'read',
         defaultParams: { test_path: '/tmp/vua-sandbox/../etc/shadow' },
       },
     ],

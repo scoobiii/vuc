@@ -25,6 +25,7 @@ export class VUAWindowsAdapter implements IVUAAdapter {
       {
         action: 'inspect_system',
         description: 'Query Windows NT build, PowerShell language mode, UAC level, and Windows Defender status.',
+        risk: 'read',
         defaultParams: {},
       },
       {
@@ -35,6 +36,7 @@ export class VUAWindowsAdapter implements IVUAAdapter {
       {
         action: 'inspect_acls',
         description: 'Query and audit NTFS DACL permissions for sensitive paths, verifying absence of unrestricted write.',
+        risk: 'read',
         defaultParams: { path: 'C:\\VUA\\Sandbox\\secure_payload.dat' },
       },
       {

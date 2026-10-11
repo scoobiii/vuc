@@ -1,3 +1,4 @@
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import { handleMCPMessage } from '../src/vortex/mcp-server.js';
 import { resetAntiReplayCache } from '../src/vortex/gateway.js';

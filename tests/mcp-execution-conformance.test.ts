@@ -8,6 +8,7 @@
  * The test deliberately exercises the VUC MCP boundary rather than invoking
  * the adapter directly. No mock signature or synthetic success is accepted.
  */
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import { handleMCPMessage } from '../src/vortex/mcp-server.js';
 import { resetAntiReplayCache } from '../src/vortex/gateway.js';

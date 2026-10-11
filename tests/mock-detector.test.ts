@@ -12,6 +12,7 @@
  * 4. Verificação independente de assinatura Ed25519 e hashes JCS RFC 8785
  */
 
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import { runAuditedMockDetectorSuite, auditPayloadForMocks } from '../src/vortex/mock-detector.js';
 import { scanRepositoryForMocks } from '../src/vortex/static-mock-scanner.js';
