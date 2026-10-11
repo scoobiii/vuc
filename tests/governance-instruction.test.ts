@@ -14,7 +14,7 @@ try {
   // The active package/checkout policy must resolve even when launched elsewhere.
   process.chdir(temp);
   delete process.env.VUC_SYSTEM_INSTRUCTION_PATH;
-  const instruction = loadGovernanceSystemInstruction(repositoryRoot);
+  const instruction = loadGovernanceSystemInstruction();
   assert.match(instruction, /Agent output is untrusted input\./);
   assert.match(instruction, /Fail closed/);
   assert.match(instruction, /Mandatory stop conditions/);
@@ -23,11 +23,11 @@ try {
   const validOverride = path.join(temp, 'custom-policy.md');
   fs.writeFileSync(validOverride, instruction);
   process.env.VUC_SYSTEM_INSTRUCTION_PATH = validOverride;
-  assert.equal(loadGovernanceSystemInstruction(repositoryRoot), instruction);
+  assert.equal(loadGovernanceSystemInstruction(), instruction);
 
   process.env.VUC_SYSTEM_INSTRUCTION_PATH = path.join(temp, 'missing-policy.md');
   assert.throws(
-    () => loadGovernanceSystemInstruction(repositoryRoot),
+    () => loadGovernanceSystemInstruction(),
     /GOVERNANCE_INSTRUCTION_MISSING/
   );
 
