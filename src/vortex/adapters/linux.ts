@@ -8,6 +8,7 @@
  */
 
 import os from 'os';
+import fs from 'node:fs';
 import { execSync } from 'child_process';
 import type { IVUAAdapter, VUAAdapterMetadata, VUAAdapterStatus } from './types.js';
 
@@ -131,6 +132,9 @@ export class VUALinuxAdapter implements IVUAAdapter {
       const durationMs = Date.now() - startTime;
       auditLog.push(`[LINUX-VUA] Process exited with status ${exitCode} (duration: ${durationMs}ms)`);
 
+      const isContainer = fs.existsSync('/.dockerenv') || fs.existsSync('/run/.containerenv') || (fs.existsSync('/proc/1/cgroup') && fs.readFileSync('/proc/1/cgroup', 'utf8').includes('docker'));
+      const hasCgroupLimit = fs.existsSync('/sys/fs/cgroup/memory.max') || fs.existsSync('/sys/fs/cgroup/memory/memory.limit_in_bytes');
+
       return {
         data: {
           command: rawCmd,
@@ -138,8 +142,8 @@ export class VUALinuxAdapter implements IVUAAdapter {
           stdout: cmdOutput.trim(),
           stderr: stderr.trim(),
           duration_ms: durationMs,
-          sandbox_enforced: true,
-          cgroup_quota_adhered: true,
+          sandbox_enforced: isContainer,
+          cgroup_quota_adhered: hasCgroupLimit,
           real_host_execution: true,
         },
         auditLog,

@@ -10,6 +10,7 @@ import { homedir, cpus, totalmem } from "node:os";
 import { join } from "node:path";
 
 const RELEASE = process.env.VUC_LIVEBENCH_RELEASE || "2026-06-25";
+const LB_REPO = "https://github.com/LiveBench/LiveBench.git";
 const LB_REF = process.env.VUC_LIVEBENCH_REF || "8f8e5c381a16e3f24257776edd53471fe86f8091";
 const DEFAULT_MODEL = process.env.VUC_LIVEBENCH_MODEL || "vuc-local";
 const CACHE = process.env.VUC_LIVEBENCH_CACHE || join(homedir(), ".cache", "vuc", `livebench-${RELEASE}`);

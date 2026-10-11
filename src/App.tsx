@@ -18,10 +18,12 @@ import { BendDevelopmentView } from './components/BendDevelopmentView.js';
 import { DrexIntegrationView } from './components/DrexIntegrationView.js';
 import { K6IndustryView } from './components/K6IndustryView.js';
 import { VUCGitPageLiveView } from './components/VUCGitPageLiveView.js';
+import { VUCCLIProtocolView } from './components/VUCCLIProtocolView.js';
+import { UniversalArena } from './components/UniversalArena.js';
 import type { ExecutionProof } from './vortex/types.js';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('vuc-gitpage');
+  const [activeTab, setActiveTab] = useState<string>('universal-arena');
   const [status, setStatus] = useState<any>(null);
   const [selectedProofForVerification, setSelectedProofForVerification] = useState<ExecutionProof | null>(null);
   const [activeSessions, setActiveSessions] = useState<Array<{ session_id: string; resource: string }>>([]);
@@ -79,8 +81,17 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+        {activeTab === 'universal-arena' && <UniversalArena />}
+
         {activeTab === 'vuc-gitpage' && (
           <VUCGitPageLiveView onSendToVerifier={handleSendToVerifier} />
+        )}
+
+        {activeTab === 'vuc-cli-protocol' && (
+          <VUCCLIProtocolView
+            status={status}
+            onSendToVerifier={handleSendToVerifier}
+          />
         )}
 
         {activeTab === 'vua-adapters' && (

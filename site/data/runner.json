@@ -1,0 +1,5 @@
+{
+  "schema": "vuc.ci-runner-telemetry.v1",
+  "available": false,
+  "note": "Waiting for the first CI run with runner telemetry to complete and publish this page."
+}

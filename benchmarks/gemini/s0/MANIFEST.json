@@ -1,0 +1,14 @@
+{
+  "benchmark": "VUC-S0-1.0",
+  "component": "Gemini baseline",
+  "responsibility": "VUC Benchmark / governed model evaluation",
+  "script": "gemini_s0_bench.sh",
+  "script_version": "1.0.0",
+  "model_default": "gemini-3.8-flash",
+  "environment": "debian",
+  "vuc": false,
+  "date_convention": "UTC",
+  "signature_policy": "Git commit/PR identity; no private signing key stored in repository",
+  "secret_policy": "GEMINI_API_KEY must come from environment and is never persisted by the script",
+  "created": "2026-10-08"
+}

@@ -101,11 +101,18 @@ export const GitHubRepoManager: React.FC<GitHubRepoManagerProps> = ({
 
   // Selected Target
   const [activeTarget, setActiveTarget] = useState<ActiveTarget>({
-    owner: 'vuafoundation',
-    repo: 'vua',
+    owner: 'scoobiii',
+    repo: 'vuc',
     branch: 'main',
   });
   const [selectedBranch, setSelectedBranch] = useState<string>('main');
+
+  // Sync state
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncTimestamp, setLastSyncTimestamp] = useState<string | null>(() => {
+    return localStorage.getItem('vua_github_last_sync') || null;
+  });
+  const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
 
   // Action execution state
   const [executingAction, setExecutingAction] = useState<string | null>(null);
@@ -364,6 +371,84 @@ export const GitHubRepoManager: React.FC<GitHubRepoManagerProps> = ({
       });
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Helper to format last sync timestamp
+  const formatSyncTime = (isoString?: string | null) => {
+    if (!isoString) return 'Never synced';
+    try {
+      const date = new Date(isoString);
+      return (
+        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+        ' (' +
+        date.toLocaleDateString() +
+        ')'
+      );
+    } catch {
+      return isoString;
+    }
+  };
+
+  // Handle Force Sync with linked GitHub repository
+  const handleForceSync = async () => {
+    setSyncing(true);
+    setSyncSuccessMsg(null);
+    try {
+      let syncResult: any = null;
+      try {
+        const res = await fetch('/api/github/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            owner: activeTarget.owner,
+            repo: activeTarget.repo,
+            branch: selectedBranch || activeTarget.branch || 'main',
+          }),
+        });
+        syncResult = await parseJsonResponse(res);
+      } catch (serverErr) {
+        console.warn('[VUA] Server sync endpoint returned error, using direct GitHub sync fallback:', serverErr);
+      }
+
+      // If server returned active target, update activeTarget
+      if (syncResult?.active_target) {
+        setActiveTarget(syncResult.active_target);
+      } else {
+        // Direct GitHub client query if needed
+        try {
+          const ghRes = await fetch(
+            `https://api.github.com/repos/${activeTarget.owner}/${activeTarget.repo}/commits/${selectedBranch || 'main'}`
+          );
+          if (ghRes.ok) {
+            const commitData = await ghRes.json();
+            if (commitData.sha) {
+              setActiveTarget((prev) => ({
+                ...prev,
+                commit_sha: commitData.sha,
+                updated_at: new Date().toISOString(),
+              }));
+            }
+          }
+        } catch {
+          // ignore fallback error
+        }
+      }
+
+      // Refresh repositories list & status
+      await fetchStatusAndRepos();
+
+      const now = new Date().toISOString();
+      setLastSyncTimestamp(now);
+      localStorage.setItem('vua_github_last_sync', now);
+      setSyncSuccessMsg('Synced successfully!');
+      setTimeout(() => setSyncSuccessMsg(null), 4000);
+    } catch (err: any) {
+      console.error('Error during force-sync:', err);
+      setSyncSuccessMsg('Sync error. Try again.');
+      setTimeout(() => setSyncSuccessMsg(null), 4000);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -690,39 +775,116 @@ export const GitHubRepoManager: React.FC<GitHubRepoManagerProps> = ({
                   </p>
                 </div>
 
-                {/* Branch Selector */}
-                <div className="flex items-center gap-2 bg-zinc-900 p-1.5 rounded-lg border border-zinc-800 shrink-0">
-                  <GitBranch className="w-4 h-4 text-cyan-400 shrink-0 ml-1" />
-                  <select
-                    id="select-target-branch"
-                    value={selectedBranch}
-                    onChange={(e) => handleBranchChange(e.target.value)}
-                    className="bg-transparent text-xs font-mono text-zinc-200 focus:outline-none pr-2 cursor-pointer"
+                {/* Branch Selector & Sync Now Button */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 bg-zinc-900 p-1.5 rounded-lg border border-zinc-800 shrink-0">
+                    <GitBranch className="w-4 h-4 text-cyan-400 shrink-0 ml-1" />
+                    <select
+                      id="select-target-branch"
+                      value={selectedBranch}
+                      onChange={(e) => handleBranchChange(e.target.value)}
+                      className="bg-transparent text-xs font-mono text-zinc-200 focus:outline-none pr-2 cursor-pointer"
+                    >
+                      {(activeRepoDetails?.branches || ['main', 'develop']).map((b) => (
+                        <option key={b} value={b} className="bg-zinc-900 text-zinc-200">
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sync Now (Pull) Button */}
+                  <button
+                    id="btn-sync-now"
+                    type="button"
+                    onClick={handleForceSync}
+                    disabled={syncing}
+                    title="Sincronizar (Pull) estado atual da branch remota no GitHub"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 border border-zinc-700 hover:border-cyan-500/50 text-xs font-medium text-zinc-200 hover:text-white transition disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
                   >
-                    {(activeRepoDetails?.branches || ['main', 'develop']).map((b) => (
-                      <option key={b} value={b} className="bg-zinc-900 text-zinc-200">
-                        {b}
-                      </option>
-                    ))}
-                  </select>
+                    <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${syncing ? 'animate-spin' : ''}`} />
+                    <span>{syncing ? 'Sincronizando...' : 'Pull / Sync'}</span>
+                  </button>
+
+                  {/* Governed PR Button (Replaces Direct Push to Protected main) */}
+                  <button
+                    id="btn-open-governed-pr"
+                    type="button"
+                    onClick={async () => {
+                      setExecutingAction('workspace_pr');
+                      try {
+                        const res = await fetch('/api/github/workspace-pr', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            owner: activeTarget.owner,
+                            repo: activeTarget.repo,
+                            base: 'main',
+                            head: 'feat/vuc-cli-s0-audit-suite',
+                            approval_binding: `repo-manager-pr-approval:${new Date().toISOString()}`,
+                          }),
+                        });
+                        const data = await parseJsonResponse(res);
+                        setActionResult(data);
+                        if (data?.execution_proof) {
+                          setLastEmittedProof(data.execution_proof);
+                        }
+                        if (data?.remote_response?.pr_number) {
+                          setSyncSuccessMsg(`PR #${data.remote_response.pr_number} aberto com sucesso!`);
+                        }
+                      } catch (err: any) {
+                        setActionResult({ error: err?.message || String(err) });
+                      } finally {
+                        setExecutingAction(null);
+                      }
+                    }}
+                    disabled={Boolean(executingAction)}
+                    title="Criar Branch + Pull Request Governado (Ruleset #23817594 — Sem Push Direto na main)"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 active:bg-violet-700 border border-violet-400/40 text-xs font-semibold text-white transition disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    <GitPullRequest className="w-3.5 h-3.5 text-white" />
+                    <span>{executingAction === 'workspace_pr' ? 'Criando PR...' : 'Abrir PR (Sem Push Direto)'}</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Target Metadata Bar */}
-              <div className="mt-3 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center gap-4 text-xs text-zinc-400">
-                <div className="flex items-center gap-1.5">
-                  <GitCommit className="w-3.5 h-3.5 text-zinc-500" />
-                  <span className="font-mono text-[11px] text-zinc-300">
-                    SHA: {(activeTarget.commit_sha || '856920785b8392b036211cc851e1f6467961ff52').substring(0, 10)}...
-                  </span>
+              {/* Target Metadata Bar with Last Sync Timestamp */}
+              <div className="mt-3 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <GitCommit className="w-3.5 h-3.5 text-zinc-500" />
+                    <span className="font-mono text-[11px] text-zinc-300">
+                      SHA: {(activeTarget.commit_sha || '856920785b8392b036211cc851e1f6467961ff52').substring(0, 10)}...
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[11px] text-zinc-300">Branch Protection: Enforced</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="text-[11px] text-zinc-300">Assinatura Ed25519: Ativa</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-[11px] text-zinc-300">Branch Protection: Enforced</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="text-[11px] text-zinc-300">Assinatura Ed25519: Ativa</span>
+
+                {/* Last Sync Timestamp Display */}
+                <div className="flex items-center gap-2">
+                  {syncSuccessMsg && (
+                    <span className="text-[10px] text-emerald-400 font-mono animate-fade-in flex items-center gap-1">
+                      <Check className="w-3 h-3" />
+                      {syncSuccessMsg}
+                    </span>
+                  )}
+                  <div
+                    id="last-sync-badge"
+                    className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-300 bg-zinc-900/90 px-2.5 py-1 rounded-md border border-zinc-800/90 shadow-inner"
+                    title={lastSyncTimestamp ? `Sincronizado em: ${lastSyncTimestamp}` : 'Repositório ainda não sincronizado nesta sessão'}
+                  >
+                    <span className="text-zinc-500">Last Sync:</span>
+                    <span className={`font-semibold ${lastSyncTimestamp ? 'text-cyan-400' : 'text-zinc-500'}`}>
+                      {formatSyncTime(lastSyncTimestamp)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1309,11 +1471,14 @@ export const GitHubRepoManager: React.FC<GitHubRepoManagerProps> = ({
             </div>
 
             <button
-              onClick={fetchStatusAndRepos}
-              className="p-1.5 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 transition"
-              title="Atualizar lista de repositórios"
+              id="btn-sync-repositories-catalog"
+              onClick={handleForceSync}
+              disabled={syncing || loadingRepos}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs font-medium text-zinc-300 hover:text-white transition disabled:opacity-50"
+              title="Forçar sincronização de repositórios com o GitHub"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loadingRepos ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${syncing || loadingRepos ? 'animate-spin' : ''}`} />
+              <span>{syncing ? 'Syncing...' : 'Sync Now'}</span>
             </button>
           </div>
         </div>

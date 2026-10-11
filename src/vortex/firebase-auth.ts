@@ -159,29 +159,36 @@ export async function verifyFirebaseIdToken(tokenString: string): Promise<{
       return { valid: false, error: 'Claim "sub" ausente ou inválida no token.' };
     }
 
-    // 6. Cryptographic signature check against Google public certificates (if kid present)
+    // 6. Cryptographic signature check against Google public certificates (Fail-Closed)
     if (header.kid) {
       try {
         const certs = await fetchGooglePublicCerts();
         const cert = certs[header.kid];
-        if (cert) {
-          const verifier = crypto.createVerify('RSA-SHA256');
-          verifier.update(`${parts[0]}.${parts[1]}`);
-          const isValidSig = verifier.verify(cert, Buffer.from(parts[2], 'base64url'));
-          if (!isValidSig) {
-            return { valid: false, error: 'Assinatura criptográfica RS256 do Google inválida para este token.' };
-          }
+        if (!cert) {
+          return { valid: false, error: `Certificado público Google não encontrado para o kid: ${header.kid}` };
         }
-      } catch (certErr) {
-        // If Google cert endpoint is temporarily unreachable, claims validation remains enforced
-        console.warn('Verificação de chave pública remota falhou, prosseguindo com validação de claims:', certErr);
+        const verifier = crypto.createVerify('RSA-SHA256');
+        verifier.update(`${parts[0]}.${parts[1]}`);
+        const isValidSig = verifier.verify(cert, Buffer.from(parts[2], 'base64url'));
+        if (!isValidSig) {
+          return { valid: false, error: 'Assinatura criptográfica RS256 do Google inválida para este token.' };
+        }
+      } catch (certErr: any) {
+        return { valid: false, error: `Falha ao validar chave pública remota do Google (Fail-Closed): ${certErr?.message || String(certErr)}` };
       }
+    } else {
+      return { valid: false, error: 'Token JWT sem identificador de chave pública (kid) obrigatório no cabeçalho.' };
     }
 
-    // 7. Resolve ABAC role based on token claims or operator scope
-    const role: 'admin' | 'operator' | 'user' = (payload.role === 'admin' || payload.admin === true)
-      ? 'admin'
-      : (payload.email && process.env.ADMIN_EMAIL && payload.email === process.env.ADMIN_EMAIL ? 'admin' : 'operator');
+    // 7. Resolve RBAC role fail-closed: default to 'user' unless explicitly granted
+    let role: 'admin' | 'operator' | 'user' = 'user';
+    if (payload.role === 'admin' || payload.admin === true) {
+      role = 'admin';
+    } else if (payload.role === 'operator' || payload.operator === true) {
+      role = 'operator';
+    } else if (payload.email && process.env.ADMIN_EMAIL && payload.email === process.env.ADMIN_EMAIL) {
+      role = 'admin';
+    }
     payload.role = role;
 
     return {

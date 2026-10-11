@@ -193,9 +193,17 @@ export function verifyExecutionGraph(
 
     visiting.add(proof.executionId);
 
-    // 2. Cryptographic Signature Verification
+    // 2. Cryptographic Signature & Trust Anchor Verification (S0)
     const canonical = canonicalizeProofV2(proof);
-    const isSigValid = verifyCanonicalSignature(canonical, proof.signature, proof.signer || publicKeyPem);
+    if (!publicKeyPem || !publicKeyPem.includes('PUBLIC KEY')) {
+      throw new Error(`untrusted or missing verification key anchor for ${proof.executionId}`);
+    }
+    if (proof.signer && proof.signer.includes('PUBLIC KEY')) {
+      if (proof.signer.trim() !== publicKeyPem.trim()) {
+        throw new Error(`untrusted signer on ${proof.executionId}: node signer does not match trusted public key anchor`);
+      }
+    }
+    const isSigValid = verifyCanonicalSignature(canonical, proof.signature, publicKeyPem);
     if (!isSigValid) {
       throw new Error(`invalid signature: ${proof.executionId}`);
     }

@@ -7,6 +7,7 @@
 [![npm](https://img.shields.io/npm/v/%40vucfoundation%2Fvuc)](https://www.npmjs.com/package/@vucfoundation/vuc)
 [![CI](https://github.com/scoobiii/vuc/actions/workflows/ci.yml/badge.svg)](https://github.com/scoobiii/vuc/actions/workflows/ci.yml)
 
+[Landing page · posicionamento, setores e CI ao vivo](https://scoobiii.github.io/vuc/)  
 [Estado vivo do CI](./docs/CI-STATUS.md)
 
 **Idiomas:** [中文](./README.zh.md) · [日本語](./README.ja.md) · [한국어](./README.ko.md) · [Tiếng Việt](./README.vi.md) · [Français](./README.fr.md) · [Italiano](./README.it.md) · [Bahasa Indonesia](./README.id.md) · [Malay](./README.ms.md) · [English](./README.en.md)
