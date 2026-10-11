@@ -180,6 +180,11 @@ class VUAAdapterRegistry {
       request.requestId ||
       `vua-${request.adapterId}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const resource = `vua://${request.adapterId}/${request.action}`;
+    const owner = request.target?.owner;
+    const repo = request.target?.repo;
+    const repositoryScope = request.adapterId === 'github' && typeof owner === 'string' && typeof repo === 'string'
+      ? `${owner}/${repo}`
+      : undefined;
 
     // 2. Dynamic authorization context - no global hardcoded wildcard
     const authorization = request.authorization || {
@@ -187,7 +192,7 @@ class VUAAdapterRegistry {
       agent_id: 'agent/vua-connector',
       policy_id: 'vortex-runtime-policy',
       policy_version: '1.0.0',
-      capability: `vua.${request.adapterId}.execute`,
+      capability: actionMeta?.risk === 'read' ? 'vua.adapter.read' : `vua.${request.adapterId}.execute`,
       scope: {
         paths: [`/${request.adapterId}/sandbox`],
         repositories: ['vortex-foundation/vua-connector'],
@@ -209,12 +214,13 @@ class VUAAdapterRegistry {
     // 3. Prepare governed Vortex Request
     const vortexRequest: VortexRequest = {
       request_id: reqId,
-      operation: 'execute',
+      operation: actionMeta?.risk === 'read' ? 'read' : 'execute',
       target: {
         resource,
         adapter: request.adapterId,
         action: request.action,
         ...(request.target || {}),
+        ...(repositoryScope ? { repository: repositoryScope } : {}),
       },
       authorization: {
         tenant_id: authorization.tenant_id,

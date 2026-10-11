@@ -6,6 +6,7 @@
  *    inspect -> automatic
  *    propose -> automatic
  *    verify -> automatic
+ *    read -> capability and scope enforced; no mutation
  *    execute -> policy dependent
  *    branch.write -> human approval required
  *    merge main -> prohibited
@@ -183,7 +184,8 @@ export function evaluatePolicy(
   approvalToken?: string,
   policy: PolicyRule = DEFAULT_DEV_POLICY
 ): PolicyEvaluation {
-  // Read-only operations have permissive baseline
+  // Legacy inspect/verify operations retain their permissive read-only baseline.
+  // Adapter reads use the governed `read` operation below so capability and scope are enforced.
   if (operation === 'inspect' || operation === 'verify') {
     return {
       allowed: true,
@@ -203,14 +205,14 @@ export function evaluatePolicy(
     };
   }
 
-  // Mutable operations REQUIRE full authorization context
+  // Governed operations REQUIRE a full authorization context.
   if (!auth) {
     return {
       allowed: false,
       status: 'POLICY_DENIED',
       requires_approval: false,
       is_approved: false,
-      reason: 'Mutable operation lacks required Authorization Context (auth is undefined)',
+      reason: 'Governed operation lacks required Authorization Context (auth is undefined)',
     };
   }
 
@@ -246,6 +248,7 @@ export function evaluatePolicy(
     (c) =>
       c.capability === auth.capability ||
       matchPattern(c.capability, auth.capability) ||
+      (c.capability === 'vua.adapter.read' && typeof auth.capability === 'string' && auth.capability.startsWith('vua.') && (auth.capability.endsWith('.read') || auth.capability.endsWith('.inspect'))) ||
       (c.capability === 'vua.adapter.execute' && typeof auth.capability === 'string' && auth.capability.startsWith('vua.')) ||
       (c.capability === 'vua.adapter.write' && typeof auth.capability === 'string' && auth.capability.startsWith('vua.') && auth.capability.includes('write'))
   );
@@ -256,6 +259,16 @@ export function evaluatePolicy(
       requires_approval: false,
       is_approved: false,
       reason: `Capability '${auth.capability}' is not granted in policy '${policy.id}'`,
+    };
+  }
+
+  if (operation === 'read' && matchingCap.side_effect !== false) {
+    return {
+      allowed: false,
+      status: 'POLICY_DENIED',
+      requires_approval: false,
+      is_approved: false,
+      reason: `Operation 'read' requires a read-only capability, but capability '${auth.capability}' can have side effects`,
     };
   }
 

@@ -158,9 +158,8 @@ export function verifyProofSignature(
  * proof verifier must not let the subject of the proof select its own key.
  *
  * VUC_TRUST_STORE may point to a JSON object mapping key_id -> PEM public key,
- * or key_id -> { public_key: PEM }. The in-memory registry remains available
- * for same-process signing/execution flows, but it is not an independent
- * trust anchor and is absent across process boundaries.
+ * or key_id -> { public_key: PEM }. The in-memory signing registry is never a
+ * trust anchor for verification, including same-process verification.
  */
 export function resolvePublicKey(keyId: string): string | null {
   if (!keyId) return null;
@@ -178,10 +177,9 @@ export function resolvePublicKey(keyId: string): string | null {
           : undefined;
       if (typeof publicKey === 'string' && publicKey.includes('PUBLIC KEY')) return publicKey;
     } catch {
-      // Fail closed: continue to the process-local registry only.
+      return null;
     }
   }
 
-  const found = KEY_REGISTRY.get(keyId);
-  return found?.public_key || null;
+  return null;
 }
