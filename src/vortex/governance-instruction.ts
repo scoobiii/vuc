@@ -2,14 +2,37 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * Loads the repository governance contract used as the runtime system instruction.
- * The contract is sourced from AGENTS.md so runtime and CI consume one versioned policy.
+ * Loads the versioned VUC governance contract.
+ *
+ * An explicit root is authoritative for checkout/preflight callers. Otherwise,
+ * prefer the package containing the active CLI entrypoint, then the current
+ * working directory. This lets an installed CLI work from any directory
+ * without trusting an unrelated AGENTS.md in that directory.
  */
-export function loadGovernanceSystemInstruction(root = process.cwd()): string {
+export function loadGovernanceSystemInstruction(root?: string): string {
   const configured = process.env.VUC_SYSTEM_INSTRUCTION_PATH?.trim();
+
+  let effectiveRoot = root;
+  if (!effectiveRoot) {
+    const entry = process.argv[1] ? path.resolve(process.argv[1]) : '';
+    const entryParent = entry ? path.dirname(entry) : '';
+    const possiblePackageRoot = entryParent ? path.dirname(entryParent) : '';
+    const packageJson = possiblePackageRoot
+      ? path.join(possiblePackageRoot, 'package.json')
+      : '';
+    try {
+      const pkg = packageJson ? JSON.parse(fs.readFileSync(packageJson, 'utf8')) : null;
+      effectiveRoot = pkg?.name === '@vucfoundation/vuc'
+        ? possiblePackageRoot
+        : process.cwd();
+    } catch {
+      effectiveRoot = process.cwd();
+    }
+  }
+
   const candidates = configured
-    ? [path.resolve(root, configured)]
-    : [path.resolve(root, 'AGENTS.md'), path.resolve(root, 'AGENTS.MD')];
+    ? [path.resolve(root ?? process.cwd(), configured)]
+    : [path.resolve(effectiveRoot, 'AGENTS.md'), path.resolve(effectiveRoot, 'AGENTS.MD')];
 
   const file = candidates.find((candidate) => fs.existsSync(candidate));
   if (!file) {
