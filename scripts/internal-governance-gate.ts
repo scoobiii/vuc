@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { executeVortexPipeline } from '../src/vortex/gateway.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
 import { loadGovernanceSystemInstruction } from '../src/vortex/governance-instruction.js';
@@ -17,6 +18,15 @@ const instruction = loadGovernanceSystemInstruction(root);
 // explicitly during independent verification, proving the signature is real.
 const identity = generateVortexIdentity('vuc-internal', 'agent/vuc-preflight', 'vuc-preflight-' + Date.now());
 setGatewayIdentity(identity);
+
+// Pin this ephemeral preflight identity in an external trust store before
+// independent verification. The verifier must not trust its in-memory registry.
+const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-preflight-trust-'));
+const trustStorePath = path.join(trustDir, 'trust-store.json');
+fs.writeFileSync(trustStorePath, JSON.stringify({ [identity.key_id]: identity.public_key }), { mode: 0o600 });
+process.env.VUC_TRUST_STORE = trustStorePath;
+delete process.env.VUC_TRUSTED_PUBLIC_KEY;
+process.once('exit', () => fs.rmSync(trustDir, { recursive: true, force: true }));
 
 function run(label: string, command: string, args: string[]) {
   console.log('\n[INTERNAL-GATE] ' + label);
