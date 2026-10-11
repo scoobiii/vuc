@@ -9,6 +9,7 @@
  * 5. Concurrent Error Rate: 0.0%
  */
 
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import { executeVortexPipeline } from '../src/vortex/gateway.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
