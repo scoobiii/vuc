@@ -11,6 +11,7 @@
  * 7. Hardware Dynamic Baseline Integrity
  */
 
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { canonicalizeRFC8785 } from '../src/vortex/canonicalize.js';
@@ -204,7 +205,7 @@ await runTest('8. Verificador Independente: Validação completa de ExecutionPro
   });
 
   assert.ok(result.execution_proof, 'Deve conter execution_proof');
-  const verification = verifyExecutionProof(result.execution_proof, { trustedPublicKey: CURRENT_IDENTITY.public_key });
+  const verification = verifyExecutionProof(result.execution_proof);
   assert.equal(verification.valid, true, 'Verificador deve atestar validade da prova');
   assert.equal(verification.status, 'VERIFIED', 'Status da prova deve ser VERIFIED');
 });

@@ -123,6 +123,7 @@ export class VUAAndroidAdapter implements IVUAAdapter {
       {
         action: 'inspect_device',
         description: 'Query physical or host environment properties, API level, SELinux status, device ABI, and real battery metrics.',
+        risk: 'read',
         defaultParams: {},
       },
       {
@@ -133,6 +134,7 @@ export class VUAAndroidAdapter implements IVUAAdapter {
       {
         action: 'verify_apk',
         description: 'Audit APK signing scheme (APK Signature Scheme v2/v3/v4), cert SHA-256 fingerprint, and debuggable flags.',
+        risk: 'read',
         defaultParams: { package_name: 'com.vortex.foundation.vua' },
       },
       {

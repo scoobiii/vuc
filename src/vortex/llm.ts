@@ -445,7 +445,7 @@ export async function executeGovernedLLM(
   // 4. Run Independent Verifier on the generated proof
   let verification: VerificationResult | undefined;
   if (pipelineResponse.execution_proof) {
-    verification = verifyExecutionProof(pipelineResponse.execution_proof, { trustedPublicKey: CURRENT_IDENTITY.public_key });
+    verification = verifyExecutionProof(pipelineResponse.execution_proof);
   }
 
   const durationMs = pipelineResponse.execution_proof?.duration_ms ?? 0;

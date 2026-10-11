@@ -173,6 +173,7 @@ export class VUAGitHubAdapter implements IVUAAdapter {
       {
         action: 'inspect_repo',
         description: 'Inspect repository metadata, default branch, branch protections, and security policies via GitHub REST API.',
+        risk: 'read',
         defaultParams: { owner: 'scoobiii', repo: 'vua', branch: 'main' },
       },
       {

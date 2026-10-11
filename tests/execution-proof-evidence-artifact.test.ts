@@ -8,6 +8,7 @@
  * The artifact contains the complete proof object, not only a hash, so CI
  * consumers can independently verify provenance without trusting test stdout.
  */
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { handleMCPMessage } from '../src/vortex/mcp-server.js';

@@ -99,7 +99,7 @@ jobs:
           KEY_ID="$(node -p "require(process.argv[1]).identity.key_id" "$PROOF")"
           TRUST="$RUNNER_TEMP/$KEY_ID.pem"
           mv "$PUB" "$TRUST"
-          node scripts/verify-independent-proof.mjs "$PROOF" "$TRUST"
+          npx tsx scripts/verify-independent-proof.mjs "$PROOF" "$TRUST"
           RESPONSE="$(awk '/📝 RESPOSTA(:| DO MODELO:)/ {capture=1; next} /^─/ {capture=0} capture {print}' "$OUT" | sed '/^[[:space:]]*$/d' | sed 's/[[:space:]]*$//')"
           test "$RESPONSE" = X7Q
           mkdir -p reports/micro-llm-benchmark

@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { executeVortexPipeline } from '../src/vortex/gateway.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
@@ -10,21 +11,31 @@ import { setVortexIdentity as setGatewayIdentity } from '../src/vortex/gateway.j
 process.env.VUC_SANDBOX = 'strict';
 
 const root = process.cwd();
+const inheritedTrustStore = process.env.VUC_TRUST_STORE;
+const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-preflight-trust-'));
+const trustStore = path.join(trustDir, 'trust-store.json');
 const instruction = loadGovernanceSystemInstruction(root);
 
 // Create an ephemeral Ed25519 identity for this preflight. The private key never
-// leaves this process or gets written to the repository. The public key is used
-// explicitly during independent verification, proving the signature is real.
+// leaves this process or gets written to the repository. Its public key is pinned
+// in a temporary external trust store for the parent process verification only.
 const identity = generateVortexIdentity('vuc-internal', 'agent/vuc-preflight', 'vuc-preflight-' + Date.now());
 setGatewayIdentity(identity);
-process.env.VUC_TRUSTED_PUBLIC_KEY = identity.public_key;
+fs.writeFileSync(trustStore, JSON.stringify({ [identity.key_id]: identity.public_key }), { mode: 0o600 });
+process.env.VUC_TRUST_STORE = trustStore;
+delete process.env.VUC_TRUSTED_PUBLIC_KEY;
+process.once('exit', () => fs.rmSync(trustDir, { recursive: true, force: true }));
 
 function run(label: string, command: string, args: string[]) {
   console.log('\n[INTERNAL-GATE] ' + label);
+  const childEnv: NodeJS.ProcessEnv = { ...process.env, VUC_SANDBOX: 'strict' };
+  if (inheritedTrustStore) childEnv.VUC_TRUST_STORE = inheritedTrustStore;
+  else delete childEnv.VUC_TRUST_STORE;
+  delete childEnv.VUC_TRUSTED_PUBLIC_KEY;
   execFileSync(command, args, {
     cwd: root,
     stdio: 'inherit',
-    env: { ...process.env, VUC_SANDBOX: 'strict' },
+    env: childEnv,
   });
 }
 
@@ -57,7 +68,7 @@ assert(response.status === 'EXECUTION_SUCCESS', 'gateway status=' + response.sta
 assert(response.execution_proof, 'gateway returned no ExecutionProof');
 assert(response.execution_proof.executed === true, 'ExecutionProof.executed is not true');
 assert(response.execution_proof.signature !== 'mock-sig', 'synthetic mock signature detected');
-const verification = verifyExecutionProof(response.execution_proof, { trustedPublicKey: identity.public_key });
+const verification = verifyExecutionProof(response.execution_proof);
 assert(verification.valid === true, 'ExecutionProof verification failed: ' + verification.reasons.join('; '));
 assert(verification.checks.signature.passed === true, 'Ed25519 signature check did not pass');
 assert(verification.checks.identity.passed === true, 'External trust-anchor identity check did not pass');

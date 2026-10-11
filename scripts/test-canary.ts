@@ -1,3 +1,4 @@
+import '../tests/external-trust-anchor-fixture.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -109,7 +110,7 @@ export async function runCanaryTests(): Promise<number> {
       ...validRes.execution_proof,
       output_hash: 'sha256:0000000000000000000000000000000000000000000000000000000000000000', // Tampered hash!
     };
-    const tamperedVerification = verifyExecutionProof(tamperedProof as any, { trustedPublicKey: CURRENT_IDENTITY.public_key });
+    const tamperedVerification = verifyExecutionProof(tamperedProof as any);
     assert(tamperedVerification.valid === false, 'Tampered proof must fail verification');
     assert(
       tamperedVerification.checks.signature.passed === false,

@@ -23,7 +23,7 @@ function fail(message) {
 
 const [proofPath, trustKeyPath] = process.argv.slice(2);
 if (!proofPath || !trustKeyPath) {
-  fail('usage: node scripts/verify-independent-proof.mjs <proof.json> <trusted-key.pem>');
+  fail('usage: npx tsx scripts/verify-independent-proof.mjs <proof.json> <trusted-key.pem>');
 }
 
 const proof = JSON.parse(fs.readFileSync(proofPath, 'utf8'));

@@ -203,7 +203,14 @@ export async function runAdversarialSuite(): Promise<AdversarialResult[]> {
  */
 export async function runFoundationE2ESuite(): Promise<FoundationE2EResult[]> {
   const suite: FoundationE2EResult[] = [];
-  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
+  const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-foundation-e2e-trust-'));
+  const trustStore = path.join(trustDir, 'trust-store.json');
+  fs.writeFileSync(trustStore, JSON.stringify({
+    [CURRENT_IDENTITY.key_id]: CURRENT_IDENTITY.public_key,
+  }), { mode: 0o600 });
+  process.env.VUC_TRUST_STORE = trustStore;
+  delete process.env.VUC_TRUSTED_PUBLIC_KEY;
+  process.once('exit', () => fs.rmSync(trustDir, { recursive: true, force: true }));
 
   // E2E-001: MCP -> Gateway -> filesystem real write & proof
   {
@@ -550,7 +557,15 @@ export async function runVUAAdaptersE2ESuite(): Promise<{
   output: Record<string, unknown>;
 }[]> {
   // Conformance harness supplies the independent trust anchor; proof input cannot select it.
-  process.env.VUC_TRUSTED_PUBLIC_KEY = CURRENT_IDENTITY.public_key;
+  const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vua-adapter-conformance-trust-'));
+  const trustStore = path.join(trustDir, 'trust-store.json');
+  fs.writeFileSync(trustStore, JSON.stringify({
+    [CURRENT_IDENTITY.key_id]: CURRENT_IDENTITY.public_key,
+  }), { mode: 0o600 });
+  process.env.VUC_TRUST_STORE = trustStore;
+  delete process.env.VUC_TRUSTED_PUBLIC_KEY;
+  // Keep the harness anchor available to later integration assertions in this process.
+  process.once('exit', () => fs.rmSync(trustDir, { recursive: true, force: true }));
   const { vuaRegistry } = await import('./adapters/registry.js');
   const results: any[] = [];
 
