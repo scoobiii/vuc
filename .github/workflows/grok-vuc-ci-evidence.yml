@@ -83,14 +83,16 @@ jobs:
           fs.writeFileSync('artifacts/grok-vuc/grok-request.json', JSON.stringify(request, null, 2) + '\n');
           NODE
 
-      - name: Call Grok API from CI
-        id: grok
-        if: ${{ secrets.XAI_API_KEY != '' }}
+      - name: Call Grok API from CI (if XAI_API_KEY is configured)
         env:
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
+          if [ -z "${XAI_API_KEY:-}" ]; then
+            echo "NOT_CONFIGURED: add repository Actions secret XAI_API_KEY to enable the real Grok API call." | tee artifacts/grok-vuc/grok-api-status.txt
+            exit 0
+          fi
           # Send only the generated CI evidence request. Never print the API key.
           jq -n --arg model "grok-3" --argjson req "$(cat artifacts/grok-vuc/grok-request.json)" \
             '{model:$model,temperature:0,messages:[{role:"system",content:"You are an evidence auditor. Never invent proof. Distinguish test execution from a signed, independently verifiable ExecutionProof."},{role:"user",content:("Audit this CI evidence JSON and return a JSON verdict only: " + ($req|tojson))}]}' \
@@ -106,11 +108,6 @@ jobs:
             exit 1
           fi
           echo "Grok API response captured (HTTP $http_code)."
-
-      - name: Mark Grok API as not configured
-        if: ${{ secrets.XAI_API_KEY == '' }}
-        run: |
-          echo "NOT_CONFIGURED: add repository Actions secret XAI_API_KEY to enable the real Grok API call." | tee artifacts/grok-vuc/grok-api-status.txt
 
       - name: Generate artifact checksums
         if: always()
