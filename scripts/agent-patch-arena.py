@@ -65,6 +65,9 @@ def benchmark_once(path: Path) -> dict[str, float]:
 def prepare(path: Path) -> list[str]:
     commands = [
         ["npm", "ci", "--ignore-scripts"],
+        # npm ci suppresses lifecycle scripts. Bend is a pinned, checksum-verified
+        # native prerequisite for DREX tests; install it explicitly in both worktrees.
+        ["npm", "run", "install:bend"],
         ["npm", "run", "lint"],
         ["npm", "run", "verify:gos3"],
         ["npm", "run", "build"],
