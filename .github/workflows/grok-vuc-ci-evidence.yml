@@ -1,0 +1,127 @@
+name: Grok x VUC — CI Evidence Call
+
+on:
+  push:
+    branches: [feat/grok-vuc-ci-evidence]
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Question sent to Grok about the CI evidence"
+        required: false
+        default: "Audit the attached VUC CI evidence. Do not claim a VUC execution occurred unless the logs and proof establish it. Return VERIFIED, INVALID, or NOT_VERIFIABLE with reasons."
+
+permissions:
+  contents: read
+
+jobs:
+  vuc-evidence-and-grok:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build CLI and record environment
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p artifacts/grok-vuc
+          {
+            echo "timestamp_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "commit=$GITHUB_SHA"
+            echo "branch=$GITHUB_REF_NAME"
+            node --version
+            npm --version
+            npm run vuc -- version
+          } 2>&1 | tee artifacts/grok-vuc/environment.log
+          npm run build:cli 2>&1 | tee artifacts/grok-vuc/build-cli.log
+
+      - name: Run VUC execution-proof evidence test
+        id: evidence_test
+        shell: bash
+        run: |
+          set +e
+          npm run test:execution-evidence 2>&1 | tee artifacts/grok-vuc/vuc-execution-evidence-test.log
+          rc=${PIPESTATUS[0]}
+          echo "$rc" > artifacts/grok-vuc/vuc-test-exit-code.txt
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          # Keep the workflow alive so the raw evidence is always archived and Grok can assess failures.
+          exit 0
+
+      - name: Prepare Grok audit request
+        env:
+          GROK_PROMPT: ${{ inputs.prompt }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const prompt = process.env.GROK_PROMPT || 'Audit the attached VUC CI evidence. Do not claim a VUC execution occurred unless the logs and proof establish it. Return VERIFIED, INVALID, or NOT_VERIFIABLE with reasons.';
+          const logPath = 'artifacts/grok-vuc/vuc-execution-evidence-test.log';
+          const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : 'NOT_PRODUCED';
+          const env = fs.readFileSync('artifacts/grok-vuc/environment.log', 'utf8');
+          const exitCode = fs.readFileSync('artifacts/grok-vuc/vuc-test-exit-code.txt', 'utf8').trim();
+          const request = {
+            task: 'Independent review of VUC execution evidence produced by this GitHub Actions run',
+            instruction: prompt,
+            github: { repository: process.env.GITHUB_REPOSITORY, sha: process.env.GITHUB_SHA, run_id: process.env.GITHUB_RUN_ID, run_attempt: process.env.GITHUB_RUN_ATTEMPT },
+            test: { name: 'npm run test:execution-evidence', exit_code: Number(exitCode), environment_log: env, stdout_stderr: log },
+            constraints: [
+              'Do not fabricate an execution_id, payload hash, signature, public key, or log.',
+              'A passing test suite is not automatically proof that the screenshot-mentioned Grok request executed.',
+              'If raw signed ExecutionProof and trustworthy key material are absent, status must be NOT_VERIFIABLE.',
+              'Return concise JSON with overall_status, observed_evidence, missing_evidence, and next_action.'
+            ]
+          };
+          fs.writeFileSync('artifacts/grok-vuc/grok-request.json', JSON.stringify(request, null, 2) + '\n');
+          NODE
+
+      - name: Call Grok API from CI
+        id: grok
+        if: ${{ secrets.XAI_API_KEY != '' }}
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Send only the generated CI evidence request. Never print the API key.
+          jq -n --arg model "grok-3" --argjson req "$(cat artifacts/grok-vuc/grok-request.json)" \
+            '{model:$model,temperature:0,messages:[{role:"system",content:"You are an evidence auditor. Never invent proof. Distinguish test execution from a signed, independently verifiable ExecutionProof."},{role:"user",content:("Audit this CI evidence JSON and return a JSON verdict only: " + ($req|tojson))}]}' \
+            > artifacts/grok-vuc/grok-api-request.json
+          http_code=$(curl --silent --show-error --output artifacts/grok-vuc/grok-response.json --write-out "%{http_code}" \
+            https://api.x.ai/v1/chat/completions \
+            -H "Authorization: Bearer ${XAI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            --data-binary @artifacts/grok-vuc/grok-api-request.json)
+          echo "$http_code" > artifacts/grok-vuc/grok-http-status.txt
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Grok API returned HTTP $http_code; raw response archived."
+            exit 1
+          fi
+          echo "Grok API response captured (HTTP $http_code)."
+
+      - name: Mark Grok API as not configured
+        if: ${{ secrets.XAI_API_KEY == '' }}
+        run: |
+          echo "NOT_CONFIGURED: add repository Actions secret XAI_API_KEY to enable the real Grok API call." | tee artifacts/grok-vuc/grok-api-status.txt
+
+      - name: Generate artifact checksums
+        if: always()
+        run: |
+          find artifacts/grok-vuc -maxdepth 1 -type f ! -name checksums.sha256 -print0 | sort -z | xargs -0 -r sha256sum > artifacts/grok-vuc/checksums.sha256
+
+      - name: Upload VUC + Grok evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuc-grok-ci-evidence-${{ github.run_id }}
+          path: artifacts/grok-vuc/
+          if-no-files-found: error
+          retention-days: 30
