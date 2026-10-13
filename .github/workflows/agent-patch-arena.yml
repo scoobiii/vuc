@@ -4,9 +4,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
     branches: [ main, develop ]
-  pull_request_target:
-    types: [opened, synchronize, reopened, labeled]
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       auto_merge_winner:
@@ -21,9 +18,9 @@ on:
         default: 0.0
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
-  statuses: write
+  statuses: read
 
 jobs:
   agent-tournament:
@@ -81,39 +78,59 @@ jobs:
           echo "🧪 Running Patch Arena Intent Classification & Policy Tests..."
           npx tsx tests/patch-arena-policy.test.ts
 
-      # 6. Darwinian Agent Arena Benchmark & Intent Gain Comparator
-      - name: Run Patch Tournament Benchmark & Gain Comparator
+      # 6. Run the measured evaluator against exact base/head refs.
+      # Never infer a PASS from log text and never run untrusted PR code under pull_request_target.
+      - name: Run measured Patch Arena evaluator
         id: arena_eval
         run: |
-          echo "🏆 Running Multi-Agent Patch Tournament with Intent-Aware Gain Intelligence..."
-          npx tsx scripts/agent-patch-arena.ts > arena_output.txt 2>&1
-          cat arena_output.txt
+          set -euo pipefail
+          BASE_BRANCH="${{ github.base_ref || 'main' }}"
+          git fetch origin "$BASE_BRANCH" --depth=100
+          python3 scripts/agent-patch-arena.py \
+            --base "origin/$BASE_BRANCH" \
+            --head HEAD \
+            --output arena_output.json
+          cat arena_output.json
+          verdict="$(node -p "require('./arena_output.json').verdict")"
+          case "$verdict" in
+            PASS_SUPERIOR|PASS_SECURITY|PASS_GOVERNANCE|PASS_CORRECTNESS|NEEDS_MANUAL_REVIEW) ;;
+            *) echo "Arena rejected candidate: $verdict"; exit 1 ;;
+          esac
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
 
-      # 7. Evaluate Intent-Aware Decision Gate for Auto-Merge
-      - name: Evaluate Merge Decision Gate
+      # Manual review is not an approved verdict and must never enable auto-merge.
+      - name: Evaluate merge eligibility
         id: merge_gate
+        if: ${{ always() }}
         run: |
-          if grep -E -q "PASS_SUPERIOR|PASS_SECURITY|PASS_GOVERNANCE|PASS_CORRECTNESS" arena_output.txt; then
-            echo "superior_found=true" >> "$GITHUB_OUTPUT"
-            echo "approved=true" >> "$GITHUB_OUTPUT"
-            echo "✅ Patch achieved intent-approved verdict in Arena."
-          else
-            echo "superior_found=false" >> "$GITHUB_OUTPUT"
-            echo "approved=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ No patch achieved approved verdict (regression, manual review or disqualified). Auto-merge forbidden."
-            exit 1
-          fi
+          set -euo pipefail
+          verdict="$(node -p "require('./arena_output.json').verdict")"
+          case "$verdict" in
+            PASS_SUPERIOR|PASS_SECURITY|PASS_GOVERNANCE|PASS_CORRECTNESS)
+              echo "approved=true" >> "$GITHUB_OUTPUT"
+              echo "PASS: measured verdict accepted; branch protection and required reviews still apply."
+              ;;
+            NEEDS_MANUAL_REVIEW)
+              echo "approved=false" >> "$GITHUB_OUTPUT"
+              echo "MANUAL REVIEW REQUIRED: no merge approval granted."
+              ;;
+            *)
+              echo "approved=false" >> "$GITHUB_OUTPUT"
+              echo "FAIL-CLOSED: missing or rejected Arena verdict."
+              exit 1
+              ;;
+          esac
 
       # 8. Post Tournament Leaderboard & Gain Delta to PR Comments
       - name: Comment Arena Leaderboard & Decision on Pull Request
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             let output = 'No arena output captured';
-            if (fs.existsSync('arena_output.txt')) {
-              output = fs.readFileSync('arena_output.txt', 'utf8');
+            if (fs.existsSync('arena_output.json')) {
+              output = fs.readFileSync('arena_output.json', 'utf8');
             }
             const body = `### 🏆 Vortex Multi-Agent Patch Arena Results (VUA-SPEC-v2)\n\n\`\`\`text\n${output}\n\`\`\`\n\n*Evaluated by deterministic cryptographic CI gates with Intent-Aware Baseline Gain Comparator.*`;
             await github.rest.issues.createComment({
@@ -123,20 +140,11 @@ jobs:
               body: body
             });
 
-      # 9. Fast-forward Auto-Merge (Only if approved & auto_merge_winner is enabled)
-      - name: Fast-Forward Auto-Merge Approved Winner
-        if: ${{ steps.merge_gate.outputs.superior_found == 'true' && (inputs.auto_merge_winner == true || contains(github.event.pull_request.labels.*.name, 'automerge-superior')) }}
-        run: |
-          echo "🚀 Executing auto-merge for verified candidate..."
-          git config user.name "vortex-ci-robot[bot]"
-          git config user.email "ci-robot@vortex-foundation.org"
-          git checkout main
-          git merge --ff-only "${{ github.head_ref }}"
-          git push origin main
+      # Direct pushes/auto-merge are intentionally prohibited; use reviewed PR merge controls.
 
       # 10. Archive Verifiable Tournament Evidence
       - name: Archive Arena Cryptographic Evidence
         uses: actions/upload-artifact@v4
         with:
           name: agent-arena-evidence
-          path: arena_output.txt
+          path: arena_output.json
