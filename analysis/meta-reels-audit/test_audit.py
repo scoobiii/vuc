@@ -19,7 +19,7 @@ class AggregateAuditTests(unittest.TestCase):
         case = next(r for r in rows if r["group"] == "case")
         for group, expected in (("deputies",17.2),("Brazil",29.3),("world",33.7)):
             med = statistics.median(r["median_pct"] for r in rows if r["group"] == group)
-            self.assertLessEqual(abs(case["median_pct"]/med-expected),0.06)
+            self.assertEqual(round(case["median_pct"]/med,1),expected)
 
     def test_24_reels_above_followers(self):
         self.assertEqual(sum(int(r["above_followers"]) for r in audit.load()),24)
