@@ -18,7 +18,7 @@ class AggregateAuditTests(unittest.TestCase):
         rows = audit.load()
         case = next(r for r in rows if r["group"] == "case")
         for group, expected in (("deputies",17.2),("Brazil",29.3),("world",33.7)):
-            med = statistics.median(r["median_pct"] for r in rows if r["group"] == group)
+            med = round(statistics.median(r["median_pct"] for r in rows if r["group"] == group),2)
             self.assertEqual(round(case["median_pct"]/med,1),expected)
 
     def test_24_reels_above_followers(self):
