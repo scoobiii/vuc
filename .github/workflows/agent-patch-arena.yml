@@ -97,6 +97,10 @@ jobs:
             echo "superior_found=true" >> "$GITHUB_OUTPUT"
             echo "approved=true" >> "$GITHUB_OUTPUT"
             echo "✅ Patch achieved intent-approved verdict in Arena."
+          elif grep -F -q "NEEDS_MANUAL_REVIEW" arena_output.txt; then
+            echo "superior_found=false" >> "$GITHUB_OUTPUT"
+            echo "approved=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Absolute gates passed; human review is required. Auto-merge remains forbidden."
           else
             echo "superior_found=false" >> "$GITHUB_OUTPUT"
             echo "approved=false" >> "$GITHUB_OUTPUT"
