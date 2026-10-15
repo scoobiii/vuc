@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Reproduce published aggregate checks, not the unavailable 300-row raw analysis."""
-import csv, hashlib, json, statistics\nfrom decimal import Decimal, ROUND_HALF_UP
+import csv, hashlib, json, statistics
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -23,7 +24,8 @@ def main():
     case = next(r for r in rows if r["group"] == "case")
     group_values = {g: [r["median_pct"] for r in rows if r["group"] == g] for g in ("deputies","Brazil","world")}
     medians = {g: statistics.median(v) for g,v in group_values.items()}
-    displayed_medians = {g: float(Decimal(str(m)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) for g,m in medians.items()}\n    ratios = {g: case["median_pct"]/displayed_medians[g] for g in medians}
+    displayed_medians = {g: float(Decimal(str(m)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) for g,m in medians.items()}
+    ratios = {g: case["median_pct"]/displayed_medians[g] for g in medians}
     checks = {
         "exactly_30_profiles": len(rows) == 30,
         "comparison_groups_9_10_10": [len(group_values[g]) for g in ("deputies","Brazil","world")] == [9,10,10],
