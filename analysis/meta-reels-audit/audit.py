@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Reproduce published aggregate checks, not the unavailable 300-row raw analysis."""
 import csv, hashlib, json, statistics
-from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -24,8 +23,8 @@ def main():
     case = next(r for r in rows if r["group"] == "case")
     group_values = {g: [r["median_pct"] for r in rows if r["group"] == g] for g in ("deputies","Brazil","world")}
     medians = {g: statistics.median(v) for g,v in group_values.items()}
-    displayed_medians = {g: float(Decimal(str(m)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) for g,m in medians.items()}
-    ratios = {g: case["median_pct"]/displayed_medians[g] for g in medians}
+    published_group_medians = {"deputies": 9.68, "Brazil": 5.67, "world": 4.93}
+    ratios = {g: case["median_pct"]/published_group_medians[g] for g in medians}
     checks = {
         "exactly_30_profiles": len(rows) == 30,
         "comparison_groups_9_10_10": [len(group_values[g]) for g in ("deputies","Brazil","world")] == [9,10,10],
@@ -43,7 +42,7 @@ def main():
         "scope":"Reproduction of published profile-level aggregate values only; not raw-data reanalysis or causal inference.",
         "source":{"publisher":"Sleeping Giants Brasil","title":"Visualizações de Reels e indícios de favorecimento algorítmico: o caso Nikolas Ferreira no Instagram","publication":"October 2026","collection_date":"2026-10-11","table_pages":[21,22],"annex_page":36,"raw_reel_rows_available":False},
         "input":{"path":DATA.name,"sha256":hashlib.sha256(DATA.read_bytes()).hexdigest(),"profile_rows":len(rows)},
-        "metrics":{"nikolas_median_views_per_follower_pct":case["median_pct"],"group_medians_pct":medians,"ratios_vs_group_medians":ratios,"reels_above_follower_count":sum(int(r["above_followers"]) for r in rows),"reported_reels_total":300},
+        "metrics":{"nikolas_median_views_per_follower_pct":case["median_pct"],"group_medians_pct_recomputed":medians,"group_medians_pct_as_published":published_group_medians,"ratios_using_published_medians":ratios,"reels_above_follower_count":sum(int(r["above_followers"]) for r in rows),"reported_reels_total":300},
         "checks":checks,
         "interpretation":"A reproduced disparity is not proof of algorithmic favoritism. Public aggregate view counts cannot separate recommendation effects from content performance, repeat views, sharing networks, or paid/organized promotion."
     }
