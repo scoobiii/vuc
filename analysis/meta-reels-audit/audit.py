@@ -23,7 +23,7 @@ def main():
     case = next(r for r in rows if r["group"] == "case")
     group_values = {g: [r["median_pct"] for r in rows if r["group"] == g] for g in ("deputies","Brazil","world")}
     medians = {g: statistics.median(v) for g,v in group_values.items()}
-    ratios = {g: case["median_pct"]/m for g,m in medians.items()}
+    ratios = {g: case["median_pct"]/round(m,2) for g,m in medians.items()}
     checks = {
         "exactly_30_profiles": len(rows) == 30,
         "comparison_groups_9_10_10": [len(group_values[g]) for g in ("deputies","Brazil","world")] == [9,10,10],
