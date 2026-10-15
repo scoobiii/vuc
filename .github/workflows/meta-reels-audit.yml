@@ -1,0 +1,42 @@
+name: VUC — Meta Reels Aggregate Audit
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "analysis/meta-reels-audit/**"
+      - ".github/workflows/meta-reels-audit.yml"
+  pull_request:
+    paths:
+      - "analysis/meta-reels-audit/**"
+      - ".github/workflows/meta-reels-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  aggregate-audit:
+    name: Reproduce published aggregate statistics (not causal inference)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python -m unittest discover -s analysis/meta-reels-audit -p 'test_*.py' -v
+      - name: Reproduce calculations and emit report
+        run: python analysis/meta-reels-audit/audit.py | tee analysis/meta-reels-audit/audit-console.json
+      - name: Upload reproducibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meta-reels-aggregate-audit
+          path: |
+            analysis/meta-reels-audit/audit-result.json
+            analysis/meta-reels-audit/audit-console.json
+          if-no-files-found: error
