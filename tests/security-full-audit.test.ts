@@ -11,6 +11,7 @@
  * 7. Hardware Dynamic Baseline Integrity
  */
 
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { canonicalizeRFC8785 } from '../src/vortex/canonicalize.js';
@@ -22,7 +23,7 @@ import {
   verifyCanonicalSignature,
   sha256,
 } from '../src/vortex/crypto.js';
-import { executeVortexPipeline, resetAntiReplayCache } from '../src/vortex/gateway.js';
+import { executeVortexPipeline, resetAntiReplayCache, CURRENT_IDENTITY } from '../src/vortex/gateway.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
 import { bootstrapHardwareBaseline, detectHardwareFingerprint, computeDynamicBaseline } from '../src/vortex/hardware-profiler.js';
 

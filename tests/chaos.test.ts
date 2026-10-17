@@ -11,6 +11,7 @@
  * 7. Malformed JSON-RPC & Empty GOS3 Session IDs
  */
 
+import './external-trust-anchor-fixture.js';
 import assert from 'node:assert/strict';
 import { executeVortexPipeline } from '../src/vortex/gateway.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';

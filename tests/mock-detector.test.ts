@@ -13,16 +13,28 @@
  */
 
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { runAuditedMockDetectorSuite, auditPayloadForMocks } from '../src/vortex/mock-detector.js';
 import { scanRepositoryForMocks } from '../src/vortex/static-mock-scanner.js';
 import { verifyExecutionProof } from '../src/vortex/verifier.js';
-import { createSignedProof } from '../src/vortex/gateway.js';
+import { createSignedProof, CURRENT_IDENTITY } from '../src/vortex/gateway.js';
 import { sha256 } from '../src/vortex/crypto.js';
 import { vuaRegistry } from '../src/vortex/adapters/registry.js';
 import type { ExecutionProof } from '../src/vortex/types.js';
 
 console.log('🧪 Iniciando Suíte de Testes do Mock Detector VUA (Zero-Mock + Prova de Execução)...');
 console.log('═════════════════════════════════════════════════════════════════');
+
+// Test-only independent trust anchor. The verifier must resolve the signing
+// key from an explicit external store, never from KEY_REGISTRY or the proof.
+const trustDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vuc-mock-trust-'));
+const trustStore = path.join(trustDir, 'trust-store.json');
+fs.writeFileSync(trustStore, JSON.stringify({
+  [CURRENT_IDENTITY.key_id]: { public_key: CURRENT_IDENTITY.public_key },
+}, null, 2), { mode: 0o600 });
+process.env.VUC_TRUST_STORE = trustStore;
 
 let passedTests = 0;
 let totalTests = 0;
@@ -244,3 +256,5 @@ await runTestWithProof(
 console.log('═════════════════════════════════════════════════════════════════');
 console.log(`STATUS: ✅ 100% DOS TESTES DO MOCK DETECTOR APROVADOS (${passedTests}/${totalTests}) COM PROVA DE EXECUÇÃO`);
 console.log('═════════════════════════════════════════════════════════════════\n');
+
+fs.rmSync(trustDir, { recursive: true, force: true });
