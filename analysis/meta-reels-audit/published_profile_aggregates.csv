@@ -1,0 +1,31 @@
+profile,group,followers_m,mean_m,median_m,sd_m,cv_pct,median_pct,mean_pct,above_followers,by_first_round
+Nikolas Ferreira,case,23,41.05,38.25,14.43,35.2,166.30,178.48,10,4
+Marco Feliciano,deputies,3.6,.08,.05,.11,125.3,1.40,2.33,0,0
+Douglas Viegas,deputies,3.2,.21,.11,.32,155.2,3.42,6.53,0,9
+Gustavo Gayer,deputies,3.2,.69,.56,.48,70.3,17.45,21.42,0,0
+Tiririca,deputies,7.2,1.07,.70,1.14,105.8,9.68,14.93,0,5
+Fábio Teruel,deputies,6,.16,.17,.05,30.4,2.76,2.67,0,9
+Delegado Palumbo,deputies,2.7,.61,.17,1.39,229.6,6.13,22.44,1,7
+Erika Hilton,deputies,5.7,6.34,5.80,5.96,94.1,101.75,111.21,5,0
+André Janones,deputies,3.9,4.68,4.25,2.51,53.7,108.97,120.00,6,0
+Tabata Amaral,deputies,2.1,.30,.26,.20,67.1,12.26,14.37,0,10
+Neymar,Brazil,241,41.87,31.80,33.78,80.7,13.20,17.37,0,8
+Ronaldinho Gaúcho,Brazil,81.1,4.12,2.20,4.18,101.3,2.71,5.08,0,9
+Marcelo Vieira,Brazil,67.3,6.16,1.75,10.30,167.1,2.60,9.15,0,8
+Vini Jr.,Brazil,64,26.30,20.55,18.30,69.6,32.11,41.09,1,10
+Anitta,Brazil,61.1,12.13,5.50,14.98,123.5,9.00,19.85,0,9
+Virginia Fonseca,Brazil,56.4,34.32,28.75,14.12,41.1,50.98,60.85,1,9
+Tatá Werneck,Brazil,54.4,2.32,1.95,1.24,53.3,3.58,4.26,0,7
+Whindersson Nunes,Brazil,54.2,4.65,4,4.05,87.2,7.38,8.57,0,10
+Larissa Manoela,Brazil,51.7,2.75,2.05,2.52,91.8,3.97,5.31,0,9
+Maisa Silva,Brazil,46.5,2.18,.78,2.36,108.3,1.68,4.68,0,10
+Cristiano Ronaldo,world,680,140.75,95.15,109.90,78.1,13.99,20.70,0,10
+Lionel Messi,world,517,103.10,52.60,128.90,125,10.17,19.94,0,10
+Selena Gomez,world,402,31.38,34.45,12.99,41.4,8.57,7.81,0,9
+Dwayne Johnson,world,380,4.66,3.70,2.50,53.7,.97,1.23,0,9
+Kylie Jenner,world,380,22.36,25.80,11.69,52.3,6.79,5.88,0,10
+Ariana Grande,world,362,9.36,3.65,12.31,131.6,1.01,2.59,0,8
+Kim Kardashian,world,343,14.35,13.90,5.69,39.7,4.05,4.18,0,10
+Beyoncé,world,298,12.98,11.70,5.59,43.1,3.93,4.36,0,10
+Khloé Kardashian,world,291,4.35,3.20,2.84,65.2,1.10,1.49,0,8
+Justin Bieber,world,286,19.83,16.60,12.74,64.2,5.80,6.93,0,10
