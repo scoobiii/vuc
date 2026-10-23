@@ -1,0 +1,38 @@
+{
+  "schema": "vuc.engine-matrix.v1",
+  "status": "proposal",
+  "engines": [
+    {
+      "id": "freecad",
+      "kind": "native-cad",
+      "phase": 1,
+      "ci_target": "github-hosted-linux",
+      "capabilities": ["parametric-brep", "fcstd", "step-export", "techdraw-pdf"],
+      "status": "smoke-test-pending"
+    },
+    {
+      "id": "rhino",
+      "kind": "licensed-cad-runtime",
+      "phase": 5,
+      "ci_target": "dedicated-compatible-runner",
+      "capabilities": ["nurbs", "step-export"],
+      "status": "not-implemented",
+      "requirements": ["verified-vendor-runtime", "valid-ci-license", "unattended-execution"]
+    },
+    {
+      "id": "grasshopper",
+      "kind": "parametric-definition-runtime",
+      "phase": 5,
+      "ci_target": "rhino-compatible-runner",
+      "capabilities": ["definition-execution"],
+      "status": "not-implemented",
+      "requirements": ["compatible-rhino-version", "pinned-definition", "pinned-plugins", "valid-ci-license"]
+    }
+  ],
+  "policy": {
+    "llm_is_executor": false,
+    "proof_required_for_success": true,
+    "fail_closed": true,
+    "binary_identical_exports_guaranteed": false
+  }
+}
