@@ -31,7 +31,7 @@ for key, expected in (("x", 100.0), ("y", 80.0), ("z", 40.0)):
     if abs(float(dims.get(key, -1)) - expected) > 1e-6:
         errors.append(f"manifest bounding-box {key} mismatch")
 
-step_text = (root / "unit-box.step").read_text(errors="replace")[:20000].upper()
+step_text = (root / "unit-box.step").read_text(errors="replace").upper()
 if "ISO-10303-21" not in step_text or "END-ISO-10303-21" not in step_text:
     errors.append("STEP file lacks ISO-10303-21 delimiters")
 pdf = (root / "unit-box.pdf").read_bytes()
