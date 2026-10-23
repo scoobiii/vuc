@@ -1,0 +1,8 @@
+name: freecad-ci
+channels:
+  - conda-forge
+dependencies:
+  - freecad=1.0.*
+  - xvfb
+  - poppler
+  - python
