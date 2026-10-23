@@ -1,7 +1,7 @@
 # VUC Deterministic Runtime — CAD engines
 
 **Owner:** VUC / GoS3  
-**Status:** Architecture proposal; FreeCAD smoke CI is the first implementation slice  
+**Status:** Backlog specification; implementation and merge are gated by required CI evidence  
 **Target repository:** `scoobiii/vuc`
 
 ## Decision
@@ -58,6 +58,35 @@ Validation should cover, as appropriate:
 - PDF signature, page count and drawing metadata;
 - SHA-256 for each produced artifact;
 - signed proof verification against an explicitly trusted public key.
+
+## Backlog and merge policy
+
+Documentation records requirements and dependencies; it is not evidence that a capability is implemented. Each phase below remains backlog until its acceptance criteria are demonstrated by a real CI run. Do not mark a phase delivered based on code presence, workflow creation, mocked output, or a green documentation-only check.
+
+### Required merge gate for CAD runtime changes
+
+A CAD runtime PR is mergeable only when all required existing VUC checks and the following evidence gates pass in GitHub Actions for the exact PR head commit:
+
+1. **Real engine execution:** record the actual engine identity, version/build, platform, process exit status and logs. A mocked engine or fabricated manifest is not acceptable.
+2. **Geometric and format validation:** assert fixture invariants with explicit tolerances; reopen or independently re-import STEP; validate PDF signature and page count; validate native project output where supported.
+3. **Artifacts and hashes:** upload the outputs, logs and machine-readable manifest; calculate SHA-256 from the actual output bytes and verify the recorded hashes against those bytes.
+4. **Verifiable ExecutionProof:** bind the request, runtime identity, execution result and artifact hashes; verify the signature and trusted key independently. Tampering with an artifact, manifest or proof must fail a negative test.
+5. **Reproducible CI and regression safety:** a clean GitHub-hosted runner completes the workflow; relevant CAD tests pass; existing VUC CI, MCP contracts, governance and security checks remain green. Preserve evidence for both success and failure.
+
+If any gate is missing, skipped, inconclusive or failing, the PR remains non-mergeable. Do not weaken existing branch protection, mark required checks successful manually, or disable security gates to obtain a green result. A passing smoke test proves only the tested fixture and engine configuration; it does not imply Rhino or Grasshopper is delivered.
+
+### Backlog dependencies
+
+| Item | Depends on | Exit condition |
+|---|---|---|
+| CAD-01 FreeCAD runner | Versioned environment and fixed fixture | Actual FreeCAD run and all geometry/export checks pass |
+| CAD-02 Evidence manifest | CAD-01 | Output hashes and runtime identity independently checked |
+| CAD-03 ExecutionProof | CAD-02 and existing VUC trust/proof contracts | Positive and tamper-negative verification tests pass |
+| CAD-04 MCP tools | CAD-03 and audit of existing MCP registry | Contract tests pass without regression to existing tools |
+| CAD-05 remote GitHub execution | CAD-04 and authenticated dispatch/poll/artifact retrieval | Only completed, verified runs can return PASS |
+| CAD-06 Rhino runtime | Vendor support, license and compatible runner validated | Real licensed engine run and output validation pass |
+| CAD-07 Grasshopper runtime | CAD-06, compatible plugins and pinned definition | Real definition run with pinned dependencies passes |
+| CAD-08 binary provenance | Per-engine distribution and trust policy | Version, platform, digest and provenance evidence verified |
 
 ## CI rollout
 
