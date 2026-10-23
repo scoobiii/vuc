@@ -45,7 +45,7 @@ try:
 
     page = doc.addObject("TechDraw::DrawPage", "Page")
     template = doc.addObject("TechDraw::DrawSVGTemplate", "Template")
-    template.Template = "A4_LandscapeTD.svg"
+    template.Template = os.path.join(App.getResourceDir(), "Mod", "TechDraw", "Templates", "A4_LandscapeTD.svg")
     page.Template = template
     view = doc.addObject("TechDraw::DrawViewPart", "FrontView")
     view.Source = [box]
@@ -89,3 +89,7 @@ except Exception as exc:
 finally:
     if doc is not None:
         App.closeDocument(doc.Name)
+    try:
+        Gui.getMainWindow().close()
+    except Exception:
+        pass
