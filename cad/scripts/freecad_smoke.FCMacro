@@ -1,0 +1,91 @@
+# VUC CAD smoke test — deterministic box -> FCStd + STEP + TechDraw PDF.
+# Run with: xvfb-run -a freecad cad/scripts/freecad_smoke.FCMacro
+import json
+import os
+import sys
+import traceback
+
+import FreeCAD as App
+import Part
+import TechDraw
+
+OUT = os.path.abspath(os.environ.get("VUC_CAD_OUT", "artifacts/cad"))
+os.makedirs(OUT, exist_ok=True)
+doc = None
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+try:
+    doc = App.newDocument("VUCCADSmoke")
+    box = doc.addObject("Part::Box", "SmokeBox")
+    box.Label = "VUC deterministic test box"
+    box.Length = 100.0
+    box.Width = 80.0
+    box.Height = 40.0
+    doc.recompute()
+
+    shape = box.Shape
+    require(not shape.isNull(), "generated shape is null")
+    require(shape.isValid(), "generated shape is topologically invalid")
+    require(len(shape.Solids) == 1, "expected exactly one solid")
+    require(abs(shape.Volume - 320000.0) < 1e-6, "unexpected solid volume")
+    bb = shape.BoundBox
+    require(abs(bb.XLength - 100.0) < 1e-6, "unexpected X dimension")
+    require(abs(bb.YLength - 80.0) < 1e-6, "unexpected Y dimension")
+    require(abs(bb.ZLength - 40.0) < 1e-6, "unexpected Z dimension")
+
+    fcstd = os.path.join(OUT, "unit-box.FCStd")
+    step = os.path.join(OUT, "unit-box.step")
+    pdf = os.path.join(OUT, "unit-box.pdf")
+    doc.recompute()
+    doc.saveAs(fcstd)
+    Part.export([box], step)
+
+    page = doc.addObject("TechDraw::DrawPage", "Page")
+    template = doc.addObject("TechDraw::DrawSVGTemplate", "Template")
+    template.Template = "A4_LandscapeTD.svg"
+    page.Template = template
+    view = doc.addObject("TechDraw::DrawViewPart", "FrontView")
+    view.Source = [box]
+    page.addView(view)
+    doc.recompute()
+    require(page.PageResult is not None, "TechDraw page did not produce a result")
+    page.exportPdf(pdf)
+
+    require(os.path.isfile(fcstd) and os.path.getsize(fcstd) > 0, "FCStd missing or empty")
+    require(os.path.isfile(step) and os.path.getsize(step) > 100, "STEP missing or too small")
+    require(os.path.isfile(pdf) and os.path.getsize(pdf) > 100, "PDF missing or too small")
+
+    manifest = {
+        "schema": "vuc.cad.smoke-manifest.v1",
+        "status": "PASS",
+        "freecad_version": ".".join(str(x) for x in App.Version()[:3]),
+        "fixture": "unit-box",
+        "units": "mm",
+        "solid_count": len(shape.Solids),
+        "volume_mm3": shape.Volume,
+        "bounding_box_mm": {"x": bb.XLength, "y": bb.YLength, "z": bb.ZLength},
+        "artifacts": {
+            "fcstd": os.path.basename(fcstd),
+            "step": os.path.basename(step),
+            "pdf": os.path.basename(pdf)
+        }
+    }
+    with open(os.path.join(OUT, "cad-manifest.json"), "w") as f:
+        json.dump(manifest, f, indent=2, sort_keys=True)
+        f.write("\\n")
+    print("VUC_CAD_SMOKE_PASS " + json.dumps(manifest, sort_keys=True))
+except Exception as exc:
+    print("VUC_CAD_SMOKE_FAIL: " + str(exc))
+    traceback.print_exc()
+    try:
+        with open(os.path.join(OUT, "cad-smoke-error.txt"), "w") as f:
+            f.write(traceback.format_exc())
+    except Exception:
+        pass
+    raise
+finally:
+    if doc is not None:
+        App.closeDocument(doc.Name)
