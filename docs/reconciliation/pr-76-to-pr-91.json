@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "source_pr": 76,
+  "target_pr": 91,
+  "purpose": "Explicitly account for every file changed by source PR #76 before replacement PR #91 can merge.",
+  "rule": "Every source file must be classified as PORTED, PRESENT_IN_BASE, or DROPPED_WITH_RATIONALE, with a non-empty evidence field. PENDING always fails CI.",
+  "files": [
+    {
+      "path": ".github/workflows/agent-patch-arena.yml",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "scripts/agent-patch-arena.py",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "scripts/agent-patch-arena.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "scripts/internal-governance-gate.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "scripts/test-canary.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/adapters/android.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/adapters/github.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/adapters/linux.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/adapters/registry.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/adapters/windows.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/conformance.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/crypto.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/policy.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "src/vortex/types.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/chaos.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/execution-proof-evidence-artifact.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/external-trust-anchor-fixture.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/mcp-execution-conformance.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/mcp-real-execution-proof.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/mock-detector.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/s0-trust-anchor.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/security-full-audit.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/stress.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    },
+    {
+      "path": "tests/tenant-principal-policy-conformance.test.ts",
+      "status": "PENDING",
+      "evidence": ""
+    }
+  ]
+}
