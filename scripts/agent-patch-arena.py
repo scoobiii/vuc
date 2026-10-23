@@ -92,7 +92,13 @@ def classify_intent(files: list[str]) -> str:
             categories.add("performance")
         elif any(token in path for token in ("oauth", "security", "crypto", "verifier", "trust-anchor", "policy", "sandbox", "credential")):
             categories.add("security")
-        elif path.startswith(".github/workflows/") or any(token in path for token in ("conformance", "gos3", "internal-governance", "patch-arena")):
+        elif (
+            path.startswith(".github/workflows/")
+            or any(token in path for token in (
+                "conformance", "gos3", "internal-governance", "patch-arena",
+                "governance-instruction", "agents.md",
+            ))
+        ):
             categories.add("governance")
         elif path.startswith(("src/", "tests/", "bin/")):
             categories.add("correctness")
@@ -100,6 +106,11 @@ def classify_intent(files: list[str]) -> str:
             categories.add("documentation")
     if not categories:
         return "mixed"
+    # A governance-only change may also update package metadata/docs. Treat
+    # that as governance, but never absorb correctness, security, or performance
+    # changes into this category: those combinations remain mixed/fail-closed.
+    if "governance" in categories and categories <= {"governance", "documentation"}:
+        return "governance"
     if categories == {"documentation"}:
         return "governance"
     if categories == {"security"}:

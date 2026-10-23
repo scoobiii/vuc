@@ -6,68 +6,55 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+# PR code is untrusted. This workflow must never receive write-capable tokens.
+permissions:
+  contents: read
+
 jobs:
   agent-tournament:
-    name: Trusted benchmark comparison
+    name: Read-only measured benchmark comparison
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout candidate without persisted credentials
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js 22 LTS
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: npm
 
-      - name: Install Dependencies
-        run: npm ci || npm install
+      - name: Install locked dependencies
+        run: npm ci --no-fund
 
-      - name: Verify Universal CI Subjection Invariant
+      - name: Verify universal CI subjection invariant
         run: |
-          echo "🛡️ Enforcing VUA-SPEC-v2 Universal CI Subjection Clause..."
-          echo "All proposers (autonomous agents, human developers, bot integrations) are strictly subject to CI gates."
+          echo "All proposers are subject to the same CI gates."
 
-      - name: Derive Changed Files from Base
-        id: diff_files
-        run: |
-          BASE_REF="origin/${{ github.base_ref || 'main' }}"
-          git fetch origin "${{ github.base_ref || 'main' }}" --depth=50 || true
-          CHANGED=$(git diff --name-only "$BASE_REF" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
-          echo "CHANGED_FILES<<EOF" >> "$GITHUB_ENV"
-          echo "$CHANGED" >> "$GITHUB_ENV"
-          echo "EOF" >> "$GITHUB_ENV"
-          echo "Detected changed files for intent classification:"
-          echo "$CHANGED"
-
-      - name: Static Protocol Linting
+      - name: Static protocol linting
         run: npm run lint
 
-      - name: Execute Canary Side-Effect & Security Invariants
-        if: ${{ always() }}
-        run: |
-          echo "🐤 Running Canary Invariants Gate..."
-          npx tsx scripts/test-canary.ts
+      - name: Execute canary security invariants
+        run: npx tsx scripts/test-canary.ts
 
-      - name: Execute Patch Arena Intent & Policy Tests
-        if: ${{ always() }}
-        run: |
-          echo "🧪 Running Patch Arena Intent Classification & Policy Tests..."
-          npx tsx tests/patch-arena-policy.test.ts
+      - name: Execute Patch Arena policy tests
+        run: npx tsx tests/patch-arena-policy.test.ts
 
-      - name: Run Patch Tournament Benchmark & Gain Comparator
-        if: ${{ always() }}
+      - name: Run measured base-vs-head evaluator
         id: arena_eval
+        env:
+          BASE_BRANCH: ${{ github.base_ref || 'main' }}
         run: |
           set -euo pipefail
-          echo "🏆 Running measured base-vs-head benchmark (no simulated metrics)..."
-          git fetch origin "${{ github.base_ref || 'main' }}" --depth=100
+          git fetch --no-tags origin "$BASE_BRANCH" --depth=100
           python3 scripts/agent-patch-arena.py \
-            --base "origin/${{ github.base_ref || 'main' }}" \
+            --base "origin/$BASE_BRANCH" \
             --head HEAD \
             --output arena_output.json
           cat arena_output.json
@@ -76,59 +63,35 @@ jobs:
             PASS_SUPERIOR|PASS_SECURITY|PASS_GOVERNANCE|PASS_CORRECTNESS|NEEDS_MANUAL_REVIEW) ;;
             *) echo "Arena rejected candidate: $verdict"; exit 1 ;;
           esac
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
 
-      - name: Evaluate Intent-Aware Decision Gate for Auto-Merge
+      - name: Enforce fail-closed decision gate
         if: ${{ always() }}
-        id: merge_gate
         run: |
           set -euo pipefail
+          if [ ! -s arena_output.json ]; then
+            echo "FAIL_CLOSED: evaluator produced no evidence."
+            exit 1
+          fi
           verdict="$(node -p "require('./arena_output.json').verdict")"
           case "$verdict" in
             PASS_SUPERIOR|PASS_SECURITY|PASS_GOVERNANCE|PASS_CORRECTNESS)
-              echo "superior_found=$([ "$verdict" = "PASS_SUPERIOR" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-              echo "approved=true" >> "$GITHUB_OUTPUT"
-              echo "PASS: intent-specific quality and regression policy satisfied; repository branch protection still applies."
+              echo "Quality verdict accepted; GitHub branch protection and review still apply."
               ;;
             NEEDS_MANUAL_REVIEW)
-              echo "superior_found=false" >> "$GITHUB_OUTPUT"
-              echo "approved=false" >> "$GITHUB_OUTPUT"
-              echo "PASS WITH MANUAL REVIEW: absolute gates passed; no auto-merge approval is granted."
+              echo "Manual review required; this result does not authorize merge."
+              exit 1
               ;;
             *)
-              echo "superior_found=false" >> "$GITHUB_OUTPUT"
-              echo "approved=false" >> "$GITHUB_OUTPUT"
-              echo "REJECT: benchmark or quality policy failed."
+              echo "FAIL_CLOSED: rejected or unknown verdict."
               exit 1
               ;;
           esac
 
-      - name: Comment Arena Leaderboard & Decision on Pull Request
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let output = 'No arena output captured';
-            if (fs.existsSync('arena_output.json')) {
-              output = fs.readFileSync('arena_output.json', 'utf8');
-            }
-            const body = `### 🏆 Vortex Patch Arena — Measured Base vs Head
-
-```text
-${output}
-```
-
-*Evaluated by deterministic cryptographic CI gates with Intent-Aware Baseline Gain Comparator.*`;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body
-            });
-
-      - name: Archive Arena Cryptographic Evidence
+      - name: Archive Arena evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: agent-arena-evidence
           path: arena_output.json
+          if-no-files-found: warn
