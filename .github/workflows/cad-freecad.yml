@@ -1,0 +1,75 @@
+name: VUC FreeCAD CAD smoke
+
+on:
+  pull_request:
+    paths:
+      - "cad/**"
+      - "docs/CAD-MCP.md"
+      - ".github/workflows/cad-freecad.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "cad/**"
+      - "docs/CAD-MCP.md"
+      - ".github/workflows/cad-freecad.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vuc-freecad-cad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  freecad-smoke:
+    name: FreeCAD STEP + TechDraw PDF
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Audit runner and install FreeCAD
+        run: |
+          set -euo pipefail
+          echo "timestamp_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "arch=$(uname -m)"
+          echo "os=$(cat /etc/os-release | grep '^PRETTY_NAME=' | cut -d= -f2-)"
+          df -h /
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends freecad xvfb poppler-utils python3
+          command -v freecad
+          freecad --version 2>&1 || true
+          dpkg-query -W -f='${Package}=${Version}\n' freecad xvfb poppler-utils
+
+      - name: Generate deterministic CAD artifacts
+        env:
+          VUC_CAD_OUT: ${{ github.workspace }}/artifacts/cad
+        run: |
+          set -euo pipefail
+          mkdir -p "$VUC_CAD_OUT"
+          xvfb-run -a -s "-screen 0 1280x1024x24" freecad cad/scripts/freecad_smoke.FCMacro 2>&1 | tee artifacts/cad/freecad.log
+          test -s "$VUC_CAD_OUT/unit-box.FCStd"
+          test -s "$VUC_CAD_OUT/unit-box.step"
+          test -s "$VUC_CAD_OUT/unit-box.pdf"
+          test -s "$VUC_CAD_OUT/cad-manifest.json"
+
+      - name: Independently verify STEP, PDF, geometry manifest and hashes
+        env:
+          VUC_CAD_OUT: ${{ github.workspace }}/artifacts/cad
+        run: |
+          set -euo pipefail
+          python3 cad/scripts/verify_artifacts.py | tee artifacts/cad/verification.json
+          pdfinfo artifacts/cad/unit-box.pdf | tee artifacts/cad/pdfinfo.txt
+          grep -Eq '^Pages:[[:space:]]+[1-9][0-9]*$' artifacts/cad/pdfinfo.txt
+          grep -q 'ISO-10303-21' artifacts/cad/unit-box.step
+
+      - name: Upload CAD evidence (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuc-freecad-cad-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/cad/
+          if-no-files-found: warn
+          retention-days: 14
