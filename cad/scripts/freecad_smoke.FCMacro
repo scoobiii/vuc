@@ -75,7 +75,7 @@ try:
     }
     with open(os.path.join(OUT, "cad-manifest.json"), "w") as f:
         json.dump(manifest, f, indent=2, sort_keys=True)
-        f.write("\\n")
+        f.write("\n")
     print("VUC_CAD_SMOKE_PASS " + json.dumps(manifest, sort_keys=True))
 except Exception as exc:
     print("VUC_CAD_SMOKE_FAIL: " + str(exc))
