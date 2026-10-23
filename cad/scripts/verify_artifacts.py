@@ -16,7 +16,7 @@ for name in required:
         errors.append(f"missing/empty artifact: {path}")
 
 if errors:
-    print("\\n".join(errors), file=sys.stderr)
+    print("\n".join(errors), file=sys.stderr)
     sys.exit(1)
 
 manifest = json.loads((root / "cad-manifest.json").read_text())
@@ -49,7 +49,7 @@ for name in required[:3]:
 (root / "artifact-sha256.json").write_text(json.dumps({
     "schema": "vuc.cad.artifact-hashes.v1",
     "artifacts": hashes
-}, indent=2, sort_keys=True) + "\\n")
+}, indent=2, sort_keys=True) + "\n")
 
 if errors:
     print("\\n".join(errors), file=sys.stderr)
