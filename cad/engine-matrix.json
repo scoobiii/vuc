@@ -1,6 +1,6 @@
 {
   "schema": "vuc.engine-matrix.v1",
-  "status": "proposal",
+  "status": "backlog",
   "engines": [
     {
       "id": "freecad",
@@ -8,7 +8,7 @@
       "phase": 1,
       "ci_target": "github-hosted-linux",
       "capabilities": ["parametric-brep", "fcstd", "step-export", "techdraw-pdf"],
-      "status": "smoke-test-pending"
+      "status": "pending-ci-evidence"
     },
     {
       "id": "rhino",
