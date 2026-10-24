@@ -38,6 +38,12 @@ jobs:
           grep '^PRETTY_NAME=' /etc/os-release
           df -h /
 
+      - name: Install system X virtual framebuffer
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y xvfb
+
       - name: Install pinned FreeCAD environment from conda-forge
         uses: mamba-org/setup-micromamba@v2
         with:
