@@ -22,6 +22,7 @@ import {
   HardDrive,
   GitPullRequest,
   Castle,
+  Box,
 } from 'lucide-react';
 import { auth, logoutUser, type User } from '../firebase/config.js';
 
@@ -113,6 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const navItems = [
+    { id: 'freecad-smoke-logs', label: 'FreeCAD CAD Smoke CI', icon: Box },
     { id: 'universal-arena', label: 'Universal Arena', icon: Castle },
     { id: 'vuc-gitpage', label: '⚡ VUC GitPage Dinâmica (Realtime)', icon: Globe },
     { id: 'vuc-cli-protocol', label: 'CLI Verification Protocol', icon: Terminal },

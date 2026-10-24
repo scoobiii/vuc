@@ -20,10 +20,11 @@ import { K6IndustryView } from './components/K6IndustryView.js';
 import { VUCGitPageLiveView } from './components/VUCGitPageLiveView.js';
 import { VUCCLIProtocolView } from './components/VUCCLIProtocolView.js';
 import { UniversalArena } from './components/UniversalArena.js';
+import { FreeCADSmokeLogViewer } from './components/FreeCADSmokeLogViewer.js';
 import type { ExecutionProof } from './vortex/types.js';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('universal-arena');
+  const [activeTab, setActiveTab] = useState<string>('freecad-smoke-logs');
   const [status, setStatus] = useState<any>(null);
   const [selectedProofForVerification, setSelectedProofForVerification] = useState<ExecutionProof | null>(null);
   const [activeSessions, setActiveSessions] = useState<Array<{ session_id: string; resource: string }>>([]);
@@ -81,6 +82,8 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+        {activeTab === 'freecad-smoke-logs' && <FreeCADSmokeLogViewer />}
+
         {activeTab === 'universal-arena' && <UniversalArena />}
 
         {activeTab === 'vuc-gitpage' && (

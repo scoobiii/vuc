@@ -497,6 +497,136 @@ export class VUAGitHubAdapter implements IVUAAdapter {
           }
         }
 
+        let arenaTelemetry: Record<string, unknown> | undefined;
+        if (payload.include_arena_telemetry === true) {
+          const effectiveHeaders: Record<string, string> = {
+            Accept: 'application/vnd.github+json',
+            'User-Agent': 'VUA-Connector-Governance/3.0',
+          };
+          if (effectiveToken) {
+            effectiveHeaders['Authorization'] = `Bearer ${effectiveToken.trim()}`;
+          }
+
+          const fetchSubResource = async (subPath: string) => {
+            try {
+              const r = await fetch(
+                `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${subPath}`,
+                {
+                  headers: effectiveHeaders,
+                  signal: AbortSignal.timeout(8_000),
+                }
+              );
+              if (!r.ok) return null;
+              return await r.json();
+            } catch {
+              return null;
+            }
+          };
+
+          const defaultBranch = repoData.default_branch || branch || 'main';
+          const [languagesRaw, prsRaw, runsRaw, commitsRaw] = await Promise.all([
+            fetchSubResource('/languages'),
+            fetchSubResource('/pulls?state=open&per_page=4&sort=updated&direction=desc'),
+            fetchSubResource('/actions/runs?per_page=6'),
+            fetchSubResource(`/commits?sha=${encodeURIComponent(defaultBranch)}&per_page=1`),
+          ]);
+
+          const openPrs = Array.isArray(prsRaw) ? prsRaw.slice(0, 4) : [];
+          const enrichedPrs = await Promise.all(
+            openPrs.map(async (pr: any) => {
+              const headSha = pr?.head?.sha;
+              let checksSummary = { total: 0, passed: 0, failed: 0, pending: 0 };
+              if (headSha) {
+                const checksData = await fetchSubResource(`/commits/${encodeURIComponent(headSha)}/check-runs?per_page=50`);
+                const runs = Array.isArray(checksData?.check_runs) ? checksData.check_runs : [];
+                checksSummary = {
+                  total: runs.length,
+                  passed: runs.filter((c: any) => c.conclusion === 'success').length,
+                  failed: runs.filter((c: any) => c.conclusion === 'failure' || c.conclusion === 'timed_out' || c.conclusion === 'cancelled').length,
+                  pending: runs.filter((c: any) => c.status !== 'completed').length,
+                };
+              }
+              return {
+                number: pr.number,
+                title: pr.title,
+                state: pr.state,
+                draft: Boolean(pr.draft),
+                html_url: pr.html_url,
+                created_at: pr.created_at,
+                updated_at: pr.updated_at,
+                user: {
+                  login: pr.user?.login || 'contributor',
+                  avatar_url: pr.user?.avatar_url || '',
+                },
+                head: {
+                  ref: pr.head?.ref || 'feature',
+                  sha: pr.head?.sha || '',
+                },
+                base: {
+                  ref: pr.base?.ref || defaultBranch,
+                  sha: pr.base?.sha || '',
+                },
+                checks_summary: checksSummary,
+              };
+            })
+          );
+
+          const latestCommitRaw = Array.isArray(commitsRaw) && commitsRaw.length > 0 ? commitsRaw[0] : null;
+          const workflowRuns = Array.isArray(runsRaw?.workflow_runs)
+            ? runsRaw.workflow_runs.slice(0, 6).map((r: any) => ({
+                id: r.id,
+                name: r.name,
+                status: r.status,
+                conclusion: r.conclusion,
+                head_branch: r.head_branch,
+                head_sha: r.head_sha,
+                html_url: r.html_url,
+                created_at: r.created_at,
+              }))
+            : [];
+
+          arenaTelemetry = {
+            repo_metadata: {
+              full_name: repoData.full_name,
+              name: repoData.name,
+              description: repoData.description || '',
+              html_url: repoData.html_url,
+              stargazers_count: repoData.stargazers_count ?? 0,
+              forks_count: repoData.forks_count ?? 0,
+              open_issues_count: repoData.open_issues_count ?? 0,
+              watchers_count: repoData.watchers_count ?? repoData.subscribers_count ?? 0,
+              default_branch: defaultBranch,
+              language: repoData.language || 'TypeScript',
+              updated_at: repoData.updated_at || new Date().toISOString(),
+              license: repoData.license ? { spdx_id: repoData.license.spdx_id || repoData.license.name } : null,
+              owner: {
+                login: repoData.owner?.login || owner,
+                avatar_url: repoData.owner?.avatar_url || `https://github.com/${owner}.png`,
+                type: repoData.owner?.type || 'User',
+              },
+            },
+            languages: languagesRaw && typeof languagesRaw === 'object' ? languagesRaw : {},
+            commit: latestCommitRaw
+              ? {
+                  sha: latestCommitRaw.sha,
+                  html_url: latestCommitRaw.html_url,
+                  commit: {
+                    message: latestCommitRaw.commit?.message || '',
+                    author: {
+                      name: latestCommitRaw.commit?.author?.name || owner,
+                      date: latestCommitRaw.commit?.author?.date || new Date().toISOString(),
+                    },
+                  },
+                }
+              : null,
+            prs: enrichedPrs,
+            runs: workflowRuns,
+          };
+          auditLog.push(
+            `[GITHUB-VUA] ✅ Universal Arena telemetry collected via VUC Connector (${enrichedPrs.length} open PRs, ${workflowRuns.length} workflow runs)`
+          );
+        }
+
         return {
           data: {
             success: true,
@@ -513,6 +643,7 @@ export class VUAGitHubAdapter implements IVUAAdapter {
               repoData.description?.toLowerCase().includes('vortex') ||
               repoData.description?.toLowerCase().includes('vua')
             ),
+            ...(arenaTelemetry ? { arena_telemetry: arenaTelemetry } : {}),
           },
           auditLog,
         };
