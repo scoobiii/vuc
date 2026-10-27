@@ -224,7 +224,7 @@ def main() -> None:
     parser.add_argument("--exposure-csv", type=Path, default=Path("audits/onibus-eleicoes-sp-2026/exposicao_locais.csv"))
     args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
-    zip_path = args.zip or OUT / "detalhe_votacao_secao_2026.zip"
+    zip_path = args.zip or Path("/tmp/detalhe_votacao_secao_2026.zip")
     if not args.zip:
         download(TSE_URL.format(year=2026), zip_path)
     summary = analyze(read_sections(zip_path), args.exposure_csv)
