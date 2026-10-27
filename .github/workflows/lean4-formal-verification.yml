@@ -1,0 +1,68 @@
+name: VUC Lean 4 Formal Verification
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'VUCFormal/**'
+      - 'lean-toolchain'
+      - '.github/workflows/lean4-formal-verification.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'VUCFormal/**'
+      - 'lean-toolchain'
+      - '.github/workflows/lean4-formal-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean4-proofs:
+    name: Lean 4 theorem compilation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned Lean toolchain (without Lake project setup)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o /tmp/elan-init.sh
+          sh /tmp/elan-init.sh -y --default-toolchain leanprover/lean4:v4.19.0
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/lean" --version
+
+      - name: Compile formal invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/lean4
+          {
+            lean --version
+            lean VUCFormal/FrotaAudit.lean
+            echo "LEAN4_PROOFS=PASS"
+          } 2>&1 | tee artifacts/lean4/lean4-verification.log
+
+      - name: Hash verification evidence
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/lean4
+          if [ -f VUCFormal/FrotaAudit.lean ]; then
+            sha256sum VUCFormal/FrotaAudit.lean | tee artifacts/lean4/source.sha256
+          fi
+          if [ -f artifacts/lean4/lean4-verification.log ]; then
+            sha256sum artifacts/lean4/lean4-verification.log | tee artifacts/lean4/log.sha256
+          fi
+
+      - name: Upload Lean verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuc-lean4-verification
+          path: artifacts/lean4/
+          if-no-files-found: warn
