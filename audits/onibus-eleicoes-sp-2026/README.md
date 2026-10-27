@@ -14,6 +14,7 @@
 - Horários, denominadores e métodos podem diferir entre medições.
 - Eleitores aptos em locais potencialmente expostos não equivalem a pessoas prejudicadas, abstenções causadas ou votos transferidos.
 - O CI valida a consistência aritmética dos indicadores e a presença das ressalvas; não valida as fontes externas nem prova causalidade.
+- Este relatório não prova causalidade eleitoral; a análise de comparecimento por seção ainda não foi executada.
 
 ## Próxima fase para inferência
 Obter os dados oficiais por seção eleitoral e a série horária da SPTrans, harmonizar horários e geografia, então comparar mudanças no comparecimento entre áreas de exposição alta e baixa com controles e intervalos de incerteza.
