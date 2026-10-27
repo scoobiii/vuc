@@ -6,12 +6,16 @@ on:
     paths:
       - 'audits/onibus-eleicoes-sp-2026/**'
       - 'scripts/audit_onibus_eleicoes.py'
+      - 'scripts/analyze_tse_turnout.py'
+      - 'tests/test_audit_tse_turnout.py'
       - '.github/workflows/auditoria-onibus-eleicoes.yml'
   push:
     branches: [main]
     paths:
       - 'audits/onibus-eleicoes-sp-2026/**'
       - 'scripts/audit_onibus_eleicoes.py'
+      - 'scripts/analyze_tse_turnout.py'
+      - 'tests/test_audit_tse_turnout.py'
       - '.github/workflows/auditoria-onibus-eleicoes.yml'
   workflow_dispatch:
 
@@ -20,14 +24,18 @@ permissions:
 
 jobs:
   validate-preliminary-audit:
-    name: Validate arithmetic, caveats, and evidence hashes
+    name: Validate indicators and official TSE turnout data
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Validate committed indicators
         run: python3 scripts/audit_onibus_eleicoes.py
+      - name: Test TSE parsing and exposure join
+        run: python3 tests/test_audit_tse_turnout.py
+      - name: Fetch official TSE 2026 section turnout and compare rounds
+        run: python3 scripts/analyze_tse_turnout.py
       - name: Hash source evidence
         if: always()
         shell: bash
@@ -36,12 +44,20 @@ jobs:
           mkdir -p artifacts/onibus-eleicoes-sp-2026
           sha256sum audits/onibus-eleicoes-sp-2026/indicadores.csv \
             audits/onibus-eleicoes-sp-2026/README.md \
+            audits/onibus-eleicoes-sp-2026/exposicao_locais.csv \
             scripts/audit_onibus_eleicoes.py \
+            scripts/analyze_tse_turnout.py \
+            tests/test_audit_tse_turnout.py \
             .github/workflows/auditoria-onibus-eleicoes.yml \
             > artifacts/onibus-eleicoes-sp-2026/source.sha256
           if [ -f artifacts/onibus-eleicoes-sp-2026/validation-summary.json ]; then
             sha256sum artifacts/onibus-eleicoes-sp-2026/validation-summary.json \
               > artifacts/onibus-eleicoes-sp-2026/summary.sha256
+          fi
+          if [ -f artifacts/onibus-eleicoes-sp-2026/tse-turnout-summary.json ]; then
+            sha256sum artifacts/onibus-eleicoes-sp-2026/tse-turnout-summary.json \
+              artifacts/onibus-eleicoes-sp-2026/tse_section_turnout.csv \
+              > artifacts/onibus-eleicoes-sp-2026/tse-analysis.sha256
           fi
       - name: Upload audit evidence
         if: always()
