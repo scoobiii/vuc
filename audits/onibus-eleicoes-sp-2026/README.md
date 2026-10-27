@@ -1,7 +1,10 @@
 # Auditoria preliminar — ônibus e eleição em São Paulo
 
 **Data do evento:** 25/10/2026  
-**Status:** ingestão oficial do TSE adicionada ao CI; este conjunto ainda não contém uma estimativa causal do efeito dos ônibus.
+**Status:** validação descritiva automatizada; ingestão do arquivo oficial do TSE habilitada no CI; efeito causal eleitoral NÃO estimado.
+
+## Limite explícito
+O workflow valida os indicadores descritivos versionados e consulta automaticamente o arquivo oficial de resultados por seção do TSE para comparar o comparecimento entre os turnos. Ele **não consulta automaticamente dados históricos brutos da SPTrans** para 25/10/2026 e **não estima causalidade eleitoral**. Os dados históricos de operação dos ônibus e o modelo estatístico causal permanecem como etapas futuras. Não se deve anunciar impacto em votos como comprovado.
 
 ## O que o CI agora executa
 1. Valida os oito indicadores descritivos previamente transcritos de reportagens.
