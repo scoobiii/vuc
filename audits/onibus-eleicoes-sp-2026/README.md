@@ -1,7 +1,7 @@
 # Auditoria preliminar — ônibus e eleição em São Paulo
 
 **Data do evento:** 25/10/2026  
-**Status:** ingestão oficial do TSE adicionada ao CI; estimativa causal do efeito dos ônibus ainda NÃO estimada.
+**Status:** ingestão oficial do TSE adicionada ao CI; este conjunto ainda não contém uma estimativa causal do efeito dos ônibus.
 
 ## O que o CI agora executa
 1. Valida os oito indicadores descritivos previamente transcritos de reportagens.
@@ -30,7 +30,7 @@ A API Olho Vivo da SPTrans documenta posições de veículos em tempo real; ela 
 - Mudança de comparecimento entre 1º e 2º turnos não identifica, isoladamente, efeito causal da oferta de ônibus.
 - O segundo turno tem dinâmica eleitoral própria; comparações simples podem refletir mobilização, candidatos, campanha, clima, características demográficas e outros fatores.
 - A diferença entre grupos de exposição, se o mapeamento for fornecido, será descritiva e não ajustada por confundidores. Não é prova de causalidade.
-- Eleitores aptos em locais expostos não equivalem a pessoas prejudicadas, abstenções causadas ou votos transferidos.
+- Eleitores aptos em locais expostos não equivalem a pessoas prejudicadas, abstenções causadas ou votos transferidos. O cruzamento descritivo não prova causalidade eleitoral.
 - Valores de frota transcritos de reportagens não foram recalculados a partir dos dados brutos da SPTrans.
 
 ## Critério para uma estimativa causal
