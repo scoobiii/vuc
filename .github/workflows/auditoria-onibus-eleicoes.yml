@@ -1,0 +1,53 @@
+name: Auditoria — ônibus e eleição SP
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'audits/onibus-eleicoes-sp-2026/**'
+      - 'scripts/audit_onibus_eleicoes.py'
+      - '.github/workflows/auditoria-onibus-eleicoes.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'audits/onibus-eleicoes-sp-2026/**'
+      - 'scripts/audit_onibus_eleicoes.py'
+      - '.github/workflows/auditoria-onibus-eleicoes.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-preliminary-audit:
+    name: Validate arithmetic, caveats, and evidence hashes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate committed indicators
+        run: python3 scripts/audit_onibus_eleicoes.py
+      - name: Hash source evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/onibus-eleicoes-sp-2026
+          sha256sum audits/onibus-eleicoes-sp-2026/indicadores.csv \
+            audits/onibus-eleicoes-sp-2026/README.md \
+            scripts/audit_onibus_eleicoes.py \
+            .github/workflows/auditoria-onibus-eleicoes.yml \
+            > artifacts/onibus-eleicoes-sp-2026/source.sha256
+          if [ -f artifacts/onibus-eleicoes-sp-2026/validation-summary.json ]; then
+            sha256sum artifacts/onibus-eleicoes-sp-2026/validation-summary.json \
+              > artifacts/onibus-eleicoes-sp-2026/summary.sha256
+          fi
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditoria-onibus-eleicoes-sp-2026
+          path: artifacts/onibus-eleicoes-sp-2026/
+          if-no-files-found: warn
+          retention-days: 90
