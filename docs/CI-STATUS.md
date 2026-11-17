@@ -76,3 +76,12 @@ O agente deve descobrir a capability, executar dentro da política e continuar s
 README e documentação devem consumir o estado produzido pelo CI. Atualizações manuais de números, percentuais ou resultados de testes são proibidas quando o valor puder ser obtido da evidência.
 
 Para um dashboard AJAX completo, o CI deve publicar uma fonte JSON versionada/imutável por execução; a interface pode então fazer `fetch()` desse JSON sem duplicar a verdade no HTML/Markdown.
+
+
+## Preparação da release 1.0.3 e base multimodal
+
+A auditoria de 1.0.3 deve ser tratada como gate de release, não como declaração antecipada de aprovação. O pacote 1.0.2 é a baseline documental consultada; versão publicada, tarball e checks devem ser verificados separadamente.
+
+A arquitetura multimodal está documentada em [MULTIMODAL-ARCHITECTURE.md](./MULTIMODAL-ARCHITECTURE.md), em estado de proposta. Esta atualização documental não adiciona runtime, dependências, APIs públicas nem altera o comportamento do pacote. A implementação multimodal fica condicionada à aprovação da auditoria 1.0.3 e a uma release posterior.
+
+Não declare release 1.0.3 pronta até comprovar: suíte de testes, typecheck/build, segurança, compatibilidade, cobertura medida, instalação limpa do tarball, contrato CLI/MCP, evidências e estado dos workflows obrigatórios.
