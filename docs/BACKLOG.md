@@ -69,3 +69,22 @@ O status de cada item do backlog é vinculado ao pipeline de integração contí
 * **2026-09-23**: Adição e conclusão do épico **SPR2-06 (Tri-Sync)**, **SPR2-07 (Resiliência SQLite Sempre no Ar)** e **SPR2-08 (Downloads Sincronizados)**.
 * **2026-09-23**: Validação de 100% de aprovação nos 16 Quality Gates do CI pós-merge.
 * **2026-09-23**: Sincronização do schema DDL Cloud SQL e banco SQLite local `data/vua_local.sqlite`.
+
+
+---
+
+## Próxima linha — base multimodal (documentação / planejado)
+
+**Estado:** arquitetura documentada; implementação não iniciada/não comprovada nesta linha de trabalho. Não contabilizar como capacidade ativa nem como entrega do pacote 1.0.3.
+
+| Épico | Escopo planejado | Gate de promoção |
+|---|---|---|
+| MM-01 — Generation Contract | Contrato versionado para modalidade, modelo/runtime, parâmetros, limites e critérios de aceite | Schema validado e testes de contrato |
+| MM-02 — Runtime Adapters | Adaptadores desacoplados para LLM e geração/edição de imagem | Testes por adaptador, indisponibilidade e falhas de provedor |
+| MM-03 — Artifact Registry | Preservação de bytes, MIME, dimensões, hashes e vínculo à execução | Validação de arquivo e integridade |
+| MM-04 — Verification Pipeline | Verificadores de schema, visão, contagem, geometria, topologia e revisão humana | Métricas, falsos positivos/negativos e estados inconclusivos |
+| MM-05 — Multimodal Evidence | Vínculo entre request, runtime, artefatos, verificadores e evidências | Contrato compatível e claims limitados |
+| MM-06 — CAD Bridge | Intercâmbio com FreeCAD/STEP/TechDraw sobre geometria estruturada | Validação geométrica independente e CI reproduzível |
+| MM-07 — VGCB | Benchmark de conformidade generativa | Dataset versionado, baseline e resultados reproduzíveis |
+
+**Dependência:** conclusão da auditoria completa e dos gates de release do VUC 1.0.3. A especificação detalhada está em [MULTIMODAL-ARCHITECTURE.md](./MULTIMODAL-ARCHITECTURE.md).
