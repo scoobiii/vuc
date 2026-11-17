@@ -85,3 +85,5 @@ A auditoria de 1.0.3 deve ser tratada como gate de release, não como declaraç�
 A arquitetura multimodal está documentada em [MULTIMODAL-ARCHITECTURE.md](./MULTIMODAL-ARCHITECTURE.md), em estado de proposta. Esta atualização documental não adiciona runtime, dependências, APIs públicas nem altera o comportamento do pacote. A implementação multimodal fica condicionada à aprovação da auditoria 1.0.3 e a uma release posterior.
 
 Não declare release 1.0.3 pronta até comprovar: suíte de testes, typecheck/build, segurança, compatibilidade, cobertura medida, instalação limpa do tarball, contrato CLI/MCP, evidências e estado dos workflows obrigatórios.
+
+Consulte também o [plano de auditoria VUC 1.0.3](./RELEASE-1.0.3-AUDIT.md), que mantém o estado inicial como `AUDIT IN PROGRESS / NO-GO` até que cada gate possua evidência verificável.
