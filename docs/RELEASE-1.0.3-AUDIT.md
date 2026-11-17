@@ -124,3 +124,30 @@ O relatório de fechamento deverá registrar:
 - decisão final: `GO`, `NO-GO` ou `CONDITIONAL-GO`.
 
 Até esse relatório existir e os gates bloqueadores passarem, o estado da release é **AUDIT IN PROGRESS / NO-GO**.
+
+
+## 3.2 Achados confirmados por inspeção estática do código
+
+A inspeção do snapshot `main@d29fad3` confirmou os seguintes comportamentos nos caminhos consultados. Eles ainda exigem reprodução por testes e validação no pacote distribuído para fechamento formal.
+
+| Tema | Evidência no código | Conclusão estática | Situação |
+|---|---|---|---|
+| MCP initialize (#85) | `src/vortex/mcp-server.ts`, ramo `method === 'initialize'` | Resposta inclui `protocolVersion`, `capabilities` e `serverInfo`, mas não inclui `instructions` | Defeito confirmado no handler consultado |
+| LLM MCP auth (#84) | `src/vortex/mcp-server.ts`, mapeamento `tools/list` | `vortex.llm.invoke` cai no ramo `noauth`; apenas `vua.adapter.invoke`, `vortex.execute` e `vortex.branch.write` recebem OAuth2 | Falha de classificação/autorização no contrato MCP |
+| LLM custom endpoint (#84) | `src/vortex/llm.ts`, `callOllama` e `callOpenAICompatible` | `baseUrl` é usado para construir URL de `fetch` sem allowlist de host/rede ou validação explícita de redirecionamento no trecho inspecionado | Risco de SSRF/uso indevido de endpoint; exposição HTTP depende do transporte/host |
+| GitHub file read (#83) | `src/vortex/adapters/github.ts`, ação `get_file_content` | Retorna `sampleContent` hardcoded e digest SHA-256 constante; não faz leitura remota nesta ação | Falso resultado de leitura real confirmado no código |
+| Adapter contract (#81) | `src/vortex/adapters/types.ts`, `registry.ts`, `src/vortex/mcp-server.ts` | Tipo/registry incluem 10 IDs (`github, git, linux, android, windows, bluesky, canary, gcloud, bend, colab`); enum MCP de `vua.adapter.invoke` lista somente 6 | Divergência de contrato confirmada |
+| Governance package (#78/#79) | `package.json`, `src/vortex/governance-instruction.ts`, `tests/governance-instruction.test.ts` | Manifesto inclui `AGENTS.md`; loader tenta derivar raiz do pacote pelo entrypoint e há teste de dry-run do pack. Ainda falta provar o tarball instalado fora do checkout e o comportamento do binário publicado | Correção parcial no source; distribuição real ainda não comprovada |
+
+### 3.3 Fronteira de transporte MCP
+
+O entrypoint `bin/mcp-server.js` consultado declara JSON-RPC via stdio e usa `readline`; não foi encontrado nesse entrypoint um listener HTTP. Portanto, o risco remoto de #84 é **condicional** a outro wrapper/servidor que exponha o handler por HTTP. Isso não elimina o risco local: um cliente MCP que possa invocar a ferramenta pode fornecer `baseUrl`, e o runtime executa chamadas de rede com esse valor.
+
+### 3.4 Testes e cobertura
+
+- `package.json` usa scripts de teste baseados em `tsx`; as dependências consultadas não declaram `c8`, `nyc`, `jest` ou `vitest`.
+- Não foi identificado no `package.json` um script de cobertura nem thresholds de linhas/branches/functions.
+- `tests/governance-instruction.test.ts` verifica o manifesto de `npm pack --dry-run --json`, mas o gate de release consultado extrai o tarball e verifica `package.json` e `dist/vua.cjs`; não executa o CLI instalado de um diretório externo ao checkout.
+- O gate de release faz `npm pack` e valida metadados; a validação completa de `AGENTS.md` dentro do tarball e a invocação do CLI instalado precisam ser adicionadas como prova específica.
+
+**Consequência:** a auditoria permanece **NO-GO** até que os achados de segurança/contrato sejam corrigidos ou formalmente tratados, e até que a cobertura e o pacote distribuído sejam comprovados por artefatos.
