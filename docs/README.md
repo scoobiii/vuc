@@ -6,6 +6,7 @@ Esta página organiza a documentação por assunto. Os guias canônicos descreve
 
 - [Onboarding](./ONBOARDING.md) — checkout, primeiros comandos e limites operacionais.
 - [Arquitetura](./ARCHITECTURE.md) — camadas, conceitos e fluxo de execução governada.
+- [Arquitetura multimodal](./MULTIMODAL-ARCHITECTURE.md) — proposta para geração de texto/código/imagem, verificação, CAD, evidências e roadmap pós-1.0.3.
 - [CLI](./CLI.md) — comandos, instalação e automação.
 - [MCP](./MCP.md) — servidor local, ferramentas e fronteiras de transporte.
 - [Connectors e adapters](./CONNECTORS.md) — conceitos, inventário e evidência esperada.
