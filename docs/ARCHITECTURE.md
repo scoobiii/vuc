@@ -75,3 +75,7 @@ A capability may be documented or implemented without having been executed in a 
 - Execution gateway and proof verification: inspect the corresponding modules under `src/vortex/`.
 
 See [CLI](./CLI.md), [MCP](./MCP.md), [Connectors](./CONNECTORS.md), [Security](./SECURITY.md), and [Evidence](./EVIDENCE.md).
+
+## Multimodal roadmap (proposta)
+
+A evolução para modelos generativos de texto, código e imagem está especificada em [Multimodal Architecture](./MULTIMODAL-ARCHITECTURE.md). Esse documento é uma proposta arquitetural, não evidência de runtime ou capacidade disponível no pacote atual. A linha 1.0.3 permanece dedicada à auditoria e estabilização; adaptadores multimodais e novos contratos públicos ficam para uma release posterior, com gates próprios de compatibilidade, segurança, execução e evidência.
