@@ -350,6 +350,8 @@ Execução GPU deve possuir evidência correspondente ao workload, ambiente e ru
 
 ## Documentação
 
+- **Arquitetura multimodal (proposta):** [docs/MULTIMODAL-ARCHITECTURE.md](./docs/MULTIMODAL-ARCHITECTURE.md) — texto, código, imagem, verificação, CAD, evidências e limites de release. A documentação não implica capacidade implementada no pacote 1.0.3.
+
 A documentação deve manter a mesma verdade do CI.
 
 Arquitetura:
