@@ -34,6 +34,8 @@ export interface LLMConfig {
   maxTokens?: number;
   systemInstruction?: string;
   timeoutMs?: number;
+  /** Ollama structured output: JSON mode or JSON Schema. */
+  responseFormat?: 'json' | Record<string, unknown>;
 }
 
 export type LLMClaimVerificationStatus = 'UNVERIFIED' | 'VERIFIED_VALID';
@@ -181,6 +183,7 @@ async function callOllama(
         prompt,
         system: config.systemInstruction,
         stream: false,
+        ...(config.responseFormat ? { format: config.responseFormat } : {}),
         options: {
           temperature: config.temperature ?? 0.7,
           seed: config.seed,
@@ -403,6 +406,7 @@ export async function executeGovernedLLM(
       temperature: config.temperature,
       seed: config.seed,
       maxTokens: config.maxTokens,
+      ...(config.responseFormat ? { responseFormat: config.responseFormat } : {}),
     },
   };
 
