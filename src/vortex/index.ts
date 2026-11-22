@@ -19,6 +19,7 @@ export * from './evidence.js';
 export * from './verifier.js';
 export * from './gateway.js';
 export * from './llm.js';
+export * from './qwen-auditor.js';
 export * from './conformance.js';
 export * from './adapters/index.js';
 export * from './semantic-oracle.js';
