@@ -57,7 +57,7 @@ export function classifyLLMClaimVerification(verification?: Pick<VerificationRes
     cryptographic_proof_valid: cryptographicProofValid,
     factual_correctness_verified: false,
     reason: cryptographicProofValid
-      ? 'ExecutionProof válido prova integridade/autenticidade da geração, não a veracidade factual da claim; correctness gate independente e evidence binding são obrigatórios.'
+      ? 'ExecutionProof válido prova integridade/autenticidade da geração, não constitui prova factual da claim; correctness gate independente e evidence binding são obrigatórios.'
       : 'Sem ExecutionProof criptograficamente válido, a claim não pode ser tratada como verificada.',
   };
 }
