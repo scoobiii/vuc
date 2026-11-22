@@ -34,6 +34,8 @@ export interface LLMConfig {
   maxTokens?: number;
   systemInstruction?: string;
   timeoutMs?: number;
+  /** Ollama structured output: JSON mode or JSON Schema. */
+  responseFormat?: 'json' | Record<string, unknown>;
 }
 
 export type LLMClaimVerificationStatus = 'UNVERIFIED' | 'VERIFIED_VALID';
@@ -57,7 +59,7 @@ export function classifyLLMClaimVerification(verification?: Pick<VerificationRes
     cryptographic_proof_valid: cryptographicProofValid,
     factual_correctness_verified: false,
     reason: cryptographicProofValid
-      ? 'ExecutionProof válido prova integridade/autenticidade da geração, não a veracidade factual da claim; correctness gate independente e evidence binding são obrigatórios.'
+      ? 'ExecutionProof válido prova integridade/autenticidade da geração, não constitui prova factual da claim; correctness gate independente e evidence binding são obrigatórios.'
       : 'Sem ExecutionProof criptograficamente válido, a claim não pode ser tratada como verificada.',
   };
 }
@@ -181,6 +183,7 @@ async function callOllama(
         prompt,
         system: config.systemInstruction,
         stream: false,
+        ...(config.responseFormat ? { format: config.responseFormat } : {}),
         options: {
           temperature: config.temperature ?? 0.7,
           seed: config.seed,
@@ -403,6 +406,7 @@ export async function executeGovernedLLM(
       temperature: config.temperature,
       seed: config.seed,
       maxTokens: config.maxTokens,
+      ...(config.responseFormat ? { responseFormat: config.responseFormat } : {}),
     },
   };
 
