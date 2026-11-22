@@ -3,3 +3,7 @@
 /.github/CODEOWNERS @scoobiii
 /scripts/agent-patch-arena.py @scoobiii
 /docs/06-agent-patch-arena-ci.md @scoobiii
+/tests/s0-* @scoobiii
+/tests/.s0.sha256 @scoobiii
+/scripts/guard-s0.sh @scoobiii
+/src/vortex/llm.ts @scoobiii

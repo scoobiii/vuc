@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+ch=$(git diff --cached --name-only -- 'tests/s0-*' tests/.s0.sha256 scripts/guard-s0.sh .github/workflows/s0-gate.yml .github/CODEOWNERS)
+if [ -n "$ch" ] && [ "${S0_ALLOW:-0}" != 1 ]; then
+  echo "BLOQUEADO: arquivos S0 protegidos no commit:"; echo "$ch"
+  echo "Só humano: S0_ALLOW=1 git commit ..."; exit 1
+fi
+exec bash scripts/guard-s0.sh verify
