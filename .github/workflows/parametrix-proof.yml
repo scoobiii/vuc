@@ -1,0 +1,28 @@
+name: ParametrIX VUC Proof Verification
+on:
+  workflow_dispatch:
+    inputs:
+      proof_path:
+        description: 'Caminho para proof/vuc-latest.json ou artefato equivalente'
+        required: true
+        default: proof/vuc-latest.json
+        type: string
+permissions:
+  contents: read
+jobs:
+  verify-parametrix-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: scoobiii/parametrIX
+          path: parametrix
+          ref: main
+      - name: Verify independent Ed25519 VUC certificate
+        run: node integrations/parametrix/verify-vuc-proof.mjs "parametrix/${{ inputs.proof_path }}"
+      - name: Upload verified proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: parametrix-vuc-proof
+          path: parametrix/${{ inputs.proof_path }}
