@@ -1,0 +1,19 @@
+{
+  "schema": "vuc.cad.fixture.v1",
+  "name": "unit-box",
+  "units": "mm",
+  "dimensions": {
+    "x": 100,
+    "y": 80,
+    "z": 40
+  },
+  "expected": {
+    "solid_count": 1,
+    "volume_mm3": 320000,
+    "bounding_box_mm": {
+      "x": 100,
+      "y": 80,
+      "z": 40
+    }
+  }
+}

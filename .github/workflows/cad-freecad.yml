@@ -1,0 +1,96 @@
+name: VUC FreeCAD CAD smoke
+
+on:
+  pull_request:
+    paths:
+      - "cad/**"
+      - "docs/CAD-MCP.md"
+      - ".github/workflows/cad-freecad.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "cad/**"
+      - "docs/CAD-MCP.md"
+      - ".github/workflows/cad-freecad.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vuc-freecad-cad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  freecad-smoke:
+    name: FreeCAD STEP + TechDraw PDF
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Audit runner
+        run: |
+          set -euo pipefail
+          echo "timestamp_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "arch=$(uname -m)"
+          grep '^PRETTY_NAME=' /etc/os-release
+          df -h /
+
+      - name: Install system X virtual framebuffer
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y xvfb
+
+      - name: Install pinned FreeCAD environment from conda-forge
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: cad/environment.yml
+          environment-name: freecad-ci
+          init-shell: bash
+          cache-environment: true
+          post-cleanup: all
+
+      - name: Record CAD toolchain
+        shell: bash -el {0}
+        run: |
+          set -euo pipefail
+          micromamba list -n freecad-ci
+          micromamba run -n freecad-ci freecad --version 2>&1 || true
+          micromamba run -n freecad-ci python -c 'import FreeCAD as App; print("FreeCADVersion=" + ".".join(App.Version()[:3]))'
+
+      - name: Generate deterministic CAD artifacts
+        shell: bash -el {0}
+        env:
+          VUC_CAD_OUT: ${{ github.workspace }}/artifacts/cad
+        run: |
+          set -euo pipefail
+          mkdir -p "$VUC_CAD_OUT"
+          set -o pipefail
+          xvfb-run -a -s "-screen 0 1280x1024x24" micromamba run -n freecad-ci freecad cad/scripts/freecad_smoke.FCMacro 2>&1 | tee "$VUC_CAD_OUT/freecad.log"
+          test -s "$VUC_CAD_OUT/unit-box.FCStd"
+          test -s "$VUC_CAD_OUT/unit-box.step"
+          test -s "$VUC_CAD_OUT/unit-box.pdf"
+          test -s "$VUC_CAD_OUT/cad-manifest.json"
+
+      - name: Independently verify STEP, PDF, geometry manifest and hashes
+        shell: bash -el {0}
+        env:
+          VUC_CAD_OUT: ${{ github.workspace }}/artifacts/cad
+        run: |
+          set -euo pipefail
+          micromamba run -n freecad-ci python cad/scripts/verify_artifacts.py | tee "$VUC_CAD_OUT/verification.json"
+          micromamba run -n freecad-ci pdfinfo "$VUC_CAD_OUT/unit-box.pdf" | tee "$VUC_CAD_OUT/pdfinfo.txt"
+          grep -Eq '^Pages:[[:space:]]+[1-9][0-9]*$' "$VUC_CAD_OUT/pdfinfo.txt"
+          grep -q 'ISO-10303-21' "$VUC_CAD_OUT/unit-box.step"
+
+      - name: Upload CAD evidence (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuc-freecad-cad-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/cad/
+          if-no-files-found: warn
+          retention-days: 14
