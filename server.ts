@@ -60,6 +60,7 @@ import { mountOAuth, requireBearer } from './src/vortex/oauth.js';
 import { bootstrapHardwareBaseline, detectHardwareFingerprint, computeDynamicBaseline } from './src/vortex/hardware-profiler.js';
 import { vucArbiter } from './src/vortex/vuc-runtime-arbiter.js';
 import { inspectArenaTarget } from './src/vortex/arena-github.js';
+import { freecadSmokeService } from './src/vortex/freecad-cad-smoke.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const configuredPublicBase = (process.env.PUBLIC_BASE_URL || process.env.APP_URL || '').replace(/\/$/, '');
@@ -2693,6 +2694,40 @@ async function startServer() {
         error: err?.message || String(err),
         provenance: { placeholder_state: false, unavailable: true },
       });
+    }
+  });
+
+  // ============================================================================
+  // VUC FreeCAD CAD Smoke — Diagnostic & Log Telemetry Endpoints
+  // ============================================================================
+  app.get('/api/ci/freecad-cad-smoke/overview', (req, res) => {
+    try {
+      const overview = freecadSmokeService.getOverview();
+      res.json(overview);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.get('/api/ci/freecad-cad-smoke/logs', (req, res) => {
+    try {
+      const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+      const level = typeof req.query.level === 'string' ? req.query.level : undefined;
+      const stepNumber = req.query.step ? Number(req.query.step) : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const logs = freecadSmokeService.getLogs({ search, level, stepNumber, limit });
+      res.json(logs);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
+  app.post('/api/ci/freecad-cad-smoke/simulate', (req, res) => {
+    try {
+      const result = freecadSmokeService.simulateExecution();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || String(err) });
     }
   });
 
